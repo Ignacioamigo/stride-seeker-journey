@@ -20,12 +20,24 @@ export interface FormQuestion {
   initialValue: any;
 }
 
+export interface Workout {
+  id: string;
+  day: string;
+  title: string;
+  description: string;
+  distance: number | null;
+  duration: string | null;
+  type: 'carrera' | 'descanso' | 'fuerza' | 'flexibilidad' | 'otro';
+}
+
 export interface WorkoutPlan {
   id: string;
   name: string;
   description: string;
   duration: string;
   intensity: string;
+  workouts: Workout[];
+  createdAt?: Date;
 }
 
 export interface RunStats {
@@ -41,4 +53,9 @@ export interface Achievement {
   name: string;
   description: string;
   completed: boolean;
+}
+
+export interface TrainingPlanRequest {
+  userProfile: UserProfile;
+  customPrompt?: string;
 }

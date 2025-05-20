@@ -110,7 +110,7 @@ export const generateTrainingPlan = async ({ userProfile }: TrainingPlanRequest)
       description: planData.description || `Plan generado para ${userProfile.name}`,
       duration: planData.duration || "7 días",
       intensity: planData.intensity || "Adaptado a tu nivel",
-      workouts,
+      workouts: workouts,
       createdAt: new Date()
     };
     
