@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { loadLatestPlan } from "@/services/planService";
 import { WorkoutPlan } from "@/types";
 import { Loader2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 const WeeklyPlan: React.FC = () => {
   const navigate = useNavigate();
@@ -21,6 +22,13 @@ const WeeklyPlan: React.FC = () => {
       } catch (error) {
         console.error("Error loading plan:", error);
         setError("No se pudo cargar tu plan. Verifica la conexión con Supabase.");
+        
+        // Show toast with error information
+        toast({
+          title: "Error de conexión",
+          description: "No se pudo conectar con Supabase. Por favor, inténtalo de nuevo.",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
