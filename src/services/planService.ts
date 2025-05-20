@@ -3,10 +3,27 @@ import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
-// Initialize Supabase client
+// Initialize Supabase client with error checking
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Check if environment variables are available
+let supabase;
+try {
+  if (!supabaseUrl) {
+    console.error("Supabase URL is not defined in environment variables");
+  }
+  if (!supabaseAnonKey) {
+    console.error("Supabase Anon Key is not defined in environment variables");
+  }
+  
+  // Only create client if both variables are available
+  if (supabaseUrl && supabaseAnonKey) {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+  }
+} catch (error) {
+  console.error("Failed to initialize Supabase client:", error);
+}
 
 /**
  * Creates a profile summary for the LLM
@@ -33,6 +50,10 @@ const createUserProfileSummary = (profile: UserProfile): string => {
  */
 const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
+    if (!supabase) {
+      throw new Error("Supabase client is not initialized. Check your environment variables.");
+    }
+    
     const { data, error } = await supabase.functions.invoke('generate-embedding', {
       body: { text }
     });
@@ -50,6 +71,10 @@ const generateEmbedding = async (text: string): Promise<number[]> => {
  */
 const retrieveRelevantDocuments = async (embedding: number[], limit = 5): Promise<string[]> => {
   try {
+    if (!supabase) {
+      throw new Error("Supabase client is not initialized. Check your environment variables.");
+    }
+    
     const { data, error } = await supabase.rpc('match_documents', {
       query_embedding: embedding,
       match_count: limit,
@@ -70,6 +95,10 @@ const retrieveRelevantDocuments = async (embedding: number[], limit = 5): Promis
  */
 export const generateTrainingPlan = async ({ userProfile }: TrainingPlanRequest): Promise<WorkoutPlan> => {
   try {
+    if (!supabase) {
+      throw new Error("Supabase client is not initialized. Please check your environment variables.");
+    }
+    
     // 1. Create a query from the user profile
     const query = createUserProfileSummary(userProfile);
     
@@ -133,6 +162,11 @@ export const generateTrainingPlan = async ({ userProfile }: TrainingPlanRequest)
  */
 export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
   try {
+    if (!supabase) {
+      console.error("Supabase client is not initialized. Check your environment variables.");
+      return null;
+    }
+    
     const { data: user } = await supabase.auth.getUser();
     
     if (!user.user) return null;
