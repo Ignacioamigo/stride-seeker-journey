@@ -37,7 +37,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'API key not configured',
-          message: 'La variable de entorno GEMINI_API_KEY no está configurada en los secrets de Supabase'
+          message: 'La variable de entorno GEMINI_API_KEY no está configurada en los secrets de Supabase',
+          details: 'Es necesario configurar esta variable en la sección de Secrets en el panel de administración de Supabase Edge Functions'
         }),
         { 
           status: 500, 
@@ -45,7 +46,7 @@ serve(async (req) => {
         }
       );
     } else {
-      console.log("Clave de API encontrada, primeros caracteres: " + apiKey.substring(0, 5) + "...");
+      console.log("Clave de API encontrada, longitud:", apiKey.length);
     }
     
     // Create system prompt with running expertise and RAG context
@@ -123,7 +124,7 @@ serve(async (req) => {
     }
 
     console.log("Llamando a la API de Gemini para generar el plan");
-    console.log("URL de la API:", `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${apiKey.substring(0, 5)}...`);
+    console.log("URL de la API:", `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=[REDACTED]`);
     
     try {
       // Call the Gemini API
@@ -174,7 +175,7 @@ serve(async (req) => {
       const generatedText = data.candidates[0].content.parts[0].text;
       
       console.log("Texto generado por Gemini, procesando para extraer el plan...");
-      console.log("Primeros 100 caracteres:", generatedText.substring(0, 100));
+      console.log("Longitud del texto generado:", generatedText.length);
       
       // Extract JSON from the response 
       // (sometimes Gemini includes markdown code blocks or additional text)
@@ -197,7 +198,7 @@ serve(async (req) => {
         // If JSON parsing fails, use a regex approach to extract the plan
         console.error("Error al analizar JSON:", e);
         console.log("Intentando extraer plan manualmente...");
-        console.log("Contenido recibido:", generatedText.substring(0, 200) + "...");
+        console.log("Contenido recibido (primeras 200 caracteres):", generatedText.substring(0, 200) + "...");
         
         plan = {
           name: previousWeekResults 

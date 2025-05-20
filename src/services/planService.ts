@@ -1,4 +1,3 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -41,6 +40,161 @@ const createUserProfileSummary = (profile: UserProfile): string => {
   - Entrenamientos semanales: ${profile.weeklyWorkouts || 'No especificado'}
   - Lesiones o limitaciones: ${profile.injuries || 'Ninguna'}
   `;
+};
+
+/**
+ * Generates a training plan without Supabase (offline mode)
+ */
+export const generateOfflinePlan = async ({ userProfile, previousWeekResults }: TrainingPlanRequest): Promise<WorkoutPlan> => {
+  console.log("Generando plan offline para:", userProfile.name);
+  
+  // Create default workouts based on experience level
+  const generateDefaultWorkouts = (): Workout[] => {
+    const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const workouts: Workout[] = [];
+    
+    // Determine experience level for plan generation
+    const level = userProfile.experienceLevel || 'principiante';
+    let runDays = 3; // Default for beginners
+    
+    if (level === 'intermedio') runDays = 4;
+    else if (level === 'avanzado') runDays = 5;
+    
+    // Target distances based on experience and max distance
+    const maxDistance = userProfile.maxDistance || 5;
+    let longRunDistance = Math.min(maxDistance * 1.1, maxDistance + 2);
+    let shortRunDistance = Math.max(maxDistance * 0.6, 2);
+    
+    // Create workout schedule
+    days.forEach((day, index) => {
+      if (index < runDays) {
+        // Running days
+        if (index === runDays - 1) {
+          // Long run day (usually weekend)
+          workouts.push({
+            id: uuidv4(),
+            day,
+            title: "Carrera larga",
+            description: `Carrera a ritmo cómodo para construir resistencia. Este es tu entrenamiento más importante de la semana.`,
+            distance: Math.round(longRunDistance * 10) / 10,
+            duration: `${Math.round(longRunDistance * 10)} minutos`,
+            type: 'carrera',
+            completed: false,
+            actualDistance: null,
+            actualDuration: null
+          });
+        } else if (index === 1 || index === 3) {
+          // Interval or tempo day
+          workouts.push({
+            id: uuidv4(),
+            day,
+            title: index === 1 ? "Intervalos de velocidad" : "Entrenamiento de tempo",
+            description: index === 1 
+              ? `8-10 repeticiones de 400m a ritmo rápido con 200m de recuperación` 
+              : `20 minutos de carrera a ritmo constante ligeramente más rápido que tu ritmo cómodo`,
+            distance: Math.round(shortRunDistance * 10) / 10,
+            duration: `${Math.round(shortRunDistance * 9)} minutos`,
+            type: 'carrera',
+            completed: false,
+            actualDistance: null,
+            actualDuration: null
+          });
+        } else {
+          // Regular easy day
+          workouts.push({
+            id: uuidv4(),
+            day,
+            title: "Carrera suave",
+            description: "Carrera a ritmo conversacional para acumular kilómetros y recuperar.",
+            distance: Math.round(shortRunDistance * 10) / 10,
+            duration: `${Math.round(shortRunDistance * 10)} minutos`,
+            type: 'carrera',
+            completed: false,
+            actualDistance: null,
+            actualDuration: null
+          });
+        }
+      } else if (index === runDays) {
+        // Strength day
+        workouts.push({
+          id: uuidv4(),
+          day,
+          title: "Entrenamiento de fuerza",
+          description: "Ejercicios para fortalecer las piernas, core y parte superior del cuerpo. Incluye sentadillas, planks y push-ups.",
+          distance: null,
+          duration: "30 minutos",
+          type: 'fuerza',
+          completed: false,
+          actualDistance: null,
+          actualDuration: null
+        });
+      } else {
+        // Rest days
+        workouts.push({
+          id: uuidv4(),
+          day,
+          title: "Descanso activo",
+          description: "Recuperación con estiramientos ligeros o caminata. Prioriza el descanso y recuperación.",
+          distance: null,
+          duration: null,
+          type: 'descanso',
+          completed: false,
+          actualDistance: null,
+          actualDuration: null
+        });
+      }
+    });
+    
+    return workouts;
+  };
+
+  // Create plan name and description based on user profile
+  let planName = "Plan de entrenamiento personalizado";
+  let planDescription = "Plan adaptado a tu nivel y objetivos";
+  let weekNumber = previousWeekResults ? previousWeekResults.weekNumber + 1 : 1;
+  
+  if (userProfile.goal) {
+    if (userProfile.goal.includes("maratón")) {
+      planName = "Plan de entrenamiento para maratón";
+      planDescription = "Plan enfocado en construir resistencia para completar un maratón.";
+    } else if (userProfile.goal.includes("10K") || userProfile.goal.includes("10k")) {
+      planName = "Plan de entrenamiento para 10K";
+      planDescription = "Plan diseñado para mejorar tu rendimiento en 10K.";
+    } else if (userProfile.goal.includes("5K") || userProfile.goal.includes("5k")) {
+      planName = "Plan de entrenamiento para 5K";
+      planDescription = "Plan progresivo para mejorar tu tiempo en 5K.";
+    }
+  }
+  
+  if (weekNumber > 1) {
+    planName += `: Semana ${weekNumber}`;
+  }
+  
+  // Create the plan object
+  const plan: WorkoutPlan = {
+    id: uuidv4(),
+    name: planName,
+    description: planDescription,
+    duration: "7 días",
+    intensity: userProfile.experienceLevel === 'principiante' 
+      ? "Baja-Moderada" 
+      : userProfile.experienceLevel === 'intermedio' 
+        ? "Moderada" 
+        : "Moderada-Alta",
+    workouts: generateDefaultWorkouts(),
+    createdAt: new Date(),
+    weekNumber
+  };
+  
+  // Save to localStorage
+  try {
+    localStorage.setItem('last-training-plan', JSON.stringify(plan));
+    console.log("Plan guardado en localStorage");
+  } catch (e) {
+    console.warn("No se pudo guardar el plan en localStorage:", e);
+  }
+  
+  return plan;
 };
 
 /**
@@ -217,14 +371,16 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     
     if (error) {
       console.error("Error al llamar a edge function generate-training-plan:", error);
-      throw new Error(`Error en edge function: ${error.message || JSON.stringify(error)}`);
+      console.log("Intentando generar plan en modo offline como fallback...");
+      return await generateOfflinePlan({ userProfile, previousWeekResults });
     }
     
     console.log("Respuesta de edge function recibida:", data);
     
     if (!data || !data.plan) {
       console.error("La edge function devolvió una respuesta sin plan:", data);
-      throw new Error("La respuesta del servidor no contiene un plan");
+      console.log("Intentando generar plan en modo offline como fallback...");
+      return await generateOfflinePlan({ userProfile, previousWeekResults });
     }
     
     // 5. Process and return the plan
@@ -233,7 +389,8 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     
     if (!planData.workouts || !Array.isArray(planData.workouts)) {
       console.error("El plan recibido no contiene workouts válidos:", planData);
-      throw new Error("El plan recibido tiene un formato inválido");
+      console.log("Intentando generar plan en modo offline como fallback...");
+      return await generateOfflinePlan({ userProfile, previousWeekResults });
     }
     
     // Create workouts based on the plan
@@ -299,7 +456,8 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     return plan;
   } catch (error) {
     console.error('Error al generar el plan de entrenamiento:', error);
-    throw error;
+    console.log('Intentando generar plan en modo offline como última opción...');
+    return await generateOfflinePlan({ userProfile, previousWeekResults });
   }
 };
 
