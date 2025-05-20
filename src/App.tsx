@@ -14,6 +14,7 @@ import Train from "@/pages/Train";
 import Stats from "@/pages/Stats";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
+import Admin from "@/pages/Admin";
 
 // Onboarding Components
 import NameQuestion from "@/components/onboarding/NameQuestion";
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/train" element={<Train />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/admin" element={<Admin />} />
             
             {/* Onboarding Routes */}
             <Route path="/onboarding/name" element={<NameQuestion />} />

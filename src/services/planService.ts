@@ -1,4 +1,3 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -87,6 +86,38 @@ const retrieveRelevantDocuments = async (embedding: number[], limit = 5): Promis
     console.error('Error retrieving documents:', error);
     // Return empty array if no matches (this can happen during initial setup)
     return [];
+  }
+};
+
+/**
+ * Uploads a training document and creates an embedding
+ */
+export const uploadTrainingDocument = async (title: string, content: string): Promise<void> => {
+  try {
+    if (!supabase) {
+      throw new Error("Supabase client is not initialized. Please check your environment variables.");
+    }
+    
+    // First, generate an embedding for the document
+    const embedding = await generateEmbedding(content);
+    
+    // Create a unique ID for the document
+    const id = uuidv4();
+    
+    // Insert the document into the training_documents table
+    const { error } = await supabase.from('training_documents').insert([{
+      id,
+      title,
+      content,
+      embedding
+    }]);
+    
+    if (error) throw new Error(`Error saving document: ${error.message}`);
+    
+    console.log(`Document "${title}" uploaded successfully with ID: ${id}`);
+  } catch (error) {
+    console.error('Error uploading training document:', error);
+    throw error;
   }
 };
 
