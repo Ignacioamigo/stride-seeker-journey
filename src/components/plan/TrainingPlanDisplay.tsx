@@ -2,15 +2,17 @@
 import { useState } from 'react';
 import { WorkoutPlan, Workout } from "@/types";
 import RunButton from "@/components/ui/RunButton";
-import { Calendar, Loader2 } from "lucide-react";
+import { Calendar, Loader2, WifiOff, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import WorkoutCompletionForm from './WorkoutCompletionForm';
 import { updateWorkoutResults, generateNextWeekPlan } from '@/services/planService';
 import { toast } from '@/components/ui/use-toast';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface TrainingPlanDisplayProps {
   plan: WorkoutPlan;
   onPlanUpdate: (newPlan: WorkoutPlan) => void;
+  isOffline?: boolean;
 }
 
 const WorkoutCard: React.FC<{ 
@@ -19,7 +21,8 @@ const WorkoutCard: React.FC<{
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
   expanded: boolean;
   onToggleExpand: () => void;
-}> = ({ workout, planId, onComplete, expanded, onToggleExpand }) => {
+  isOffline?: boolean;
+}> = ({ workout, planId, onComplete, expanded, onToggleExpand, isOffline }) => {
   return (
     <div className="bg-white rounded-lg p-4 shadow-sm mb-3">
       <div className="flex justify-between items-start mb-2">
@@ -75,13 +78,14 @@ const WorkoutCard: React.FC<{
           workout={workout} 
           planId={planId}
           onComplete={onComplete}
+          isOffline={isOffline}
         />
       )}
     </div>
   );
 };
 
-const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanUpdate }) => {
+const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanUpdate, isOffline }) => {
   const navigate = useNavigate();
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [isGeneratingNextWeek, setIsGeneratingNextWeek] = useState(false);
@@ -93,15 +97,55 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
     actualDistance: number | null, 
     actualDuration: string | null
   ) => {
-    const updatedPlan = await updateWorkoutResults(
-      plan.id,
-      workoutId,
-      actualDistance,
-      actualDuration
-    );
-    
-    if (updatedPlan) {
-      onPlanUpdate(updatedPlan);
+    try {
+      if (isOffline) {
+        // En modo offline, actualizamos el plan localmente
+        const updatedPlan = {
+          ...plan,
+          workouts: plan.workouts.map(w => {
+            if (w.id === workoutId) {
+              return {
+                ...w,
+                completed: true,
+                actualDistance,
+                actualDuration
+              };
+            }
+            return w;
+          })
+        };
+        
+        onPlanUpdate(updatedPlan);
+        
+        toast({
+          title: "Entrenamiento completado",
+          description: "Los datos se han guardado localmente en modo offline.",
+        });
+        
+        return;
+      }
+      
+      // En modo online, usamos el servicio
+      const updatedPlan = await updateWorkoutResults(
+        plan.id,
+        workoutId,
+        actualDistance,
+        actualDuration
+      );
+      
+      if (updatedPlan) {
+        onPlanUpdate(updatedPlan);
+      }
+    } catch (error) {
+      console.error("Error al completar entrenamiento:", error);
+      
+      toast({
+        title: "Error al guardar datos",
+        description: isOffline 
+          ? "No se pudieron guardar los datos en modo offline." 
+          : "No se pudo actualizar el entrenamiento. Intenta de nuevo.",
+        variant: "destructive",
+      });
     }
   };
   
@@ -113,7 +157,9 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
       if (nextWeekPlan) {
         toast({
           title: `¡Plan de Semana ${nextWeekPlan.weekNumber} generado!`,
-          description: "Se ha creado el plan de entrenamiento para la siguiente semana basado en tus resultados.",
+          description: isOffline
+            ? "Se ha creado un plan básico para la siguiente semana en modo offline."
+            : "Se ha creado el plan de entrenamiento para la siguiente semana basado en tus resultados.",
         });
         onPlanUpdate(nextWeekPlan);
       }
@@ -137,6 +183,9 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
             <h2 className="text-xl font-bold text-runapp-navy">{plan.name}</h2>
             <p className="text-sm text-runapp-gray">
               {plan.duration} • {plan.intensity} {plan.weekNumber ? `• Semana ${plan.weekNumber}` : ''}
+              {isOffline && <span className="ml-2 inline-flex items-center text-xs bg-yellow-400/20 px-1.5 py-0.5 rounded-full">
+                <WifiOff size={10} className="mr-1" /> Offline
+              </span>}
             </p>
           </div>
           <div className="p-2 bg-runapp-light-purple rounded-full">
@@ -144,6 +193,17 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
           </div>
         </div>
         <p className="text-runapp-gray mb-4 text-sm">{plan.description}</p>
+        
+        {isOffline && (
+          <Alert variant="default" className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800">Modo offline activo</AlertTitle>
+            <AlertDescription className="text-amber-700 text-xs">
+              Algunas funcionalidades podrían estar limitadas hasta que se restablezca la conexión a Supabase.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <RunButton 
           onClick={() => navigate('/train')}
           className="w-full"
@@ -185,6 +245,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
             onToggleExpand={() => setExpandedWorkoutId(
               expandedWorkoutId === workout.id ? null : workout.id
             )}
+            isOffline={isOffline}
           />
         ))}
       </div>
