@@ -152,13 +152,14 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
     console.log("Buscando fragmentos relevantes con el embedding...");
     
     try {
-      // Direct vector similarity search using correct syntax for Supabase vector operations
+      // Using proper type-safe vector search syntax with stringified embedding
       const { data, error } = await supabase
         .from('fragments')
         .select('content')
         .order('embedding <-> $1', { 
           ascending: true,
-          foreignTable: embedding  // Changed from referencedTable to foreignTable
+          // Convert the embedding array to a string for the query parameter
+          foreignTable: JSON.stringify(embedding)
         })
         .limit(limit);
       
