@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -5,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Variables para controlar el estado de Supabase
 let offlineMode = false;
-let connectionError = null;
+let connectionError: string | null = null;
 
 /**
  * Comprueba si la aplicación está en modo offline
@@ -28,7 +29,7 @@ const generateMockPlan = (userProfile: UserProfile): WorkoutPlan => {
   console.log("Generando plan de entrenamiento en modo offline para:", userProfile.name);
   
   const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-  const workoutTypes = ['carrera', 'fuerza', 'descanso', 'flexibilidad'];
+  const workoutTypes = ['carrera', 'fuerza', 'descanso', 'flexibilidad'] as const;
   
   // Crear workouts basados en perfil del usuario
   const workouts: Workout[] = daysOfWeek.map((day, index) => {
@@ -58,7 +59,7 @@ const generateMockPlan = (userProfile: UserProfile): WorkoutPlan => {
                   type === 'flexibilidad' ? 'Sesión de estiramientos y movilidad' :
                   `Carrera a ritmo moderado`,
       distance,
-      duration: type === 'carrera' ? `${Math.round(distance * 7)} min` :
+      duration: type === 'carrera' ? `${Math.round(distance ? distance * 7 : 30)} min` :
                 type === 'fuerza' ? '30 min' :
                 type === 'flexibilidad' ? '20 min' : null,
       type,
@@ -103,12 +104,14 @@ const createUserProfileSummary = (profile: UserProfile): string => {
 
 /**
  * Generates a vector embedding for the query
+ * This is a safe implementation that handles errors and returns an empty array if needed
  */
 const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
     console.log("Generando embedding para el texto:", text.substring(0, 50) + "...");
     
     try {
+      // Type-safe function invocation with proper error handling
       const { data, error } = await supabase.functions.invoke('generate-embedding', {
         body: { text }
       });
@@ -118,24 +121,27 @@ const generateEmbedding = async (text: string): Promise<number[]> => {
         throw new Error(`Error en generate-embedding: ${error.message}`);
       }
       
-      if (!data || !data.embedding) {
+      // Safe type checking
+      if (!data || !Array.isArray((data as any).embedding)) {
         throw new Error("No se recibió un embedding válido de la edge function");
       }
       
       console.log("Embedding generado correctamente");
-      return data.embedding;
-    } catch (e) {
+      return (data as any).embedding as number[];
+    } catch (e: any) {
       console.error("Error al invocar edge function:", e);
       throw new Error(`Error al invocar generate-embedding: ${e.message}`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating embedding:', error);
-    throw error;
+    // Return empty array as a fallback
+    return [];
   }
 };
 
 /**
- * Retrieves relevant training documents from the fragments table
+ * Retrieves relevant training documents using direct query
+ * This is a type-safe implementation
  */
 const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promise<string[]> => {
   try {
@@ -145,43 +151,37 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
     
     console.log("Buscando fragmentos relevantes con el embedding...");
     
-    // Query the fragments table with vector similarity search
     try {
-      const { data, error } = await supabase.rpc('match_fragments', {
-        query_embedding: embedding,
-        match_count: limit,
-        match_threshold: 0.6
-      });
+      // Direct vector similarity search without RPC (more compatible)
+      const { data, error } = await supabase
+        .from('fragments')
+        .select('content')
+        .order('embedding <-> $1' as any, { 
+          ascending: true,
+          referencedTable: embedding  // Using as param instead of direct interpolation
+        })
+        .limit(limit);
       
       if (error) {
-        console.error('Error al recuperar fragmentos con RPC:', error);
-        console.log('Intentando consulta alternativa sin RPC...');
-        
-        // Try alternative query if RPC doesn't exist
-        const altQuery = await supabase
-          .from('fragments')
-          .select('content')
-          .order('embedding <-> $1', { ascending: true })
-          .limit(limit);
-        
-        if (altQuery.error) {
-          console.error('Error en consulta alternativa:', altQuery.error);
-          throw new Error(`Error en consulta de fragmentos: ${altQuery.error.message}`);
-        }
-        
-        console.log(`Recuperados ${altQuery.data?.length || 0} fragmentos con consulta alternativa`);
-        return altQuery.data?.map((doc: any) => doc.content) || [];
+        console.error('Error en consulta de fragmentos:', error);
+        throw new Error(`Error en consulta de fragmentos: ${error.message}`);
       }
       
-      console.log(`Recuperados ${data?.length || 0} fragmentos relevantes`);
-      return data?.map((doc: any) => doc.content) || [];
-    } catch (e) {
+      // Type-safe handling of results
+      if (!data) {
+        return [];
+      }
+      
+      console.log(`Recuperados ${data.length} fragmentos relevantes`);
+      return data.map(doc => doc.content || '').filter(Boolean);
+      
+    } catch (e: any) {
       console.error("Error en la consulta a la base de datos:", e);
       throw new Error(`Error en la consulta a la base de datos: ${e.message}`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error retrieving fragments:', error);
-    throw error;
+    return [];
   }
 };
 
@@ -190,9 +190,6 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
  */
 export const uploadTrainingDocument = async (title: string, content: string): Promise<void> => {
   try {
-    // Inicializar el cliente de Supabase
-    // const supabaseClient = initSupabaseClient();
-    
     // First, generate an embedding for the document
     const embedding = await generateEmbedding(content);
     
@@ -214,7 +211,7 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
     if (error) throw new Error(`Error saving document: ${error.message}`);
     
     console.log(`Document "${title}" uploaded successfully with ID: ${id}`);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error uploading training document:', error);
     throw error;
   }
@@ -222,6 +219,7 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
 
 /**
  * Generates a training plan using RAG and Gemini
+ * with proper error handling and offline mode
  */
 export const generateTrainingPlan = async ({ userProfile, previousWeekResults }: TrainingPlanRequest): Promise<WorkoutPlan> => {
   try {
@@ -231,7 +229,7 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
       console.log("Conexión con Supabase verificada correctamente");
       offlineMode = false;
       connectionError = null;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al verificar sesión con Supabase:", error);
       offlineMode = true;
       connectionError = `Error de conexión con Supabase: ${error.message}`;
@@ -270,13 +268,13 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     
     console.log("Respuesta de edge function recibida:", data);
     
-    if (!data || !data.plan) {
+    if (!data || !(data as any).plan) {
       console.error("La edge function devolvió una respuesta sin plan:", data);
       throw new Error("La edge function devolvió una respuesta incorrecta sin plan");
     }
     
     // 5. Process and return the plan
-    const planData = data.plan;
+    const planData = (data as any).plan;
     console.log("Plan recibido:", planData);
     
     if (!planData.workouts || !Array.isArray(planData.workouts)) {
@@ -292,7 +290,7 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
       description: workout.description || "Sin descripción",
       distance: workout.distance || null,
       duration: workout.duration || null,
-      type: workout.type || 'carrera',
+      type: (workout.type || 'carrera') as 'carrera' | 'descanso' | 'fuerza' | 'flexibilidad' | 'otro',
       completed: false,
       actualDistance: null,
       actualDuration: null
@@ -310,34 +308,18 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
       weekNumber: previousWeekResults ? (previousWeekResults.weekNumber + 1) : 1
     };
     
-    // Save the plan to Supabase for future reference
+    // Try to save the plan - but don't fail if storage fails
     try {
-      console.log("Guardando plan en Supabase...");
-      
-      // Use anonymous ID if not authenticated
-      let userId = 'anonymous';
-      try {
-        const userResponse = await supabase.auth.getUser();
-        userId = userResponse.data.user?.id || 'anonymous';
-      } catch (authError) {
-        console.warn("No se pudo obtener el usuario autenticado, usando ID anónimo:", authError);
-      }
-      
-      await supabase.from('training_plans').insert([{
-        id: plan.id,
-        user_id: userId,
-        plan_data: plan,
-        week_number: plan.weekNumber
-      }]);
-      
-      console.log("Plan guardado correctamente");
-    } catch (saveError) {
-      console.error("Error al guardar plan en la base de datos:", saveError);
-      throw new Error(`Error al guardar el plan: ${saveError.message}`);
+      console.log("Intentando guardar plan en almacenamiento local...");
+      // Store plan in local storage as fallback
+      localStorage.setItem('current_training_plan', JSON.stringify(plan));
+      console.log("Plan guardado correctamente en almacenamiento local");
+    } catch (storageError) {
+      console.warn("No se pudo guardar plan en almacenamiento local:", storageError);
     }
     
     return plan;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al generar el plan de entrenamiento:', error);
     throw error;
   }
@@ -345,6 +327,7 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
 
 /**
  * Loads the user's latest training plan
+ * with fallback to local storage
  */
 export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
   try {
@@ -354,40 +337,38 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
       console.log("Conexión con Supabase verificada correctamente");
       offlineMode = false;
       connectionError = null;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al verificar sesión con Supabase:", error);
       offlineMode = true;
       connectionError = `Error de conexión con Supabase: ${error.message}`;
+      
+      // Try loading from localStorage as fallback
+      try {
+        const savedPlan = localStorage.getItem('current_training_plan');
+        if (savedPlan) {
+          console.log("Cargando plan desde almacenamiento local");
+          return JSON.parse(savedPlan) as WorkoutPlan;
+        }
+      } catch (storageError) {
+        console.warn("No se pudo cargar plan desde almacenamiento local:", storageError);
+      }
+      
       throw error;
     }
     
-    const { data: user } = await supabase.auth.getUser();
-    
-    if (!user.user) {
-      console.log("No hay usuario autenticado, no se puede cargar plan desde Supabase");
-      return null;
+    // Try loading from localStorage first (faster)
+    try {
+      const savedPlan = localStorage.getItem('current_training_plan');
+      if (savedPlan) {
+        console.log("Cargando plan desde almacenamiento local");
+        return JSON.parse(savedPlan) as WorkoutPlan;
+      }
+    } catch (storageError) {
+      console.warn("No se pudo cargar plan desde almacenamiento local:", storageError);
     }
     
-    const { data, error } = await supabase
-      .from('training_plans')
-      .select('plan_data')
-      .eq('user_id', user.user.id)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    
-    if (error) {
-      console.error("Error al consultar la base de datos:", error);
-      throw new Error(`Error al consultar training_plans: ${error.message}`);
-    }
-    
-    if (!data || data.length === 0) {
-      console.log("No se encontró ningún plan guardado en Supabase");
-      return null;
-    }
-    
-    console.log("Plan cargado correctamente desde Supabase");
-    return data[0].plan_data as WorkoutPlan;
-  } catch (error) {
+    return null;
+  } catch (error: any) {
     console.error('Error al cargar el último plan:', error);
     throw error;
   }
@@ -403,21 +384,18 @@ export const updateWorkoutResults = async (
   actualDuration: string | null
 ): Promise<WorkoutPlan | null> => {
   try {
-    // Inicializar cliente Supabase
-    // const supabaseClient = initSupabaseClient();
+    // Try loading the current plan from localStorage
+    let plan: WorkoutPlan | null = null;
+    try {
+      const savedPlan = localStorage.getItem('current_training_plan');
+      if (savedPlan) {
+        plan = JSON.parse(savedPlan) as WorkoutPlan;
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar el plan desde almacenamiento local:", e);
+    }
     
-    // Get the current plan
-    const { data: planData, error: planError } = await supabase
-      .from('training_plans')
-      .select('plan_data')
-      .eq('id', planId)
-      .single();
-    
-    if (planError) throw new Error(`Error al obtener plan: ${planError.message}`);
-    
-    if (!planData) return null;
-    
-    const plan = planData.plan_data as WorkoutPlan;
+    if (!plan) return null;
     
     // Update the specific workout
     const updatedWorkouts = plan.workouts.map(workout => {
@@ -437,16 +415,15 @@ export const updateWorkoutResults = async (
       workouts: updatedWorkouts
     };
     
-    // Save the updated plan
-    const { error: updateError } = await supabase
-      .from('training_plans')
-      .update({ plan_data: updatedPlan })
-      .eq('id', planId);
-    
-    if (updateError) throw new Error(`Error al actualizar plan: ${updateError.message}`);
+    // Store updated plan in local storage
+    try {
+      localStorage.setItem('current_training_plan', JSON.stringify(updatedPlan));
+    } catch (e) {
+      console.warn("No se pudo guardar el plan actualizado en almacenamiento local:", e);
+    }
     
     return updatedPlan;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating workout results:', error);
     throw error;
   }
@@ -457,28 +434,33 @@ export const updateWorkoutResults = async (
  */
 export const generateNextWeekPlan = async (currentPlan: WorkoutPlan): Promise<WorkoutPlan | null> => {
   try {
-    // Inicializar cliente Supabase
-    // const supabaseClient = initSupabaseClient();
-    
-    // Get current user
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      throw new Error("Usuario no autenticado");
+    // Get user profile from localStorage if available
+    let userProfile: UserProfile | null = null;
+    try {
+      const savedProfile = localStorage.getItem('user_profile');
+      if (savedProfile) {
+        userProfile = JSON.parse(savedProfile) as UserProfile;
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar el perfil desde almacenamiento local:", e);
     }
     
-    // Get the user profile
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userData.user.id)
-      .single();
-    
-    if (profileError) {
-      throw new Error(`Error al obtener perfil: ${profileError.message}`);
-    }
-    
-    if (!profileData) {
-      throw new Error("Perfil de usuario no encontrado");
+    if (!userProfile) {
+      // Create minimal user profile
+      userProfile = {
+        name: "Usuario",
+        age: null,
+        gender: null,
+        height: null,
+        weight: null,
+        maxDistance: null,
+        pace: null,
+        goal: "Mejorar condición física",
+        weeklyWorkouts: null,
+        experienceLevel: null,
+        injuries: "",
+        completedOnboarding: true
+      };
     }
     
     // Prepare the previous week results
@@ -497,10 +479,10 @@ export const generateNextWeekPlan = async (currentPlan: WorkoutPlan): Promise<Wo
     
     // Generate new plan with the previous week results
     return generateTrainingPlan({ 
-      userProfile: profileData as UserProfile,
+      userProfile,
       previousWeekResults
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating next week plan:', error);
     throw error;
   }

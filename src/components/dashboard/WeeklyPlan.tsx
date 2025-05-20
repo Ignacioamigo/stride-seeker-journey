@@ -4,7 +4,7 @@ import RunButton from "../ui/RunButton";
 import { useNavigate } from "react-router-dom";
 import { loadLatestPlan } from "@/services/planService";
 import { WorkoutPlan } from "@/types";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 const WeeklyPlan: React.FC = () => {
@@ -12,30 +12,42 @@ const WeeklyPlan: React.FC = () => {
   const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   
-  useEffect(() => {
-    const fetchLatestPlan = async () => {
-      try {
-        const plan = await loadLatestPlan();
-        setActivePlan(plan);
-        setError(null);
-      } catch (error) {
-        console.error("Error loading plan:", error);
-        setError("No se pudo cargar tu plan. Verifica la conexión con Supabase.");
-        
+  const fetchLatestPlan = async (showToastOnError = true) => {
+    try {
+      setLoading(true);
+      const plan = await loadLatestPlan();
+      setActivePlan(plan);
+      setError(null);
+    } catch (error: any) {
+      console.error("Error loading plan:", error);
+      setError("No se pudo cargar tu plan. Intenta de nuevo más tarde.");
+      
+      if (showToastOnError) {
         // Show toast with error information
         toast({
           title: "Error de conexión",
-          description: "No se pudo conectar con Supabase. Por favor, inténtalo de nuevo.",
+          description: "No se pudo conectar con el servidor. Por favor, inténtalo de nuevo.",
           variant: "destructive"
         });
-      } finally {
-        setLoading(false);
       }
-    };
-    
+    } finally {
+      setLoading(false);
+      setRetrying(false);
+    }
+  };
+  
+  // Load plan on component mount
+  useEffect(() => {
     fetchLatestPlan();
   }, []);
+  
+  // Handle retry connection
+  const handleRetryConnection = () => {
+    setRetrying(true);
+    fetchLatestPlan(true);
+  };
   
   // Find today's workout if there's an active plan
   const todaysWorkout = activePlan?.workouts.find(w => {
@@ -43,7 +55,7 @@ const WeeklyPlan: React.FC = () => {
     return w.day.toLowerCase().includes(today);
   });
   
-  if (loading) {
+  if (loading || retrying) {
     return (
       <div className="mb-8">
         <h2 className="text-xl font-bold text-runapp-navy mb-3">Tu plan semanal</h2>
@@ -62,9 +74,10 @@ const WeeklyPlan: React.FC = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm text-center">
           <p className="text-runapp-gray text-sm mb-4">{error}</p>
           <RunButton 
-            onClick={() => window.location.reload()}
+            onClick={handleRetryConnection}
             className="bg-runapp-purple mb-2"
           >
+            <RefreshCw className="mr-2 h-4 w-4" />
             Reintentar conexión
           </RunButton>
           <div>
