@@ -14,9 +14,12 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Edge function generate-training-plan invocada");
+    
     const { userProfile, context, previousWeekResults } = await req.json();
 
     if (!userProfile) {
+      console.error("Perfil de usuario no proporcionado");
       return new Response(
         JSON.stringify({ error: 'Missing user profile' }),
         { 
@@ -27,9 +30,11 @@ serve(async (req) => {
     }
 
     // Get API key from environment variable
+    console.log("Verificando la clave de API de Gemini...");
     const apiKey = Deno.env.get('GEMINI_API_KEY');
+    
     if (!apiKey) {
-      console.error("GEMINI_API_KEY not found in environment variables");
+      console.error("GEMINI_API_KEY no encontrada en las variables de entorno");
       return new Response(
         JSON.stringify({ error: 'API key not configured' }),
         { 
@@ -39,7 +44,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("Starting plan generation with Gemini API");
+    console.log("Clave de API encontrada, iniciando generación del plan con Gemini API");
     
     // Create system prompt with running expertise and RAG context
     let systemPrompt = `Eres un entrenador de running profesional y experto. 
@@ -92,7 +97,7 @@ serve(async (req) => {
     if (previousWeekResults) {
       userPrompt += `\nResultados de la semana anterior (Semana ${previousWeekResults.weekNumber}):\n`;
       
-      previousWeekResults.workouts.forEach((workout: any) => {
+      previousWeekResults.workouts.forEach((workout) => {
         userPrompt += `- ${workout.day}: ${workout.title}. `;
         if (workout.completed) {
           userPrompt += `Completado. `;
@@ -113,7 +118,8 @@ serve(async (req) => {
       userPrompt += `\nGenera un plan de entrenamiento personalizado de 7 días para este corredor (Semana 1).`;
     }
 
-    console.log("Calling Gemini API to generate plan");
+    console.log("Llamando a la API de Gemini para generar el plan");
+    console.log("URL de la API:", `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${apiKey.substring(0, 5)}...`);
     
     // Call the Gemini API
     const response = await fetch(
@@ -143,18 +149,26 @@ serve(async (req) => {
       }
     );
 
+    console.log("Estado de la respuesta de Gemini:", response.status);
+    
     if (!response.ok) {
-      const error = await response.text();
-      console.error("Gemini API error:", error);
-      throw new Error(`Gemini API error: ${error}`);
+      const errorText = await response.text();
+      console.error("Error en la API de Gemini:", errorText);
+      throw new Error(`Gemini API error: ${errorText}`);
     }
 
-    console.log("Received response from Gemini API");
+    console.log("Respuesta recibida de la API de Gemini");
     
     const data = await response.json();
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0].text) {
+      console.error("Formato de respuesta de Gemini inesperado:", JSON.stringify(data));
+      throw new Error("Formato de respuesta de Gemini inesperado");
+    }
+    
     const generatedText = data.candidates[0].content.parts[0].text;
     
-    console.log("Parsing generated text into plan");
+    console.log("Texto generado por Gemini, procesando para extraer el plan...");
     
     // Extract JSON from the response 
     // (sometimes Gemini includes markdown code blocks or additional text)
@@ -171,10 +185,10 @@ serve(async (req) => {
     let plan;
     try {
       plan = JSON.parse(jsonString);
-      console.log("Successfully parsed JSON plan");
+      console.log("JSON del plan analizado correctamente");
     } catch (e) {
       // If JSON parsing fails, use a regex approach to extract the plan
-      console.error("JSON parsing failed, attempting to extract plan manually:", e);
+      console.error("Error al analizar JSON, intentando extraer plan manualmente:", e);
       plan = {
         name: previousWeekResults 
           ? `Plan de entrenamiento: Semana ${previousWeekResults.weekNumber + 1}` 
@@ -186,7 +200,7 @@ serve(async (req) => {
       };
     }
 
-    console.log("Returning plan data");
+    console.log("Devolviendo datos del plan");
     
     return new Response(
       JSON.stringify({ plan }),
@@ -195,9 +209,9 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error in generate-training-plan:", error);
+    console.error("Error en generate-training-plan:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || String(error) }),
       { 
         status: 500, 
         headers: { 'Content-Type': 'application/json', ...corsHeaders } 

@@ -14,14 +14,36 @@ const Plan: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<WorkoutPlan | null>(null);
+  const [connectionError, setConnectionError] = useState(false);
+
+  // Check for Supabase environment variables on component mount
+  useEffect(() => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("Variables de entorno de Supabase no encontradas:", { 
+        url: supabaseUrl ? "✓" : "✗", 
+        key: supabaseAnonKey ? "✓" : "✗" 
+      });
+      setConnectionError(true);
+    } else {
+      console.log("Variables de entorno de Supabase configuradas correctamente");
+      setConnectionError(false);
+    }
+  }, []);
 
   // Load existing plan on component mount
   useEffect(() => {
     const fetchPlan = async () => {
       try {
+        console.log("Intentando cargar el plan existente...");
         const plan = await loadLatestPlan();
         if (plan) {
+          console.log("Plan cargado exitosamente:", plan.name);
           setCurrentPlan(plan);
+        } else {
+          console.log("No se encontró ningún plan existente");
         }
       } catch (error) {
         console.error("Error loading plan:", error);
@@ -45,12 +67,24 @@ const Plan: React.FC = () => {
 
     setIsGenerating(true);
     try {
-      // Check if environment variables are set
+      console.log("Iniciando generación de plan con los siguientes datos:", {
+        name: user.name,
+        age: user.age,
+        experienceLevel: user.experienceLevel,
+        goal: user.goal
+      });
+      
+      // Verifica nuevamente las variables de entorno antes de proceder
       if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        console.error("Variables de entorno no encontradas:", {
+          VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+          VITE_SUPABASE_ANON_KEY: Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY)
+        });
         throw new Error("Faltan variables de entorno para Supabase");
       }
       
       const plan = await generateTrainingPlan({ userProfile: user });
+      console.log("Plan generado exitosamente:", plan);
       setCurrentPlan(plan);
       toast({
         title: "Plan generado",
@@ -60,7 +94,9 @@ const Plan: React.FC = () => {
       console.error("Error al generar plan:", error);
       toast({
         title: "Error",
-        description: "No se pudo generar el plan. Verifica las variables de entorno en Supabase.",
+        description: connectionError 
+          ? "Variables de entorno de Supabase no configuradas. Contacta al administrador." 
+          : "No se pudo generar el plan. Verifica la conexión a Supabase.",
         variant: "destructive",
       });
     } finally {
@@ -100,6 +136,16 @@ const Plan: React.FC = () => {
       </div>
       
       <div className="container max-w-md mx-auto p-4">
+        {connectionError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <h3 className="text-red-600 font-medium">Error de conexión</h3>
+            <p className="text-sm text-red-500">
+              No se detectaron las variables de entorno de Supabase. 
+              Este error debe ser resuelto por el administrador del sistema.
+            </p>
+          </div>
+        )}
+      
         {!currentPlan ? (
           <div className="bg-white rounded-xl p-6 shadow-sm text-center mb-6">
             <h2 className="text-xl font-semibold text-runapp-navy mb-3">No tienes un plan de entrenamiento</h2>
@@ -108,7 +154,7 @@ const Plan: React.FC = () => {
             </p>
             <RunButton 
               onClick={handleGeneratePlan}
-              disabled={isGenerating}
+              disabled={isGenerating || connectionError}
             >
               {isGenerating ? (
                 <>
