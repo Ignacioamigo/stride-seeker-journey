@@ -49,13 +49,13 @@ const Plan: React.FC = () => {
       setCurrentPlan(plan);
       toast({
         title: "Plan generado",
-        description: "Se ha creado tu plan de entrenamiento personalizado.",
+        description: "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil y en nuestra base de conocimientos.",
       });
     } catch (error) {
       console.error("Error al generar plan:", error);
       toast({
         title: "Error",
-        description: "No se pudo generar el plan. Inténtalo de nuevo.",
+        description: "No se pudo generar el plan. Verifica las variables de entorno en Supabase.",
         variant: "destructive",
       });
     } finally {
@@ -99,7 +99,7 @@ const Plan: React.FC = () => {
           <div className="bg-white rounded-xl p-6 shadow-sm text-center mb-6">
             <h2 className="text-xl font-semibold text-runapp-navy mb-3">No tienes un plan de entrenamiento</h2>
             <p className="text-runapp-gray mb-4">
-              Genera un plan personalizado basado en tu perfil y objetivos.
+              Genera un plan personalizado basado en tu perfil, objetivos y nuestra base de conocimientos en entrenamientos de running.
             </p>
             <RunButton 
               onClick={handleGeneratePlan}
@@ -108,7 +108,7 @@ const Plan: React.FC = () => {
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generando...
+                  Generando plan con IA...
                 </>
               ) : (
                 "Generar nuevo plan de entrenamiento"
