@@ -1,16 +1,17 @@
-
 import { useState } from 'react';
 import { WorkoutPlan, Workout } from "@/types";
 import RunButton from "@/components/ui/RunButton";
-import { Calendar, Loader2 } from "lucide-react";
+import { Calendar, Loader2, WifiOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import WorkoutCompletionForm from './WorkoutCompletionForm';
 import { updateWorkoutResults, generateNextWeekPlan } from '@/services/planService';
 import { toast } from '@/components/ui/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface TrainingPlanDisplayProps {
   plan: WorkoutPlan;
   onPlanUpdate: (newPlan: WorkoutPlan) => void;
+  offlineMode?: boolean;
 }
 
 const WorkoutCard: React.FC<{ 
@@ -81,7 +82,7 @@ const WorkoutCard: React.FC<{
   );
 };
 
-const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanUpdate }) => {
+const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanUpdate, offlineMode = false }) => {
   const navigate = useNavigate();
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [isGeneratingNextWeek, setIsGeneratingNextWeek] = useState(false);
@@ -142,6 +143,15 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   
   return (
     <div className="mb-8">
+      {offlineMode && (
+        <Alert className="mb-4 bg-amber-50 border-amber-200">
+          <WifiOff className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-700 text-sm">
+            Este plan se generó en modo offline y puede tener funcionalidad limitada.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="bg-white rounded-xl p-6 shadow-sm mb-4">
         <div className="flex justify-between items-start mb-4">
           <div>
@@ -167,7 +177,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-semibold text-runapp-navy">Tu semana de entrenamiento</h3>
         
-        {allWorkoutsCompleted && (
+        {allWorkoutsCompleted && !offlineMode && (
           <RunButton 
             onClick={handleGenerateNextWeek}
             variant="outline" 

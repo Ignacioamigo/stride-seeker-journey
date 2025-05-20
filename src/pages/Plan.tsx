@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
-import { generateTrainingPlan, loadLatestPlan } from "@/services/planService";
+import { generateTrainingPlan, loadLatestPlan, isOfflineMode, getConnectionError } from "@/services/planService";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, WifiOff } from "lucide-react";
 import TrainingPlanDisplay from "@/components/plan/TrainingPlanDisplay";
 import { WorkoutPlan } from "@/types";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -18,6 +18,7 @@ const Plan: React.FC = () => {
   const [currentPlan, setCurrentPlan] = useState<WorkoutPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generationStage, setGenerationStage] = useState<'init' | 'rag' | 'api' | 'complete'>('init');
+  const [offlineMode, setOfflineMode] = useState(false);
 
   // Cargar plan existente al montar componente
   useEffect(() => {
@@ -35,9 +36,11 @@ const Plan: React.FC = () => {
             console.log("No se encontró ningún plan existente");
           }
           setError(null);
+          setOfflineMode(isOfflineMode());
         } catch (error) {
           console.error("Error loading plan:", error);
-          setError(error.message || "Error al cargar el plan de entrenamiento. Verifica la configuración de Supabase.");
+          setError(getConnectionError() || error.message || "Error al cargar el plan de entrenamiento.");
+          setOfflineMode(isOfflineMode());
         }
       } finally {
         setIsLoading(false);
@@ -81,6 +84,7 @@ const Plan: React.FC = () => {
       setGenerationStage('complete');
       console.log("Plan generado exitosamente:", plan);
       setCurrentPlan(plan);
+      setOfflineMode(isOfflineMode());
       
       toast({
         title: "Plan generado",
@@ -88,11 +92,14 @@ const Plan: React.FC = () => {
       });
     } catch (error) {
       console.error("Error al generar plan:", error);
-      setError(error.message || "Error al generar el plan de entrenamiento. Verifica la configuración de Supabase.");
+      setError(getConnectionError() || error.message || "Error al generar el plan de entrenamiento.");
+      setOfflineMode(isOfflineMode());
       
       toast({
         title: "Error",
-        description: "No se pudo generar el plan. Verifica la configuración de Supabase.",
+        description: offlineMode ? 
+          "Generando plan en modo offline. La funcionalidad puede ser limitada." : 
+          "No se pudo generar el plan. Intenta de nuevo más tarde.",
         variant: "destructive",
       });
     } finally {
@@ -105,7 +112,13 @@ const Plan: React.FC = () => {
   };
 
   const handleRetryConnection = () => {
-    window.location.reload();
+    setError(null);
+    setIsLoading(true);
+    
+    // Use setTimeout to give UI time to update before attempting reconnection
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
   };
 
   // Base layout that always renders to prevent blank screen
@@ -120,7 +133,27 @@ const Plan: React.FC = () => {
         </div>
         
         <div className="container max-w-md mx-auto p-4">
-          {error && (
+          {/* Offline mode indicator */}
+          {offlineMode && (
+            <Alert className="mb-4 bg-amber-50 border-amber-200">
+              <WifiOff className="h-4 w-4 mr-2 text-amber-600" />
+              <AlertTitle className="text-amber-800">Modo sin conexión</AlertTitle>
+              <AlertDescription className="text-amber-700">
+                Estás utilizando la aplicación en modo sin conexión. Algunas funciones pueden estar limitadas.
+                <div className="mt-2">
+                  <Button
+                    size="sm"
+                    onClick={handleRetryConnection}
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    Intentar reconectar
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {error && !offlineMode && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4 mr-2" />
               <AlertTitle>Error de conexión</AlertTitle>
@@ -140,18 +173,6 @@ const Plan: React.FC = () => {
           )}
           
           {renderContent()}
-          
-          {error && (
-            <div className="mt-4 text-center">
-              <Button
-                variant="outline"
-                onClick={() => window.location.reload()}
-                className="mx-auto"
-              >
-                Reintentar
-              </Button>
-            </div>
-          )}
         </div>
         
         <BottomNav />
@@ -184,7 +205,7 @@ const Plan: React.FC = () => {
               <p className="text-runapp-gray">Analizando tu perfil y buscando entrenamientos adecuados...</p>
             )}
             {generationStage === 'api' && (
-              <p className="text-runapp-gray">Generando tu plan personalizado con IA...</p>
+              <p className="text-runapp-gray">{offlineMode ? 'Generando plan básico basado en tu perfil...' : 'Generando tu plan personalizado con IA...'}</p>
             )}
           </div>
         </div>
@@ -197,6 +218,11 @@ const Plan: React.FC = () => {
           <h2 className="text-xl font-semibold text-runapp-navy mb-3">No tienes un plan de entrenamiento</h2>
           <p className="text-runapp-gray mb-4">
             Genera un plan personalizado basado en tu perfil, objetivos y nuestra base de conocimientos en entrenamientos de running.
+            {offlineMode && (
+              <span className="block mt-2 text-sm text-amber-700">
+                Nota: En modo offline, se generará un plan básico sin personalización avanzada.
+              </span>
+            )}
           </p>
           <RunButton 
             onClick={handleGeneratePlan}
@@ -205,7 +231,7 @@ const Plan: React.FC = () => {
             {isGenerating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generando plan con IA...
+                Generando plan{offlineMode ? " básico" : " con IA"}...
               </>
             ) : (
               "Generar nuevo plan de entrenamiento"
@@ -219,6 +245,7 @@ const Plan: React.FC = () => {
       <TrainingPlanDisplay 
         plan={currentPlan} 
         onPlanUpdate={handlePlanUpdate}
+        offlineMode={offlineMode}
       />
     );
   };
