@@ -20,6 +20,7 @@ try {
   // Only create client if both variables are available
   if (supabaseUrl && supabaseAnonKey) {
     supabase = createClient(supabaseUrl, supabaseAnonKey);
+    console.log("Supabase client initialized successfully");
   } else {
     console.error("Cannot initialize Supabase client: Missing URL or ANON key");
   }
@@ -148,15 +149,18 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     
     // 1. Create a query from the user profile
     const query = createUserProfileSummary(userProfile);
+    console.log("Created user profile summary for query");
     
     // 2. Generate embedding for the query
     const embedding = await generateEmbedding(query);
+    console.log("Generated embedding for query");
     
     // 3. Retrieve relevant fragments
     const relevantFragments = await retrieveRelevantFragments(embedding);
     console.log("Retrieved fragments:", relevantFragments.length);
     
     // 4. Call Gemini with the context to generate a plan
+    console.log("Calling Supabase edge function to generate plan");
     const { data, error } = await supabase.functions.invoke('generate-training-plan', {
       body: { 
         userProfile, 
@@ -165,10 +169,14 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
       }
     });
     
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("Error calling edge function:", error);
+      throw new Error(error.message);
+    }
     
     // 5. Process and return the plan
     const planData = data.plan;
+    console.log("Received plan data:", planData);
     
     // Create workouts based on the plan
     const workouts: Workout[] = planData.workouts.map((workout: any) => ({
@@ -197,12 +205,19 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     };
     
     // Save the plan to Supabase for future reference
-    await supabase.from('training_plans').insert([{
-      id: plan.id,
-      user_id: (await supabase.auth.getUser()).data.user?.id,
-      plan_data: plan,
-      week_number: plan.weekNumber
-    }]);
+    try {
+      console.log("Saving plan to Supabase");
+      const userId = (await supabase.auth.getUser()).data.user?.id || 'anonymous';
+      await supabase.from('training_plans').insert([{
+        id: plan.id,
+        user_id: userId,
+        plan_data: plan,
+        week_number: plan.weekNumber
+      }]);
+    } catch (saveError) {
+      console.error("Failed to save plan to database:", saveError);
+      // Continue anyway as we have the plan data already
+    }
     
     return plan;
   } catch (error) {

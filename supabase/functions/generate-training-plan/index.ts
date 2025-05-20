@@ -29,6 +29,7 @@ serve(async (req) => {
     // Get API key from environment variable
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
+      console.error("GEMINI_API_KEY not found in environment variables");
       return new Response(
         JSON.stringify({ error: 'API key not configured' }),
         { 
@@ -38,6 +39,8 @@ serve(async (req) => {
       );
     }
 
+    console.log("Starting plan generation with Gemini API");
+    
     // Create system prompt with running expertise and RAG context
     let systemPrompt = `Eres un entrenador de running profesional y experto. 
     Tu tarea es crear un plan de entrenamiento personalizado de 7 días para un corredor, basado en su perfil 
@@ -110,6 +113,8 @@ serve(async (req) => {
       userPrompt += `\nGenera un plan de entrenamiento personalizado de 7 días para este corredor (Semana 1).`;
     }
 
+    console.log("Calling Gemini API to generate plan");
+    
     // Call the Gemini API
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
@@ -140,11 +145,16 @@ serve(async (req) => {
 
     if (!response.ok) {
       const error = await response.text();
+      console.error("Gemini API error:", error);
       throw new Error(`Gemini API error: ${error}`);
     }
 
+    console.log("Received response from Gemini API");
+    
     const data = await response.json();
     const generatedText = data.candidates[0].content.parts[0].text;
+    
+    console.log("Parsing generated text into plan");
     
     // Extract JSON from the response 
     // (sometimes Gemini includes markdown code blocks or additional text)
@@ -161,9 +171,10 @@ serve(async (req) => {
     let plan;
     try {
       plan = JSON.parse(jsonString);
+      console.log("Successfully parsed JSON plan");
     } catch (e) {
       // If JSON parsing fails, use a regex approach to extract the plan
-      console.error("JSON parsing failed, attempting to extract plan manually");
+      console.error("JSON parsing failed, attempting to extract plan manually:", e);
       plan = {
         name: previousWeekResults 
           ? `Plan de entrenamiento: Semana ${previousWeekResults.weekNumber + 1}` 
@@ -175,6 +186,8 @@ serve(async (req) => {
       };
     }
 
+    console.log("Returning plan data");
+    
     return new Response(
       JSON.stringify({ plan }),
       { 
@@ -182,6 +195,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error("Error in generate-training-plan:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

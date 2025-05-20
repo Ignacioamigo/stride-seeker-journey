@@ -45,6 +45,11 @@ const Plan: React.FC = () => {
 
     setIsGenerating(true);
     try {
+      // Check if environment variables are set
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        throw new Error("Faltan variables de entorno para Supabase");
+      }
+      
       const plan = await generateTrainingPlan({ userProfile: user });
       setCurrentPlan(plan);
       toast({
