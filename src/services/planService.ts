@@ -1,4 +1,3 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -13,9 +12,8 @@ let connectionError = null;
  * Si falla, activa el modo offline
  */
 const initSupabaseClient = () => {
-  // Si ya tenemos una instancia o estamos en modo offline, devolver el estado actual
+  // Si ya tenemos una instancia, devolver el estado actual
   if (supabase) return supabase;
-  if (offlineMode) throw new Error(connectionError);
   
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -23,23 +21,27 @@ const initSupabaseClient = () => {
     
     // Verificar variables de entorno
     if (!supabaseUrl || !supabaseAnonKey) {
-      connectionError = "No se detectaron las variables de entorno de Supabase. La aplicación funcionará en modo offline.";
-      console.warn(connectionError);
-      offlineMode = true;
+      connectionError = "No se detectaron las variables de entorno de Supabase. Asegúrate de tener VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY configuradas.";
+      console.error(connectionError);
       throw new Error(connectionError);
     }
     
     // Inicializar cliente
     supabase = createClient(supabaseUrl, supabaseAnonKey);
-    console.log("Cliente Supabase inicializado correctamente");
+    console.log("Cliente Supabase inicializado correctamente:", supabaseUrl);
+    
+    // Verificar que la conexión funciona
+    supabase.auth.getSession().then(response => {
+      console.log("Conexión a Supabase verificada correctamente");
+    }).catch(error => {
+      console.error("Error al verificar la sesión de Supabase:", error);
+    });
+    
     return supabase;
   } catch (error) {
-    if (!connectionError) {
-      connectionError = `No se pudo inicializar el cliente de Supabase: ${error.message}`;
-    }
+    connectionError = `Error al inicializar Supabase: ${error.message}`;
     console.error(connectionError);
-    offlineMode = true;
-    throw new Error(connectionError);
+    throw error;
   }
 };
 
@@ -143,12 +145,12 @@ const createUserProfileSummary = (profile: UserProfile): string => {
 const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
     // Inicializar el cliente de Supabase
-    const client = initSupabaseClient();
+    const supabaseClient = initSupabaseClient();
     
     console.log("Generando embedding para el texto:", text.substring(0, 50) + "...");
     
     try {
-      const { data, error } = await client.functions.invoke('generate-embedding', {
+      const { data, error } = await supabaseClient.functions.invoke('generate-embedding', {
         body: { text }
       });
       
@@ -179,7 +181,7 @@ const generateEmbedding = async (text: string): Promise<number[]> => {
 const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promise<string[]> => {
   try {
     // Inicializar el cliente de Supabase
-    const client = initSupabaseClient();
+    const supabaseClient = initSupabaseClient();
     
     if (!embedding || embedding.length === 0) {
       throw new Error("No se proporcionó un embedding válido para la búsqueda");
@@ -189,7 +191,7 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
     
     // Query the fragments table with vector similarity search
     try {
-      const { data, error } = await client.rpc('match_fragments', {
+      const { data, error } = await supabaseClient.rpc('match_fragments', {
         query_embedding: embedding,
         match_count: limit,
         match_threshold: 0.6
@@ -200,7 +202,7 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
         console.log('Intentando consulta alternativa sin RPC...');
         
         // Try alternative query if RPC doesn't exist
-        const altQuery = await client
+        const altQuery = await supabaseClient
           .from('fragments')
           .select('content')
           .order('embedding <-> $1', { ascending: true })
@@ -233,7 +235,7 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
 export const uploadTrainingDocument = async (title: string, content: string): Promise<void> => {
   try {
     // Inicializar el cliente de Supabase
-    const client = initSupabaseClient();
+    const supabaseClient = initSupabaseClient();
     
     // First, generate an embedding for the document
     const embedding = await generateEmbedding(content);
@@ -246,7 +248,7 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
     const id = uuidv4();
     
     // Insert the document into the fragments table
-    const { error } = await client.from('fragments').insert([{
+    const { error } = await supabaseClient.from('fragments').insert([{
       id,
       title,
       content,
@@ -267,125 +269,109 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
  */
 export const generateTrainingPlan = async ({ userProfile, previousWeekResults }: TrainingPlanRequest): Promise<WorkoutPlan> => {
   try {
-    // Intentar inicializar Supabase
-    try {
-      initSupabaseClient();
-    } catch (error) {
-      // Si estamos en modo offline, generar plan mock
-      if (offlineMode) {
-        console.log("Generando plan en modo offline debido a:", error.message);
-        return generateMockPlan(userProfile);
+    // Inicializar cliente Supabase
+    const supabaseClient = initSupabaseClient();
+    
+    // 1. Create a query from the user profile
+    const query = createUserProfileSummary(userProfile);
+    console.log("Creado resumen de perfil de usuario para consulta:", query);
+    
+    // 2. Generate embedding for the query
+    console.log("Generando embedding para la consulta...");
+    const embedding = await generateEmbedding(query);
+    console.log("Embedding generado correctamente, longitud:", embedding.length);
+    
+    // 3. Retrieve relevant fragments
+    const relevantFragments = await retrieveRelevantFragments(embedding);
+    console.log("Fragmentos relevantes recuperados:", relevantFragments.length);
+    
+    // 4. Call edge function to generate a plan
+    console.log("Llamando a edge function para generar plan...");
+    const { data, error } = await supabaseClient.functions.invoke('generate-training-plan', {
+      body: { 
+        userProfile, 
+        context: relevantFragments.join('\n\n'),
+        previousWeekResults
       }
-      throw error; // Si no es por modo offline, propagar el error
+    });
+    
+    if (error) {
+      console.error("Error al llamar a edge function generate-training-plan:", error);
+      throw new Error(`Error en edge function generate-training-plan: ${error.message}`);
     }
     
-    // Si llegamos aquí, tenemos conexión a Supabase - continuar con el código original
-    try {
-      // 1. Create a query from the user profile
-      const query = createUserProfileSummary(userProfile);
-      console.log("Creado resumen de perfil de usuario para consulta:", query);
-      
-      // 2. Generate embedding for the query
-      console.log("Generando embedding para la consulta...");
-      const embedding = await generateEmbedding(query);
-      console.log("Embedding generado correctamente, longitud:", embedding.length);
-      
-      // 3. Retrieve relevant fragments
-      const relevantFragments = await retrieveRelevantFragments(embedding);
-      console.log("Fragmentos relevantes recuperados:", relevantFragments.length);
-      
-      // 4. Call edge function to generate a plan
-      console.log("Llamando a edge function para generar plan...");
-      const supabaseClient = initSupabaseClient();
-      const { data, error } = await supabaseClient.functions.invoke('generate-training-plan', {
-        body: { 
-          userProfile, 
-          context: relevantFragments.join('\n\n'),
-          previousWeekResults
-        }
-      });
-      
-      if (error) {
-        console.error("Error al llamar a edge function generate-training-plan:", error);
-        throw new Error(`Error en edge function generate-training-plan: ${error.message}`);
-      }
-      
-      console.log("Respuesta de edge function recibida:", data);
-      
-      if (!data || !data.plan) {
-        console.error("La edge function devolvió una respuesta sin plan:", data);
-        throw new Error("La edge function devolvió una respuesta incorrecta sin plan");
-      }
-      
-      // 5. Process and return the plan
-      const planData = data.plan;
-      console.log("Plan recibido:", planData);
-      
-      if (!planData.workouts || !Array.isArray(planData.workouts)) {
-        console.error("El plan recibido no contiene workouts válidos:", planData);
-        throw new Error("El formato del plan generado es incorrecto");
-      }
-      
-      // Create workouts based on the plan
-      const workouts: Workout[] = planData.workouts.map((workout: any) => ({
-        id: uuidv4(),
-        day: workout.day || "Día sin especificar",
-        title: workout.title || "Entrenamiento sin título",
-        description: workout.description || "Sin descripción",
-        distance: workout.distance || null,
-        duration: workout.duration || null,
-        type: workout.type || 'carrera',
-        completed: false,
-        actualDistance: null,
-        actualDuration: null
-      }));
-      
-      // Create the plan object
-      const plan: WorkoutPlan = {
-        id: uuidv4(),
-        name: planData.name || "Plan de entrenamiento personalizado",
-        description: planData.description || `Plan generado para ${userProfile.name}`,
-        duration: planData.duration || "7 días",
-        intensity: planData.intensity || "Adaptado a tu nivel",
-        workouts: workouts,
-        createdAt: new Date(),
-        weekNumber: previousWeekResults ? (previousWeekResults.weekNumber + 1) : 1
-      };
-      
-      // Save the plan to Supabase for future reference
-      try {
-        console.log("Guardando plan en Supabase...");
-        
-        // Use anonymous ID if not authenticated
-        let userId = 'anonymous';
-        try {
-          const userResponse = await supabaseClient.auth.getUser();
-          userId = userResponse.data.user?.id || 'anonymous';
-        } catch (authError) {
-          console.warn("No se pudo obtener el usuario autenticado, usando ID anónimo:", authError);
-        }
-        
-        await supabaseClient.from('training_plans').insert([{
-          id: plan.id,
-          user_id: userId,
-          plan_data: plan,
-          week_number: plan.weekNumber
-        }]);
-        
-        console.log("Plan guardado correctamente");
-      } catch (saveError) {
-        console.error("Error al guardar plan en la base de datos:", saveError);
-        throw new Error(`Error al guardar el plan: ${saveError.message}`);
-      }
-      
-      return plan;
-    } catch (error) {
-      console.error('Error al generar el plan de entrenamiento:', error);
-      throw error; // Re-throw for proper handling in Plan.tsx
+    console.log("Respuesta de edge function recibida:", data);
+    
+    if (!data || !data.plan) {
+      console.error("La edge function devolvió una respuesta sin plan:", data);
+      throw new Error("La edge function devolvió una respuesta incorrecta sin plan");
     }
+    
+    // 5. Process and return the plan
+    const planData = data.plan;
+    console.log("Plan recibido:", planData);
+    
+    if (!planData.workouts || !Array.isArray(planData.workouts)) {
+      console.error("El plan recibido no contiene workouts válidos:", planData);
+      throw new Error("El formato del plan generado es incorrecto");
+    }
+    
+    // Create workouts based on the plan
+    const workouts: Workout[] = planData.workouts.map((workout: any) => ({
+      id: uuidv4(),
+      day: workout.day || "Día sin especificar",
+      title: workout.title || "Entrenamiento sin título",
+      description: workout.description || "Sin descripción",
+      distance: workout.distance || null,
+      duration: workout.duration || null,
+      type: workout.type || 'carrera',
+      completed: false,
+      actualDistance: null,
+      actualDuration: null
+    }));
+    
+    // Create the plan object
+    const plan: WorkoutPlan = {
+      id: uuidv4(),
+      name: planData.name || "Plan de entrenamiento personalizado",
+      description: planData.description || `Plan generado para ${userProfile.name}`,
+      duration: planData.duration || "7 días",
+      intensity: planData.intensity || "Adaptado a tu nivel",
+      workouts: workouts,
+      createdAt: new Date(),
+      weekNumber: previousWeekResults ? (previousWeekResults.weekNumber + 1) : 1
+    };
+    
+    // Save the plan to Supabase for future reference
+    try {
+      console.log("Guardando plan en Supabase...");
+      
+      // Use anonymous ID if not authenticated
+      let userId = 'anonymous';
+      try {
+        const userResponse = await supabaseClient.auth.getUser();
+        userId = userResponse.data.user?.id || 'anonymous';
+      } catch (authError) {
+        console.warn("No se pudo obtener el usuario autenticado, usando ID anónimo:", authError);
+      }
+      
+      await supabaseClient.from('training_plans').insert([{
+        id: plan.id,
+        user_id: userId,
+        plan_data: plan,
+        week_number: plan.weekNumber
+      }]);
+      
+      console.log("Plan guardado correctamente");
+    } catch (saveError) {
+      console.error("Error al guardar plan en la base de datos:", saveError);
+      throw new Error(`Error al guardar el plan: ${saveError.message}`);
+    }
+    
+    return plan;
   } catch (error) {
     console.error('Error al generar el plan de entrenamiento:', error);
-    throw error; // Re-throw for proper handling in Plan.tsx
+    throw error;
   }
 };
 
@@ -394,54 +380,38 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
  */
 export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
   try {
-    // Intentar inicializar Supabase
-    try {
-      initSupabaseClient();
-    } catch (error) {
-      // Si estamos en modo offline, devolver null (no hay planes guardados)
-      if (offlineMode) {
-        console.log("No se pueden cargar planes en modo offline");
-        return null;
-      }
-      throw error;
+    // Inicializar cliente Supabase
+    const supabaseClient = initSupabaseClient();
+    
+    const { data: user } = await supabaseClient.auth.getUser();
+    
+    if (!user.user) {
+      console.log("No hay usuario autenticado, no se puede cargar plan desde Supabase");
+      return null;
     }
     
-    // Si llegamos aquí, tenemos conexión a Supabase - continuar con el código original
-    try {
-      const supabaseClient = initSupabaseClient();
-      const { data: user } = await supabaseClient.auth.getUser();
-      
-      if (!user.user) {
-        console.log("No hay usuario autenticado, no se puede cargar plan desde Supabase");
-        return null;
-      }
-      
-      const { data, error } = await supabaseClient
-        .from('training_plans')
-        .select('plan_data')
-        .eq('user_id', user.user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (error) {
-        console.error("Error al consultar la base de datos:", error);
-        throw new Error(`Error al consultar training_plans: ${error.message}`);
-      }
-      
-      if (!data || data.length === 0) {
-        console.log("No se encontró ningún plan guardado en Supabase");
-        return null;
-      }
-      
-      console.log("Plan cargado correctamente desde Supabase");
-      return data[0].plan_data as WorkoutPlan;
-    } catch (e) {
-      console.error("Error al cargar el plan desde Supabase:", e);
-      throw new Error(`Error al cargar plan desde Supabase: ${e.message}`);
+    const { data, error } = await supabaseClient
+      .from('training_plans')
+      .select('plan_data')
+      .eq('user_id', user.user.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    if (error) {
+      console.error("Error al consultar la base de datos:", error);
+      throw new Error(`Error al consultar training_plans: ${error.message}`);
     }
+    
+    if (!data || data.length === 0) {
+      console.log("No se encontró ningún plan guardado en Supabase");
+      return null;
+    }
+    
+    console.log("Plan cargado correctamente desde Supabase");
+    return data[0].plan_data as WorkoutPlan;
   } catch (error) {
     console.error('Error al cargar el último plan:', error);
-    throw error; // Re-throw for proper handling in Plan.tsx
+    throw error;
   }
 };
 
@@ -455,62 +425,49 @@ export const updateWorkoutResults = async (
   actualDuration: string | null
 ): Promise<WorkoutPlan | null> => {
   try {
-    // En modo offline, simular actualización localmente
-    if (offlineMode) {
-      // Aquí podríamos implementar almacenamiento local con localStorage
-      console.log("Actualizando workout en modo offline:", { planId, workoutId, actualDistance, actualDuration });
-      throw new Error("La actualización de workouts no está disponible en modo offline");
-    }
-    
-    // Intentar inicializar Supabase
+    // Inicializar cliente Supabase
     const supabaseClient = initSupabaseClient();
     
-    // Si llegamos aquí, tenemos conexión a Supabase - continuar con el código original
-    try {
-      // Get the current plan
-      const { data: planData, error: planError } = await supabaseClient
-        .from('training_plans')
-        .select('plan_data')
-        .eq('id', planId)
-        .single();
-      
-      if (planError) throw new Error(`Error al obtener plan: ${planError.message}`);
-      
-      if (!planData) return null;
-      
-      const plan = planData.plan_data as WorkoutPlan;
-      
-      // Update the specific workout
-      const updatedWorkouts = plan.workouts.map(workout => {
-        if (workout.id === workoutId) {
-          return {
-            ...workout,
-            completed: true,
-            actualDistance,
-            actualDuration
-          };
-        }
-        return workout;
-      });
-      
-      const updatedPlan: WorkoutPlan = {
-        ...plan,
-        workouts: updatedWorkouts
-      };
-      
-      // Save the updated plan
-      const { error: updateError } = await supabaseClient
-        .from('training_plans')
-        .update({ plan_data: updatedPlan })
-        .eq('id', planId);
-      
-      if (updateError) throw new Error(`Error al actualizar plan: ${updateError.message}`);
-      
-      return updatedPlan;
-    } catch (error) {
-      console.error('Error updating workout results:', error);
-      throw error;
-    }
+    // Get the current plan
+    const { data: planData, error: planError } = await supabaseClient
+      .from('training_plans')
+      .select('plan_data')
+      .eq('id', planId)
+      .single();
+    
+    if (planError) throw new Error(`Error al obtener plan: ${planError.message}`);
+    
+    if (!planData) return null;
+    
+    const plan = planData.plan_data as WorkoutPlan;
+    
+    // Update the specific workout
+    const updatedWorkouts = plan.workouts.map(workout => {
+      if (workout.id === workoutId) {
+        return {
+          ...workout,
+          completed: true,
+          actualDistance,
+          actualDuration
+        };
+      }
+      return workout;
+    });
+    
+    const updatedPlan: WorkoutPlan = {
+      ...plan,
+      workouts: updatedWorkouts
+    };
+    
+    // Save the updated plan
+    const { error: updateError } = await supabaseClient
+      .from('training_plans')
+      .update({ plan_data: updatedPlan })
+      .eq('id', planId);
+    
+    if (updateError) throw new Error(`Error al actualizar plan: ${updateError.message}`);
+    
+    return updatedPlan;
   } catch (error) {
     console.error('Error updating workout results:', error);
     throw error;
@@ -522,81 +479,49 @@ export const updateWorkoutResults = async (
  */
 export const generateNextWeekPlan = async (currentPlan: WorkoutPlan): Promise<WorkoutPlan | null> => {
   try {
-    // En modo offline, generar siguiente semana localmente
-    if (offlineMode) {
-      // Crear un perfil de usuario completo basado en la información disponible
-      const mockUserProfile: UserProfile = {
-        name: currentPlan.name.split(' ')[3] || "Usuario",
-        age: null,
-        gender: null,
-        height: null,
-        weight: null,
-        maxDistance: null,
-        pace: null,
-        goal: "Mejorar rendimiento",
-        weeklyWorkouts: null,
-        experienceLevel: currentPlan.intensity === "Alta" ? "avanzado" : 
-                        currentPlan.intensity === "Media" ? "intermedio" : "principiante",
-        injuries: "",
-        completedOnboarding: true
-      };
-      
-      const nextWeekPlan = generateMockPlan(mockUserProfile);
-      nextWeekPlan.weekNumber = (currentPlan.weekNumber || 1) + 1;
-      nextWeekPlan.name = `Plan de entrenamiento para ${mockUserProfile.name} (Offline - Semana ${nextWeekPlan.weekNumber})`;
-      
-      return nextWeekPlan;
-    }
-    
-    // Intentar inicializar Supabase
+    // Inicializar cliente Supabase
     const supabaseClient = initSupabaseClient();
     
-    // Si llegamos aquí, tenemos conexión a Supabase - continuar con el código original
-    try {
-      // Get current user
-      const { data: userData } = await supabaseClient.auth.getUser();
-      if (!userData.user) {
-        throw new Error("Usuario no autenticado");
-      }
-      
-      // Get the user profile
-      const { data: profileData, error: profileError } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('id', userData.user.id)
-        .single();
-      
-      if (profileError) {
-        throw new Error(`Error al obtener perfil: ${profileError.message}`);
-      }
-      
-      if (!profileData) {
-        throw new Error("Perfil de usuario no encontrado");
-      }
-      
-      // Prepare the previous week results
-      const previousWeekResults = {
-        weekNumber: currentPlan.weekNumber || 1,
-        workouts: currentPlan.workouts.map(w => ({
-          day: w.day,
-          title: w.title,
-          completed: w.completed || false,
-          plannedDistance: w.distance,
-          actualDistance: w.actualDistance,
-          plannedDuration: w.duration,
-          actualDuration: w.actualDuration
-        }))
-      };
-      
-      // Generate new plan with the previous week results
-      return generateTrainingPlan({ 
-        userProfile: profileData as UserProfile,
-        previousWeekResults
-      });
-    } catch (error) {
-      console.error('Error generating next week plan:', error);
-      throw error;
+    // Get current user
+    const { data: userData } = await supabaseClient.auth.getUser();
+    if (!userData.user) {
+      throw new Error("Usuario no autenticado");
     }
+    
+    // Get the user profile
+    const { data: profileData, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', userData.user.id)
+      .single();
+    
+    if (profileError) {
+      throw new Error(`Error al obtener perfil: ${profileError.message}`);
+    }
+    
+    if (!profileData) {
+      throw new Error("Perfil de usuario no encontrado");
+    }
+    
+    // Prepare the previous week results
+    const previousWeekResults = {
+      weekNumber: currentPlan.weekNumber || 1,
+      workouts: currentPlan.workouts.map(w => ({
+        day: w.day,
+        title: w.title,
+        completed: w.completed || false,
+        plannedDistance: w.distance,
+        actualDistance: w.actualDistance,
+        plannedDuration: w.duration,
+        actualDuration: w.actualDuration
+      }))
+    };
+    
+    // Generate new plan with the previous week results
+    return generateTrainingPlan({ 
+      userProfile: profileData as UserProfile,
+      previousWeekResults
+    });
   } catch (error) {
     console.error('Error generating next week plan:', error);
     throw error;

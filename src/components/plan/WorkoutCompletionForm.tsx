@@ -9,14 +9,12 @@ interface WorkoutCompletionFormProps {
   workout: Workout;
   planId: string;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
-  isOffline?: boolean;
 }
 
 const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
   workout, 
   planId, 
-  onComplete,
-  isOffline = false
+  onComplete
 }) => {
   const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
   const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
@@ -111,12 +109,6 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
           "Marcar como completado"
         )}
       </Button>
-      
-      {isOffline && (
-        <p className="mt-2 text-xs text-amber-600 text-center">
-          Los datos se guardarán localmente en modo offline.
-        </p>
-      )}
     </form>
   );
 };

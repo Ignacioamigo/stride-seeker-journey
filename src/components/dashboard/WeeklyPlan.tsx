@@ -4,19 +4,23 @@ import RunButton from "../ui/RunButton";
 import { useNavigate } from "react-router-dom";
 import { loadLatestPlan } from "@/services/planService";
 import { WorkoutPlan } from "@/types";
+import { Loader2 } from "lucide-react";
 
 const WeeklyPlan: React.FC = () => {
   const navigate = useNavigate();
   const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchLatestPlan = async () => {
       try {
         const plan = await loadLatestPlan();
         setActivePlan(plan);
+        setError(null);
       } catch (error) {
         console.error("Error loading plan:", error);
+        setError("No se pudo cargar tu plan. Verifica la conexión con Supabase.");
       } finally {
         setLoading(false);
       }
@@ -36,7 +40,25 @@ const WeeklyPlan: React.FC = () => {
       <div className="mb-8">
         <h2 className="text-xl font-bold text-runapp-navy mb-3">Tu plan semanal</h2>
         <div className="bg-white rounded-xl p-6 shadow-sm text-center">
+          <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-runapp-purple" />
           <p className="text-runapp-gray">Cargando tu plan...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-runapp-navy mb-3">Tu plan semanal</h2>
+        <div className="bg-white rounded-xl p-6 shadow-sm text-center">
+          <p className="text-runapp-gray text-sm mb-4">{error}</p>
+          <RunButton 
+            onClick={() => navigate('/plan')}
+            className="bg-runapp-purple"
+          >
+            Ir a Planes
+          </RunButton>
         </div>
       </div>
     );
