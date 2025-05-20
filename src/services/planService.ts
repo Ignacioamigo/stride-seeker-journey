@@ -1,49 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import { supabase } from "@/integrations/supabase/client";
 
 // Variables para controlar el estado de Supabase
-let supabase = null;
 let offlineMode = false;
 let connectionError = null;
-
-/**
- * Intenta inicializar el cliente de Supabase
- * Si falla, activa el modo offline
- */
-const initSupabaseClient = () => {
-  // Si ya tenemos una instancia, devolver el estado actual
-  if (supabase) return supabase;
-  
-  try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    // Verificar variables de entorno
-    if (!supabaseUrl || !supabaseAnonKey) {
-      connectionError = "No se detectaron las variables de entorno de Supabase. Asegúrate de tener VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY configuradas.";
-      console.error(connectionError);
-      throw new Error(connectionError);
-    }
-    
-    // Inicializar cliente
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
-    console.log("Cliente Supabase inicializado correctamente:", supabaseUrl);
-    
-    // Verificar que la conexión funciona
-    supabase.auth.getSession().then(response => {
-      console.log("Conexión a Supabase verificada correctamente");
-    }).catch(error => {
-      console.error("Error al verificar la sesión de Supabase:", error);
-    });
-    
-    return supabase;
-  } catch (error) {
-    connectionError = `Error al inicializar Supabase: ${error.message}`;
-    console.error(connectionError);
-    throw error;
-  }
-};
 
 /**
  * Comprueba si la aplicación está en modo offline
@@ -144,13 +106,10 @@ const createUserProfileSummary = (profile: UserProfile): string => {
  */
 const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
-    // Inicializar el cliente de Supabase
-    const supabaseClient = initSupabaseClient();
-    
     console.log("Generando embedding para el texto:", text.substring(0, 50) + "...");
     
     try {
-      const { data, error } = await supabaseClient.functions.invoke('generate-embedding', {
+      const { data, error } = await supabase.functions.invoke('generate-embedding', {
         body: { text }
       });
       
@@ -180,9 +139,6 @@ const generateEmbedding = async (text: string): Promise<number[]> => {
  */
 const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promise<string[]> => {
   try {
-    // Inicializar el cliente de Supabase
-    const supabaseClient = initSupabaseClient();
-    
     if (!embedding || embedding.length === 0) {
       throw new Error("No se proporcionó un embedding válido para la búsqueda");
     }
@@ -191,7 +147,7 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
     
     // Query the fragments table with vector similarity search
     try {
-      const { data, error } = await supabaseClient.rpc('match_fragments', {
+      const { data, error } = await supabase.rpc('match_fragments', {
         query_embedding: embedding,
         match_count: limit,
         match_threshold: 0.6
@@ -202,7 +158,7 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
         console.log('Intentando consulta alternativa sin RPC...');
         
         // Try alternative query if RPC doesn't exist
-        const altQuery = await supabaseClient
+        const altQuery = await supabase
           .from('fragments')
           .select('content')
           .order('embedding <-> $1', { ascending: true })
@@ -235,7 +191,7 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
 export const uploadTrainingDocument = async (title: string, content: string): Promise<void> => {
   try {
     // Inicializar el cliente de Supabase
-    const supabaseClient = initSupabaseClient();
+    // const supabaseClient = initSupabaseClient();
     
     // First, generate an embedding for the document
     const embedding = await generateEmbedding(content);
@@ -248,7 +204,7 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
     const id = uuidv4();
     
     // Insert the document into the fragments table
-    const { error } = await supabaseClient.from('fragments').insert([{
+    const { error } = await supabase.from('fragments').insert([{
       id,
       title,
       content,
@@ -269,8 +225,20 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
  */
 export const generateTrainingPlan = async ({ userProfile, previousWeekResults }: TrainingPlanRequest): Promise<WorkoutPlan> => {
   try {
-    // Inicializar cliente Supabase
-    const supabaseClient = initSupabaseClient();
+    // Verificar conexión a Supabase
+    try {
+      await supabase.auth.getSession();
+      console.log("Conexión con Supabase verificada correctamente");
+      offlineMode = false;
+      connectionError = null;
+    } catch (error) {
+      console.error("Error al verificar sesión con Supabase:", error);
+      offlineMode = true;
+      connectionError = `Error de conexión con Supabase: ${error.message}`;
+      
+      // En caso de error de conexión, generar un plan mock
+      return generateMockPlan(userProfile);
+    }
     
     // 1. Create a query from the user profile
     const query = createUserProfileSummary(userProfile);
@@ -287,7 +255,7 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     
     // 4. Call edge function to generate a plan
     console.log("Llamando a edge function para generar plan...");
-    const { data, error } = await supabaseClient.functions.invoke('generate-training-plan', {
+    const { data, error } = await supabase.functions.invoke('generate-training-plan', {
       body: { 
         userProfile, 
         context: relevantFragments.join('\n\n'),
@@ -349,13 +317,13 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
       // Use anonymous ID if not authenticated
       let userId = 'anonymous';
       try {
-        const userResponse = await supabaseClient.auth.getUser();
+        const userResponse = await supabase.auth.getUser();
         userId = userResponse.data.user?.id || 'anonymous';
       } catch (authError) {
         console.warn("No se pudo obtener el usuario autenticado, usando ID anónimo:", authError);
       }
       
-      await supabaseClient.from('training_plans').insert([{
+      await supabase.from('training_plans').insert([{
         id: plan.id,
         user_id: userId,
         plan_data: plan,
@@ -380,17 +348,27 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
  */
 export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
   try {
-    // Inicializar cliente Supabase
-    const supabaseClient = initSupabaseClient();
+    // Verificar conexión a Supabase
+    try {
+      await supabase.auth.getSession();
+      console.log("Conexión con Supabase verificada correctamente");
+      offlineMode = false;
+      connectionError = null;
+    } catch (error) {
+      console.error("Error al verificar sesión con Supabase:", error);
+      offlineMode = true;
+      connectionError = `Error de conexión con Supabase: ${error.message}`;
+      throw error;
+    }
     
-    const { data: user } = await supabaseClient.auth.getUser();
+    const { data: user } = await supabase.auth.getUser();
     
     if (!user.user) {
       console.log("No hay usuario autenticado, no se puede cargar plan desde Supabase");
       return null;
     }
     
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from('training_plans')
       .select('plan_data')
       .eq('user_id', user.user.id)
@@ -426,10 +404,10 @@ export const updateWorkoutResults = async (
 ): Promise<WorkoutPlan | null> => {
   try {
     // Inicializar cliente Supabase
-    const supabaseClient = initSupabaseClient();
+    // const supabaseClient = initSupabaseClient();
     
     // Get the current plan
-    const { data: planData, error: planError } = await supabaseClient
+    const { data: planData, error: planError } = await supabase
       .from('training_plans')
       .select('plan_data')
       .eq('id', planId)
@@ -460,7 +438,7 @@ export const updateWorkoutResults = async (
     };
     
     // Save the updated plan
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabase
       .from('training_plans')
       .update({ plan_data: updatedPlan })
       .eq('id', planId);
@@ -480,16 +458,16 @@ export const updateWorkoutResults = async (
 export const generateNextWeekPlan = async (currentPlan: WorkoutPlan): Promise<WorkoutPlan | null> => {
   try {
     // Inicializar cliente Supabase
-    const supabaseClient = initSupabaseClient();
+    // const supabaseClient = initSupabaseClient();
     
     // Get current user
-    const { data: userData } = await supabaseClient.auth.getUser();
+    const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
       throw new Error("Usuario no autenticado");
     }
     
     // Get the user profile
-    const { data: profileData, error: profileError } = await supabaseClient
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userData.user.id)

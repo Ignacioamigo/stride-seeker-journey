@@ -62,11 +62,20 @@ const WeeklyPlan: React.FC = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm text-center">
           <p className="text-runapp-gray text-sm mb-4">{error}</p>
           <RunButton 
-            onClick={() => navigate('/plan')}
-            className="bg-runapp-purple"
+            onClick={() => window.location.reload()}
+            className="bg-runapp-purple mb-2"
           >
-            Ir a Planes
+            Reintentar conexión
           </RunButton>
+          <div>
+            <RunButton 
+              onClick={() => navigate('/plan')}
+              variant="outline"
+              className="text-sm"
+            >
+              Ir a Planes
+            </RunButton>
+          </div>
         </div>
       </div>
     );
