@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -19,6 +20,8 @@ try {
   // Only create client if both variables are available
   if (supabaseUrl && supabaseAnonKey) {
     supabase = createClient(supabaseUrl, supabaseAnonKey);
+  } else {
+    console.error("Cannot initialize Supabase client: Missing URL or ANON key");
   }
 } catch (error) {
   console.error("Failed to initialize Supabase client:", error);
@@ -66,24 +69,37 @@ const generateEmbedding = async (text: string): Promise<number[]> => {
 };
 
 /**
- * Retrieves relevant training documents
+ * Retrieves relevant training documents from the fragments table
  */
-const retrieveRelevantDocuments = async (embedding: number[], limit = 5): Promise<string[]> => {
+const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promise<string[]> => {
   try {
     if (!supabase) {
       throw new Error("Supabase client is not initialized. Check your environment variables.");
     }
     
-    const { data, error } = await supabase.rpc('match_documents', {
+    // Query the fragments table with vector similarity search
+    const { data, error } = await supabase.rpc('match_fragments', {
       query_embedding: embedding,
       match_count: limit,
-      match_threshold: 0.5
+      match_threshold: 0.6
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error retrieving fragments:', error);
+      // Try alternative query if RPC doesn't exist
+      const altQuery = await supabase
+        .from('fragments')
+        .select('content')
+        .order('embedding <-> $1', { ascending: true })
+        .limit(limit);
+      
+      if (altQuery.error) throw altQuery.error;
+      return altQuery.data.map((doc: any) => doc.content);
+    }
+    
     return data.map((doc: any) => doc.content);
   } catch (error) {
-    console.error('Error retrieving documents:', error);
+    console.error('Error retrieving fragments:', error);
     // Return empty array if no matches (this can happen during initial setup)
     return [];
   }
@@ -104,8 +120,8 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
     // Create a unique ID for the document
     const id = uuidv4();
     
-    // Insert the document into the training_documents table
-    const { error } = await supabase.from('training_documents').insert([{
+    // Insert the document into the fragments table
+    const { error } = await supabase.from('fragments').insert([{
       id,
       title,
       content,
@@ -124,7 +140,7 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
 /**
  * Generates a training plan using RAG and Gemini
  */
-export const generateTrainingPlan = async ({ userProfile }: TrainingPlanRequest): Promise<WorkoutPlan> => {
+export const generateTrainingPlan = async ({ userProfile, previousWeekResults }: TrainingPlanRequest): Promise<WorkoutPlan> => {
   try {
     if (!supabase) {
       throw new Error("Supabase client is not initialized. Please check your environment variables.");
@@ -136,14 +152,16 @@ export const generateTrainingPlan = async ({ userProfile }: TrainingPlanRequest)
     // 2. Generate embedding for the query
     const embedding = await generateEmbedding(query);
     
-    // 3. Retrieve relevant documents
-    const relevantDocs = await retrieveRelevantDocuments(embedding);
+    // 3. Retrieve relevant fragments
+    const relevantFragments = await retrieveRelevantFragments(embedding);
+    console.log("Retrieved fragments:", relevantFragments.length);
     
     // 4. Call Gemini with the context to generate a plan
     const { data, error } = await supabase.functions.invoke('generate-training-plan', {
       body: { 
         userProfile, 
-        context: relevantDocs.join('\n\n'),
+        context: relevantFragments.join('\n\n'),
+        previousWeekResults
       }
     });
     
@@ -160,7 +178,10 @@ export const generateTrainingPlan = async ({ userProfile }: TrainingPlanRequest)
       description: workout.description,
       distance: workout.distance,
       duration: workout.duration,
-      type: workout.type || 'carrera'
+      type: workout.type || 'carrera',
+      completed: false,
+      actualDistance: null,
+      actualDuration: null
     }));
     
     // Create the plan object
@@ -171,14 +192,16 @@ export const generateTrainingPlan = async ({ userProfile }: TrainingPlanRequest)
       duration: planData.duration || "7 días",
       intensity: planData.intensity || "Adaptado a tu nivel",
       workouts: workouts,
-      createdAt: new Date()
+      createdAt: new Date(),
+      weekNumber: previousWeekResults ? (previousWeekResults.weekNumber + 1) : 1
     };
     
     // Save the plan to Supabase for future reference
     await supabase.from('training_plans').insert([{
       id: plan.id,
       user_id: (await supabase.auth.getUser()).data.user?.id,
-      plan_data: plan
+      plan_data: plan,
+      week_number: plan.weekNumber
     }]);
     
     return plan;
@@ -215,6 +238,115 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
     return data[0].plan_data as WorkoutPlan;
   } catch (error) {
     console.error('Error loading latest plan:', error);
+    return null;
+  }
+};
+
+/**
+ * Updates a workout with actual results
+ */
+export const updateWorkoutResults = async (
+  planId: string,
+  workoutId: string,
+  actualDistance: number | null,
+  actualDuration: string | null
+): Promise<WorkoutPlan | null> => {
+  try {
+    if (!supabase) {
+      console.error("Supabase client is not initialized. Check your environment variables.");
+      return null;
+    }
+    
+    // Get the current plan
+    const { data: planData, error: planError } = await supabase
+      .from('training_plans')
+      .select('plan_data')
+      .eq('id', planId)
+      .single();
+    
+    if (planError) throw planError;
+    
+    if (!planData) return null;
+    
+    const plan = planData.plan_data as WorkoutPlan;
+    
+    // Update the specific workout
+    const updatedWorkouts = plan.workouts.map(workout => {
+      if (workout.id === workoutId) {
+        return {
+          ...workout,
+          completed: true,
+          actualDistance,
+          actualDuration
+        };
+      }
+      return workout;
+    });
+    
+    const updatedPlan: WorkoutPlan = {
+      ...plan,
+      workouts: updatedWorkouts
+    };
+    
+    // Save the updated plan
+    const { error: updateError } = await supabase
+      .from('training_plans')
+      .update({ plan_data: updatedPlan })
+      .eq('id', planId);
+    
+    if (updateError) throw updateError;
+    
+    return updatedPlan;
+  } catch (error) {
+    console.error('Error updating workout results:', error);
+    return null;
+  }
+};
+
+/**
+ * Generate the next week's plan based on current results
+ */
+export const generateNextWeekPlan = async (currentPlan: WorkoutPlan): Promise<WorkoutPlan | null> => {
+  try {
+    if (!supabase) {
+      console.error("Supabase client is not initialized. Check your environment variables.");
+      return null;
+    }
+    
+    // Get current user
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return null;
+    
+    // Get the user profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userData.user.id)
+      .single();
+    
+    if (!profileData) return null;
+    
+    // Prepare the previous week results
+    const previousWeekResults = {
+      weekNumber: currentPlan.weekNumber || 1,
+      workouts: currentPlan.workouts.map(w => ({
+        day: w.day,
+        title: w.title,
+        completed: w.completed || false,
+        plannedDistance: w.distance,
+        actualDistance: w.actualDistance,
+        plannedDuration: w.duration,
+        actualDuration: w.actualDuration
+      }))
+    };
+    
+    // Generate new plan with the previous week results
+    return generateTrainingPlan({ 
+      userProfile: profileData as UserProfile,
+      previousWeekResults
+    });
+  } catch (error) {
+    console.error('Error generating next week plan:', error);
     return null;
   }
 };

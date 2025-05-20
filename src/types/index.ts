@@ -28,6 +28,9 @@ export interface Workout {
   distance: number | null;
   duration: string | null;
   type: 'carrera' | 'descanso' | 'fuerza' | 'flexibilidad' | 'otro';
+  completed?: boolean;
+  actualDistance?: number | null;
+  actualDuration?: string | null;
 }
 
 export interface WorkoutPlan {
@@ -38,6 +41,7 @@ export interface WorkoutPlan {
   intensity: string;
   workouts: Workout[];
   createdAt?: Date;
+  weekNumber?: number;
 }
 
 export interface RunStats {
@@ -55,7 +59,21 @@ export interface Achievement {
   completed: boolean;
 }
 
+export interface PreviousWeekResults {
+  weekNumber: number;
+  workouts: {
+    day: string;
+    title: string;
+    completed: boolean;
+    plannedDistance?: number | null;
+    actualDistance?: number | null;
+    plannedDuration?: string | null;
+    actualDuration?: string | null;
+  }[];
+}
+
 export interface TrainingPlanRequest {
   userProfile: UserProfile;
   customPrompt?: string;
+  previousWeekResults?: PreviousWeekResults;
 }

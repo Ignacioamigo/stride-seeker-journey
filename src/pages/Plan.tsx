@@ -1,9 +1,9 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
-import { generateTrainingPlan } from "@/services/planService";
+import { generateTrainingPlan, loadLatestPlan } from "@/services/planService";
 import { toast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import TrainingPlanDisplay from "@/components/plan/TrainingPlanDisplay";
@@ -12,7 +12,26 @@ import { WorkoutPlan } from "@/types";
 const Plan: React.FC = () => {
   const { user } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<WorkoutPlan | null>(null);
+
+  // Load existing plan on component mount
+  useEffect(() => {
+    const fetchPlan = async () => {
+      try {
+        const plan = await loadLatestPlan();
+        if (plan) {
+          setCurrentPlan(plan);
+        }
+      } catch (error) {
+        console.error("Error loading plan:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchPlan();
+  }, []);
 
   const handleGeneratePlan = async () => {
     if (!user.completedOnboarding) {
@@ -43,6 +62,30 @@ const Plan: React.FC = () => {
       setIsGenerating(false);
     }
   };
+  
+  const handlePlanUpdate = (updatedPlan: WorkoutPlan) => {
+    setCurrentPlan(updatedPlan);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="bg-runapp-purple text-white p-4">
+          <h1 className="text-xl font-bold mb-1">Hola, {user.name} 👋</h1>
+          <p className="text-sm opacity-90">Tu plan personalizado de entrenamiento</p>
+        </div>
+        
+        <div className="container max-w-md mx-auto p-4 flex justify-center items-center" style={{ minHeight: "60vh" }}>
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-runapp-purple mb-4" />
+            <p className="text-runapp-gray">Cargando tu plan de entrenamiento...</p>
+          </div>
+        </div>
+        
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -73,7 +116,10 @@ const Plan: React.FC = () => {
             </RunButton>
           </div>
         ) : (
-          <TrainingPlanDisplay plan={currentPlan} />
+          <TrainingPlanDisplay 
+            plan={currentPlan} 
+            onPlanUpdate={handlePlanUpdate} 
+          />
         )}
       </div>
       

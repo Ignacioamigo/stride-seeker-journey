@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { userProfile, context } = await req.json();
+    const { userProfile, context, previousWeekResults } = await req.json();
 
     if (!userProfile) {
       return new Response(
@@ -38,8 +38,8 @@ serve(async (req) => {
       );
     }
 
-    // Create system prompt with running expertise
-    const systemPrompt = `Eres un entrenador de running profesional y experto. 
+    // Create system prompt with running expertise and RAG context
+    let systemPrompt = `Eres un entrenador de running profesional y experto. 
     Tu tarea es crear un plan de entrenamiento personalizado de 7 días para un corredor, basado en su perfil 
     y en tus conocimientos sobre entrenamiento de running.
     
@@ -70,7 +70,7 @@ serve(async (req) => {
     `;
 
     // Format user profile for prompt
-    const userPrompt = `
+    let userPrompt = `
     Perfil del corredor:
     - Nombre: ${userProfile.name}
     - Edad: ${userProfile.age || 'No especificado'}
@@ -83,9 +83,32 @@ serve(async (req) => {
     - Objetivo: ${userProfile.goal}
     - Entrenamientos semanales deseados: ${userProfile.weeklyWorkouts || 'No especificado'}
     - Lesiones o limitaciones: ${userProfile.injuries || 'Ninguna'}
-    
-    Genera un plan de entrenamiento personalizado de 7 días para este corredor.
     `;
+    
+    // Add previous week results if available
+    if (previousWeekResults) {
+      userPrompt += `\nResultados de la semana anterior (Semana ${previousWeekResults.weekNumber}):\n`;
+      
+      previousWeekResults.workouts.forEach((workout: any) => {
+        userPrompt += `- ${workout.day}: ${workout.title}. `;
+        if (workout.completed) {
+          userPrompt += `Completado. `;
+          if (workout.plannedDistance && workout.actualDistance) {
+            userPrompt += `Distancia planificada: ${workout.plannedDistance}km, Distancia real: ${workout.actualDistance}km. `;
+          }
+          if (workout.plannedDuration && workout.actualDuration) {
+            userPrompt += `Duración planificada: ${workout.plannedDuration}, Duración real: ${workout.actualDuration}. `;
+          }
+        } else {
+          userPrompt += `No completado. `;
+        }
+        userPrompt += '\n';
+      });
+      
+      userPrompt += `\nPor favor, genera un plan para la Semana ${previousWeekResults.weekNumber + 1} ajustando la intensidad y progresión en función de los resultados de la semana anterior.`;
+    } else {
+      userPrompt += `\nGenera un plan de entrenamiento personalizado de 7 días para este corredor (Semana 1).`;
+    }
 
     // Call the Gemini API
     const response = await fetch(
@@ -142,7 +165,9 @@ serve(async (req) => {
       // If JSON parsing fails, use a regex approach to extract the plan
       console.error("JSON parsing failed, attempting to extract plan manually");
       plan = {
-        name: "Plan de entrenamiento personalizado",
+        name: previousWeekResults 
+          ? `Plan de entrenamiento: Semana ${previousWeekResults.weekNumber + 1}` 
+          : "Plan de entrenamiento personalizado: Semana 1",
         description: "Plan adaptado a tu perfil y objetivos",
         duration: "7 días",
         intensity: "Adaptada a tu nivel",
