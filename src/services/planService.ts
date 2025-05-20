@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -6,21 +7,18 @@ import { v4 as uuidv4 } from "uuid";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Check if environment variables are available
-let supabase;
+// Create client if both variables are available
+let supabase = null;
 try {
-  if (!supabaseUrl) {
-    console.error("Supabase URL no está definido en las variables de entorno");
-    throw new Error("Missing Supabase URL");
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("Variables de entorno faltantes:", {
+      VITE_SUPABASE_URL: Boolean(supabaseUrl),
+      VITE_SUPABASE_ANON_KEY: Boolean(supabaseAnonKey)
+    });
+  } else {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    console.log("Cliente Supabase inicializado correctamente");
   }
-  if (!supabaseAnonKey) {
-    console.error("Supabase Anon Key no está definido en las variables de entorno");
-    throw new Error("Missing Supabase Anon Key");
-  }
-  
-  // Create client if both variables are available
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
-  console.log("Cliente Supabase inicializado correctamente");
 } catch (error) {
   console.error("Error al inicializar el cliente de Supabase:", error);
 }
@@ -52,25 +50,30 @@ const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
     if (!supabase) {
       console.error("Cliente Supabase no inicializado. Verifica las variables de entorno.");
-      throw new Error("Supabase client is not initialized");
+      return [];
     }
     
     console.log("Generando embedding para el texto:", text.substring(0, 50) + "...");
     
-    const { data, error } = await supabase.functions.invoke('generate-embedding', {
-      body: { text }
-    });
-    
-    if (error) {
-      console.error("Error en edge function generate-embedding:", error);
-      throw new Error(error.message);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-embedding', {
+        body: { text }
+      });
+      
+      if (error) {
+        console.error("Error en edge function generate-embedding:", error);
+        return [];
+      }
+      
+      console.log("Embedding generado correctamente");
+      return data.embedding;
+    } catch (e) {
+      console.error("Error al invocar edge function:", e);
+      return [];
     }
-    
-    console.log("Embedding generado correctamente");
-    return data.embedding;
   } catch (error) {
     console.error('Error generating embedding:', error);
-    throw error;
+    return [];
   }
 };
 
@@ -81,43 +84,52 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
   try {
     if (!supabase) {
       console.error("Cliente Supabase no inicializado. Verifica las variables de entorno.");
-      throw new Error("Supabase client is not initialized");
+      return [];
+    }
+    
+    if (!embedding || embedding.length === 0) {
+      console.warn("No se proporcionó un embedding válido para la búsqueda");
+      return [];
     }
     
     console.log("Buscando fragmentos relevantes con el embedding...");
     
     // Query the fragments table with vector similarity search
-    const { data, error } = await supabase.rpc('match_fragments', {
-      query_embedding: embedding,
-      match_count: limit,
-      match_threshold: 0.6
-    });
-    
-    if (error) {
-      console.error('Error al recuperar fragmentos con RPC:', error);
-      console.log('Intentando consulta alternativa sin RPC...');
+    try {
+      const { data, error } = await supabase.rpc('match_fragments', {
+        query_embedding: embedding,
+        match_count: limit,
+        match_threshold: 0.6
+      });
       
-      // Try alternative query if RPC doesn't exist
-      const altQuery = await supabase
-        .from('fragments')
-        .select('content')
-        .order('embedding <-> $1', { ascending: true })
-        .limit(limit);
-      
-      if (altQuery.error) {
-        console.error('Error en consulta alternativa:', altQuery.error);
-        throw altQuery.error;
+      if (error) {
+        console.error('Error al recuperar fragmentos con RPC:', error);
+        console.log('Intentando consulta alternativa sin RPC...');
+        
+        // Try alternative query if RPC doesn't exist
+        const altQuery = await supabase
+          .from('fragments')
+          .select('content')
+          .order('embedding <-> $1', { ascending: true })
+          .limit(limit);
+        
+        if (altQuery.error) {
+          console.error('Error en consulta alternativa:', altQuery.error);
+          return [];
+        }
+        
+        console.log(`Recuperados ${altQuery.data?.length || 0} fragmentos con consulta alternativa`);
+        return altQuery.data?.map((doc: any) => doc.content) || [];
       }
       
-      console.log(`Recuperados ${altQuery.data?.length || 0} fragmentos con consulta alternativa`);
-      return altQuery.data?.map((doc: any) => doc.content) || [];
+      console.log(`Recuperados ${data?.length || 0} fragmentos relevantes`);
+      return data?.map((doc: any) => doc.content) || [];
+    } catch (e) {
+      console.error("Error en la consulta a la base de datos:", e);
+      return [];
     }
-    
-    console.log(`Recuperados ${data?.length || 0} fragmentos relevantes`);
-    return data?.map((doc: any) => doc.content) || [];
   } catch (error) {
     console.error('Error retrieving fragments:', error);
-    // Return empty array if no matches (this can happen during initial setup)
     return [];
   }
 };
@@ -133,6 +145,10 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
     
     // First, generate an embedding for the document
     const embedding = await generateEmbedding(content);
+    
+    if (!embedding || embedding.length === 0) {
+      throw new Error("No se pudo generar el embedding para el documento");
+    }
     
     // Create a unique ID for the document
     const id = uuidv4();
@@ -160,23 +176,22 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
 export const generateTrainingPlan = async ({ userProfile, previousWeekResults }: TrainingPlanRequest): Promise<WorkoutPlan> => {
   try {
     if (!supabase) {
-      console.error("Cliente Supabase no inicializado. Verifica que las variables de entorno VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY estén configuradas.");
+      console.error("Cliente Supabase no inicializado. Verifica las variables de entorno VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.");
       throw new Error("Supabase client is not initialized");
     }
     
     // 1. Create a query from the user profile
     const query = createUserProfileSummary(userProfile);
-    console.log("Creado resumen de perfil de usuario para consulta");
+    console.log("Creado resumen de perfil de usuario para consulta:", query);
     
     // 2. Generate embedding for the query
     console.log("Generando embedding para la consulta...");
-    let embedding;
+    let embedding = [];
     try {
       embedding = await generateEmbedding(query);
-      console.log("Embedding generado correctamente");
+      console.log("Embedding generado correctamente, longitud:", embedding.length);
     } catch (embeddingError) {
       console.error("Error al generar embedding, continuando sin contexto RAG:", embeddingError);
-      embedding = [];
     }
     
     // 3. Retrieve relevant fragments (if embedding was successful)
@@ -205,6 +220,8 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
       throw new Error(`Error en edge function: ${error.message || JSON.stringify(error)}`);
     }
     
+    console.log("Respuesta de edge function recibida:", data);
+    
     if (!data || !data.plan) {
       console.error("La edge function devolvió una respuesta sin plan:", data);
       throw new Error("La respuesta del servidor no contiene un plan");
@@ -214,14 +231,19 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     const planData = data.plan;
     console.log("Plan recibido:", planData);
     
+    if (!planData.workouts || !Array.isArray(planData.workouts)) {
+      console.error("El plan recibido no contiene workouts válidos:", planData);
+      throw new Error("El plan recibido tiene un formato inválido");
+    }
+    
     // Create workouts based on the plan
     const workouts: Workout[] = planData.workouts.map((workout: any) => ({
       id: uuidv4(),
-      day: workout.day,
-      title: workout.title,
-      description: workout.description,
-      distance: workout.distance,
-      duration: workout.duration,
+      day: workout.day || "Día sin especificar",
+      title: workout.title || "Entrenamiento sin título",
+      description: workout.description || "Sin descripción",
+      distance: workout.distance || null,
+      duration: workout.duration || null,
       type: workout.type || 'carrera',
       completed: false,
       actualDistance: null,
@@ -243,17 +265,35 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     // Save the plan to Supabase for future reference
     try {
       console.log("Guardando plan en Supabase...");
-      const userId = (await supabase.auth.getUser()).data.user?.id || 'anonymous';
+      
+      // Use anonymous ID if not authenticated
+      let userId = 'anonymous';
+      try {
+        const userResponse = await supabase.auth.getUser();
+        userId = userResponse.data.user?.id || 'anonymous';
+      } catch (authError) {
+        console.warn("No se pudo obtener el usuario autenticado, usando ID anónimo:", authError);
+      }
+      
       await supabase.from('training_plans').insert([{
         id: plan.id,
         user_id: userId,
         plan_data: plan,
         week_number: plan.weekNumber
       }]);
+      
       console.log("Plan guardado correctamente");
     } catch (saveError) {
       console.error("Error al guardar plan en la base de datos:", saveError);
       // Continue anyway as we have the plan data already
+    }
+    
+    // Save to localStorage as backup
+    try {
+      localStorage.setItem('last-training-plan', JSON.stringify(plan));
+      console.log("Plan guardado en localStorage como respaldo");
+    } catch (localStorageError) {
+      console.warn("No se pudo guardar el plan en localStorage:", localStorageError);
     }
     
     return plan;
@@ -268,45 +308,59 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
  */
 export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
   try {
+    // Try to get plan from localStorage first
+    const localPlan = localStorage.getItem('last-training-plan');
+    if (localPlan) {
+      console.log("Plan encontrado en localStorage");
+      return JSON.parse(localPlan);
+    }
+    
     if (!supabase) {
       console.error("Cliente Supabase no inicializado. Verifica las variables de entorno.");
       return null;
     }
     
-    console.log("Intentando cargar el último plan de entrenamiento...");
+    console.log("Intentando cargar el último plan de entrenamiento desde Supabase...");
     
-    const { data: user } = await supabase.auth.getUser();
-    
-    if (!user.user) {
-      console.log("No hay usuario autenticado, usando modo local");
-      // Try to get plan from localStorage if no authenticated user
-      const localPlan = localStorage.getItem('last-training-plan');
-      if (localPlan) {
-        console.log("Plan encontrado en localStorage");
-        return JSON.parse(localPlan);
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      
+      if (!user.user) {
+        console.log("No hay usuario autenticado, no se puede cargar plan desde Supabase");
+        return null;
       }
+      
+      const { data, error } = await supabase
+        .from('training_plans')
+        .select('plan_data')
+        .eq('user_id', user.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        console.error("Error al consultar la base de datos:", error);
+        return null;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log("No se encontró ningún plan guardado en Supabase");
+        return null;
+      }
+      
+      console.log("Plan cargado correctamente desde Supabase");
+      
+      // Save to localStorage as backup
+      try {
+        localStorage.setItem('last-training-plan', JSON.stringify(data[0].plan_data));
+      } catch (e) {
+        console.warn("No se pudo guardar el plan en localStorage:", e);
+      }
+      
+      return data[0].plan_data as WorkoutPlan;
+    } catch (e) {
+      console.error("Error al cargar el plan desde Supabase:", e);
       return null;
     }
-    
-    const { data, error } = await supabase
-      .from('training_plans')
-      .select('plan_data')
-      .eq('user_id', user.user.id)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    
-    if (error) {
-      console.error("Error al consultar la base de datos:", error);
-      throw error;
-    }
-    
-    if (!data || data.length === 0) {
-      console.log("No se encontró ningún plan guardado");
-      return null;
-    }
-    
-    console.log("Plan cargado correctamente");
-    return data[0].plan_data as WorkoutPlan;
   } catch (error) {
     console.error('Error al cargar el último plan:', error);
     return null;

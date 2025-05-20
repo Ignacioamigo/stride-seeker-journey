@@ -15,17 +15,20 @@ const Plan: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<WorkoutPlan | null>(null);
   const [connectionError, setConnectionError] = useState(false);
+  const [generationStage, setGenerationStage] = useState<'init' | 'rag' | 'api' | 'complete'>('init');
 
   // Check for Supabase environment variables on component mount
   useEffect(() => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
+    console.log("Verificando variables de entorno de Supabase:", { 
+      url: Boolean(supabaseUrl), 
+      key: Boolean(supabaseAnonKey)
+    });
+    
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Variables de entorno de Supabase no encontradas:", { 
-        url: supabaseUrl ? "✓" : "✗", 
-        key: supabaseAnonKey ? "✓" : "✗" 
-      });
+      console.error("Variables de entorno de Supabase no encontradas");
       setConnectionError(true);
     } else {
       console.log("Variables de entorno de Supabase configuradas correctamente");
@@ -66,6 +69,8 @@ const Plan: React.FC = () => {
     }
 
     setIsGenerating(true);
+    setGenerationStage('init');
+    
     try {
       console.log("Iniciando generación de plan con los siguientes datos:", {
         name: user.name,
@@ -74,16 +79,27 @@ const Plan: React.FC = () => {
         goal: user.goal
       });
       
-      // Verifica nuevamente las variables de entorno antes de proceder
-      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      // Verificar variables de entorno
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
         console.error("Variables de entorno no encontradas:", {
-          VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
-          VITE_SUPABASE_ANON_KEY: Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY)
+          VITE_SUPABASE_URL: Boolean(supabaseUrl),
+          VITE_SUPABASE_ANON_KEY: Boolean(supabaseAnonKey)
         });
         throw new Error("Faltan variables de entorno para Supabase");
       }
       
+      // Fase RAG
+      setGenerationStage('rag');
+      
+      // Fase API
+      setGenerationStage('api');
       const plan = await generateTrainingPlan({ userProfile: user });
+      
+      // Fase completada
+      setGenerationStage('complete');
       console.log("Plan generado exitosamente:", plan);
       setCurrentPlan(plan);
       toast({
@@ -96,7 +112,7 @@ const Plan: React.FC = () => {
         title: "Error",
         description: connectionError 
           ? "Variables de entorno de Supabase no configuradas. Contacta al administrador." 
-          : "No se pudo generar el plan. Verifica la conexión a Supabase.",
+          : "No se pudo generar el plan. Intenta de nuevo más tarde.",
         variant: "destructive",
       });
     } finally {
@@ -120,6 +136,34 @@ const Plan: React.FC = () => {
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-runapp-purple mb-4" />
             <p className="text-runapp-gray">Cargando tu plan de entrenamiento...</p>
+          </div>
+        </div>
+        
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (isGenerating) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="bg-runapp-purple text-white p-4">
+          <h1 className="text-xl font-bold mb-1">Hola, {user.name} 👋</h1>
+          <p className="text-sm opacity-90">Tu plan personalizado de entrenamiento</p>
+        </div>
+        
+        <div className="container max-w-md mx-auto p-4 flex justify-center items-center" style={{ minHeight: "60vh" }}>
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-runapp-purple mb-4" />
+            {generationStage === 'init' && (
+              <p className="text-runapp-gray">Iniciando proceso de generación del plan...</p>
+            )}
+            {generationStage === 'rag' && (
+              <p className="text-runapp-gray">Analizando tu perfil y buscando entrenamientos adecuados...</p>
+            )}
+            {generationStage === 'api' && (
+              <p className="text-runapp-gray">Generando tu plan personalizado con IA...</p>
+            )}
           </div>
         </div>
         
