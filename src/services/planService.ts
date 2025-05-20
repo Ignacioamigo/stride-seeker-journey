@@ -11,18 +11,18 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 let supabase = null;
 try {
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Variables de entorno faltantes:", {
+    console.warn("Variables de entorno faltantes:", {
       VITE_SUPABASE_URL: Boolean(supabaseUrl),
       VITE_SUPABASE_ANON_KEY: Boolean(supabaseAnonKey)
     });
-    throw new Error("Variables de entorno de Supabase no configuradas");
+    console.warn("El cliente de Supabase no se ha inicializado. La aplicación funcionará con funcionalidades limitadas.");
   } else {
     supabase = createClient(supabaseUrl, supabaseAnonKey);
     console.log("Cliente Supabase inicializado correctamente");
   }
 } catch (error) {
   console.error("Error al inicializar el cliente de Supabase:", error);
-  throw new Error("No se pudo inicializar el cliente de Supabase");
+  console.warn("La aplicación funcionará con funcionalidades limitadas debido al error de inicialización de Supabase.");
 }
 
 /**
@@ -51,6 +51,7 @@ const createUserProfileSummary = (profile: UserProfile): string => {
 const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
     if (!supabase) {
+      console.warn("Cliente Supabase no inicializado. No se pueden generar embeddings.");
       throw new Error("Cliente Supabase no inicializado. Verifica las variables de entorno.");
     }
     
@@ -179,7 +180,8 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
 export const generateTrainingPlan = async ({ userProfile, previousWeekResults }: TrainingPlanRequest): Promise<WorkoutPlan> => {
   try {
     if (!supabase) {
-      throw new Error("Cliente Supabase no inicializado. Verifica las variables de entorno VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.");
+      console.error("No se puede generar un plan sin conexión a Supabase.");
+      throw new Error("Cliente Supabase no inicializado. Verifica que el archivo .env contenga VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.");
     }
     
     // 1. Create a query from the user profile
@@ -306,7 +308,8 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
     }
     
     if (!supabase) {
-      throw new Error("Cliente Supabase no inicializado. Verifica las variables de entorno.");
+      console.warn("Cliente Supabase no inicializado. No se puede cargar el plan desde Supabase.");
+      return null;
     }
     
     console.log("Intentando cargar el último plan de entrenamiento desde Supabase...");

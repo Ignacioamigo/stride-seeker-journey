@@ -97,25 +97,31 @@ const Plan: React.FC = () => {
       
       // Fase API - generación del plan con Gemini
       setGenerationStage('api');
-      const plan = await generateTrainingPlan({ userProfile: user });
       
-      // Fase completada
-      setGenerationStage('complete');
-      console.log("Plan generado exitosamente:", plan);
-      setCurrentPlan(plan);
-      
-      toast({
-        title: "Plan generado",
-        description: "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil y en nuestra base de conocimientos.",
-      });
+      try {
+        const plan = await generateTrainingPlan({ userProfile: user });
+        
+        // Fase completada
+        setGenerationStage('complete');
+        console.log("Plan generado exitosamente:", plan);
+        setCurrentPlan(plan);
+        
+        toast({
+          title: "Plan generado",
+          description: "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil y en nuestra base de conocimientos.",
+        });
+      } catch (error) {
+        console.error("Error específico al generar plan:", error);
+        setSupabaseError(error.message || "No se pudo generar el plan. Verifica la configuración de Supabase.");
+        toast({
+          title: "Error",
+          description: "No se pudo generar el plan. Verifica la configuración de Supabase y los logs para más detalles.",
+          variant: "destructive",
+        });
+        throw error; // Re-throw para el manejo en el catch exterior
+      }
     } catch (error) {
-      console.error("Error al generar plan:", error);
-      setSupabaseError(error.message || "No se pudo generar el plan. Verifica la configuración de Supabase.");
-      toast({
-        title: "Error",
-        description: "No se pudo generar el plan. Verifica la configuración de Supabase y los logs para más detalles.",
-        variant: "destructive",
-      });
+      console.error("Error general al generar plan:", error);
     } finally {
       setIsGenerating(false);
     }
@@ -131,7 +137,8 @@ const Plan: React.FC = () => {
     }
   };
 
-  if (isLoading) {
+  // Base layout that always renders to prevent blank screen
+  const renderLayout = () => {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
         <div className="bg-runapp-purple text-white p-4">
@@ -139,27 +146,41 @@ const Plan: React.FC = () => {
           <p className="text-sm opacity-90">Tu plan personalizado de entrenamiento</p>
         </div>
         
-        <div className="container max-w-md mx-auto p-4 flex justify-center items-center" style={{ minHeight: "60vh" }}>
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-runapp-purple mb-4" />
-            <p className="text-runapp-gray">Cargando tu plan de entrenamiento...</p>
-          </div>
+        <div className="container max-w-md mx-auto p-4">
+          {supabaseError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              <AlertTitle>Error de conexión</AlertTitle>
+              <AlertDescription>
+                {supabaseError}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {renderContent()}
         </div>
         
         <BottomNav />
       </div>
     );
-  }
+  };
 
-  if (isGenerating) {
-    return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <div className="bg-runapp-purple text-white p-4">
-          <h1 className="text-xl font-bold mb-1">Hola, {user.name} 👋</h1>
-          <p className="text-sm opacity-90">Tu plan personalizado de entrenamiento</p>
+  // Content to render based on state
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center" style={{ minHeight: "60vh" }}>
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-runapp-purple mb-4" />
+            <p className="text-runapp-gray">Cargando tu plan de entrenamiento...</p>
+          </div>
         </div>
-        
-        <div className="container max-w-md mx-auto p-4 flex justify-center items-center" style={{ minHeight: "60vh" }}>
+      );
+    }
+
+    if (isGenerating) {
+      return (
+        <div className="flex justify-center items-center" style={{ minHeight: "60vh" }}>
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-runapp-purple mb-4" />
             {generationStage === 'init' && (
@@ -173,61 +194,48 @@ const Plan: React.FC = () => {
             )}
           </div>
         </div>
-        
-        <BottomNav />
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-runapp-purple text-white p-4">
-        <h1 className="text-xl font-bold mb-1">Hola, {user.name} 👋</h1>
-        <p className="text-sm opacity-90">Tu plan personalizado de entrenamiento</p>
-      </div>
-      
-      <div className="container max-w-md mx-auto p-4">
-        {supabaseError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            <AlertTitle>Error de conexión</AlertTitle>
-            <AlertDescription>
-              {supabaseError}
-            </AlertDescription>
-          </Alert>
-        )}
-      
-        {!currentPlan ? (
-          <div className="bg-white rounded-xl p-6 shadow-sm text-center mb-6">
-            <h2 className="text-xl font-semibold text-runapp-navy mb-3">No tienes un plan de entrenamiento</h2>
-            <p className="text-runapp-gray mb-4">
-              Genera un plan personalizado basado en tu perfil, objetivos y nuestra base de conocimientos en entrenamientos de running.
+    if (!currentPlan) {
+      return (
+        <div className="bg-white rounded-xl p-6 shadow-sm text-center mb-6">
+          <h2 className="text-xl font-semibold text-runapp-navy mb-3">No tienes un plan de entrenamiento</h2>
+          <p className="text-runapp-gray mb-4">
+            Genera un plan personalizado basado en tu perfil, objetivos y nuestra base de conocimientos en entrenamientos de running.
+          </p>
+          <RunButton 
+            onClick={handleGeneratePlan}
+            disabled={isGenerating || !!supabaseError}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generando plan con IA...
+              </>
+            ) : (
+              "Generar nuevo plan de entrenamiento"
+            )}
+          </RunButton>
+          {supabaseError && (
+            <p className="mt-4 text-sm text-red-500">
+              No se puede generar un plan sin conexión a Supabase. Verifica la configuración.
             </p>
-            <RunButton 
-              onClick={handleGeneratePlan}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generando plan con IA...
-                </>
-              ) : (
-                "Generar nuevo plan de entrenamiento"
-              )}
-            </RunButton>
-          </div>
-        ) : (
-          <TrainingPlanDisplay 
-            plan={currentPlan} 
-            onPlanUpdate={handlePlanUpdate} 
-          />
-        )}
-      </div>
-      
-      <BottomNav />
-    </div>
-  );
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <TrainingPlanDisplay 
+        plan={currentPlan} 
+        onPlanUpdate={handlePlanUpdate} 
+      />
+    );
+  };
+
+  // Always return the base layout to prevent blank screen
+  return renderLayout();
 };
 
 export default Plan;
