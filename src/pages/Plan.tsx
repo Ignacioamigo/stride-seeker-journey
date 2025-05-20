@@ -9,59 +9,33 @@ import { Loader2, AlertCircle } from "lucide-react";
 import TrainingPlanDisplay from "@/components/plan/TrainingPlanDisplay";
 import { WorkoutPlan } from "@/types";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 const Plan: React.FC = () => {
   const { user } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<WorkoutPlan | null>(null);
-  const [supabaseError, setSupabaseError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [generationStage, setGenerationStage] = useState<'init' | 'rag' | 'api' | 'complete'>('init');
 
-  // Check for Supabase environment variables on component mount
-  useEffect(() => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    console.log("Verificando variables de entorno de Supabase:", { 
-      url: Boolean(supabaseUrl), 
-      key: Boolean(supabaseAnonKey)
-    });
-    
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Variables de entorno de Supabase no encontradas");
-      setSupabaseError("No se detectaron las variables de entorno de Supabase. Verifica que el archivo .env esté configurado correctamente.");
-    } else {
-      console.log("Variables de entorno de Supabase configuradas correctamente");
-      setSupabaseError(null);
-    }
-  }, []);
-
-  // Load existing plan on component mount
+  // Check for Supabase environment variables on component mount and load existing plan
   useEffect(() => {
     const fetchPlan = async () => {
       try {
         console.log("Intentando cargar el plan existente...");
-        // Check if there's a plan in localStorage first
-        const localPlan = localStorage.getItem('last-training-plan');
-        if (localPlan) {
-          console.log("Plan encontrado en localStorage");
-          setCurrentPlan(JSON.parse(localPlan));
-          setIsLoading(false);
-          return;
-        }
-        
-        // Try to load from Supabase
         const plan = await loadLatestPlan();
+        
         if (plan) {
           console.log("Plan cargado exitosamente:", plan.name);
           setCurrentPlan(plan);
         } else {
           console.log("No se encontró ningún plan existente");
         }
+        setError(null);
       } catch (error) {
         console.error("Error loading plan:", error);
-        setSupabaseError("No se pudo cargar el plan. Verifica la configuración de Supabase.");
+        setError(error.message || "Error al cargar el plan de entrenamiento");
       } finally {
         setIsLoading(false);
       }
@@ -82,7 +56,7 @@ const Plan: React.FC = () => {
 
     setIsGenerating(true);
     setGenerationStage('init');
-    setSupabaseError(null);
+    setError(null);
     
     try {
       console.log("Iniciando generación de plan con los siguientes datos:", {
@@ -98,30 +72,26 @@ const Plan: React.FC = () => {
       // Fase API - generación del plan con Gemini
       setGenerationStage('api');
       
-      try {
-        const plan = await generateTrainingPlan({ userProfile: user });
-        
-        // Fase completada
-        setGenerationStage('complete');
-        console.log("Plan generado exitosamente:", plan);
-        setCurrentPlan(plan);
-        
-        toast({
-          title: "Plan generado",
-          description: "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil y en nuestra base de conocimientos.",
-        });
-      } catch (error) {
-        console.error("Error específico al generar plan:", error);
-        setSupabaseError(error.message || "No se pudo generar el plan. Verifica la configuración de Supabase.");
-        toast({
-          title: "Error",
-          description: "No se pudo generar el plan. Verifica la configuración de Supabase y los logs para más detalles.",
-          variant: "destructive",
-        });
-        throw error; // Re-throw para el manejo en el catch exterior
-      }
+      const plan = await generateTrainingPlan({ userProfile: user });
+      
+      // Fase completada
+      setGenerationStage('complete');
+      console.log("Plan generado exitosamente:", plan);
+      setCurrentPlan(plan);
+      
+      toast({
+        title: "Plan generado",
+        description: "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil.",
+      });
     } catch (error) {
-      console.error("Error general al generar plan:", error);
+      console.error("Error al generar plan:", error);
+      setError(error.message || "Error al generar el plan de entrenamiento");
+      
+      toast({
+        title: "Error",
+        description: "No se pudo generar el plan. Verifica la configuración de Supabase.",
+        variant: "destructive",
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -129,12 +99,6 @@ const Plan: React.FC = () => {
   
   const handlePlanUpdate = (updatedPlan: WorkoutPlan) => {
     setCurrentPlan(updatedPlan);
-    // Update localStorage
-    try {
-      localStorage.setItem('last-training-plan', JSON.stringify(updatedPlan));
-    } catch (e) {
-      console.warn("No se pudo actualizar el plan en localStorage:", e);
-    }
   };
 
   // Base layout that always renders to prevent blank screen
@@ -147,17 +111,29 @@ const Plan: React.FC = () => {
         </div>
         
         <div className="container max-w-md mx-auto p-4">
-          {supabaseError && (
+          {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4 mr-2" />
               <AlertTitle>Error de conexión</AlertTitle>
               <AlertDescription>
-                {supabaseError}
+                {error}
               </AlertDescription>
             </Alert>
           )}
           
           {renderContent()}
+          
+          {error && (
+            <div className="mt-4 text-center">
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+                className="mx-auto"
+              >
+                Reintentar
+              </Button>
+            </div>
+          )}
         </div>
         
         <BottomNav />
@@ -206,7 +182,7 @@ const Plan: React.FC = () => {
           </p>
           <RunButton 
             onClick={handleGeneratePlan}
-            disabled={isGenerating || !!supabaseError}
+            disabled={isGenerating || !!error}
           >
             {isGenerating ? (
               <>
@@ -217,7 +193,7 @@ const Plan: React.FC = () => {
               "Generar nuevo plan de entrenamiento"
             )}
           </RunButton>
-          {supabaseError && (
+          {error && (
             <p className="mt-4 text-sm text-red-500">
               No se puede generar un plan sin conexión a Supabase. Verifica la configuración.
             </p>
