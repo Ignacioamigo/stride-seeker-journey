@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
@@ -21,12 +20,14 @@ interface UserProfile {
   experienceLevel: string | null;
   injuries: string;
   completedOnboarding: boolean;
+  embedding: number[];
 }
 
 interface RequestBody {
   userProfile: UserProfile;
-  context?: string;
-  relevantFragments?: string[]; // Ahora aceptamos fragmentos relevantes
+  relevantFragments?: string[];
+  min_similarity?: number;
+  match_count?: number;
 }
 
 serve(async (req) => {
@@ -39,7 +40,7 @@ serve(async (req) => {
     console.log("Edge function generate-training-plan invocada\n");
     
     // Get request body
-    const { userProfile, context, relevantFragments } = await req.json() as RequestBody;
+    const { userProfile, min_similarity = 0.6, match_count = 5 } = await req.json() as RequestBody;
 
     // Validate required fields
     if (!userProfile || !userProfile.name || !userProfile.goal) {
@@ -67,65 +68,59 @@ serve(async (req) => {
     // Prepare RAG context
     let ragContext = '';
     
-    // Si tenemos fragmentos relevantes, los usamos para construir el contexto
-    if (relevantFragments && relevantFragments.length > 0) {
-      ragContext = `Aquí tienes información relevante sobre entrenamientos y mejores prácticas para running que debes usar para generar un plan mejor adaptado:\n\n`;
-      relevantFragments.forEach((fragment, index) => {
-        ragContext += `Documento ${index + 1}:\n${fragment}\n\n`;
-      });
-    } else if (context) {
-      // Usar el contexto directo si se proporcionó
-      ragContext = `Aquí tienes información relevante sobre entrenamientos y mejores prácticas:\n${context}\n`;
-    }
+    // Obtener embedding del perfil
+    // (Aquí deberías tener el embedding generado y pasado, o generarlo aquí si tienes la función)
+    // Por simplicidad, asumimos que ya tienes el embedding en la petición o lo generas aquí
 
-    // Create the prompt with RAG context
+    // Recuperar fragmentos relevantes
+    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const query_embedding = userProfile.embedding; // Debes pasar el embedding en la petición o generarlo aquí
+    const { data: fragments, error } = await supabase.rpc('match_fragments', {
+      query_embedding,
+      match_count,
+      min_similarity
+    });
+    if (error) throw new Error('Error al recuperar fragmentos: ' + error.message);
+
+    // Logging de fragmentos y similitud
+    console.log('Selected fragments for context:');
+    fragments.forEach((frag, i) => {
+      console.log(`Fragment ${i+1}: sim=${frag.similarity?.toFixed(2) ?? 'N/A'}\n${frag.content.slice(0, 100)}...`);
+    });
+
+    // Construir el contexto
+    const contextText = fragments
+      .map((f, i) => `Fragmento ${i+1} (similitud ${f.similarity?.toFixed(2) ?? 'N/A'}):\n${f.content}`)
+      .join('\n\n');
+
+    // Prompt mejorado
     const prompt = `
-    Eres un experto entrenador de running que genera planes de entrenamiento personalizados.
-    
-    ${ragContext ? ragContext : ''}
-    
-    Genera un plan de entrenamiento semanal para el siguiente perfil:
-    - Nombre: ${userProfile.name}
-    - Edad: ${userProfile.age || 'No especificada'}
-    - Género: ${userProfile.gender || 'No especificado'}
-    - Nivel de experiencia: ${userProfile.experienceLevel || 'No especificado'}
-    - Distancia máxima recorrida: ${userProfile.maxDistance ? `${userProfile.maxDistance} km` : 'No especificada'}
-    - Ritmo actual: ${userProfile.pace || 'No especificado'}
-    - Objetivo: ${userProfile.goal}
-    - Entrenamientos semanales: ${userProfile.weeklyWorkouts || 'No especificado'}
-    - Lesiones o limitaciones: ${userProfile.injuries || 'Ninguna'}
+Eres un asistente experto en running. Usa SOLO el contexto proporcionado para personalizar el plan.
 
-    El plan debe incluir:
-    1. Un nombre descriptivo
-    2. Una descripción general
-    3. La duración del plan
-    4. El nivel de intensidad
-    5. Una lista de entrenamientos para cada día de la semana, incluyendo:
-       - Día de la semana
-       - Título del entrenamiento
-       - Descripción detallada
-       - Distancia (en km) si aplica
-       - Duración (en minutos)
-       - Tipo de entrenamiento (carrera, fuerza, descanso, flexibilidad)
+Contexto:
+${contextText}
 
-    Responde en formato JSON con la siguiente estructura:
+Perfil del usuario:
+${JSON.stringify(userProfile, null, 2)}
+
+Genera un plan semanal en formato JSON:
+{
+  "name": "...",
+  "description": "...",
+  "duration": "...",
+  "intensity": "...",
+  "workouts": [
     {
-      "name": "string",
-      "description": "string",
-      "duration": "string",
-      "intensity": "string",
-      "workouts": [
-        {
-          "day": "string",
-          "title": "string",
-          "description": "string",
-          "distance": number | null,
-          "duration": "string",
-          "type": "carrera" | "fuerza" | "descanso" | "flexibilidad"
-        }
-      ]
+      "day": "...",
+      "title": "...",
+      "description": "...",
+      "distance": ...,
+      "duration": "...",
+      "type": "carrera|fuerza|descanso|flexibilidad"
     }
-    `;
+  ]
+}
+`;
 
     // Generate the plan
     console.log("Generando plan con Gemini...");
