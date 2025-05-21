@@ -371,6 +371,22 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     
     if (error) {
       console.error("Error al llamar a edge function generate-training-plan:", error);
+      
+      // Check if it's a timeout error
+      if (error.message?.includes('timeout') || error.message?.includes('timed out')) {
+        throw new Error("La generación del plan está tomando más tiempo de lo esperado. Por favor, intenta de nuevo en unos momentos.");
+      }
+      
+      // Check if it's a connection error
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('network')) {
+        throw new Error("No se pudo conectar con el servidor. Por favor, verifica tu conexión a internet e intenta de nuevo.");
+      }
+      
+      // Check if it's an API key error
+      if (error.message?.includes('API key') || error.message?.includes('GEMINI_API_KEY')) {
+        throw new Error("Error de configuración del servidor. Por favor, contacta al soporte técnico.");
+      }
+      
       console.log("Intentando generar plan en modo offline como fallback...");
       return await generateOfflinePlan({ userProfile, previousWeekResults });
     }
@@ -456,6 +472,12 @@ export const generateTrainingPlan = async ({ userProfile, previousWeekResults }:
     return plan;
   } catch (error) {
     console.error('Error al generar el plan de entrenamiento:', error);
+    
+    // If it's already a custom error message, throw it directly
+    if (error instanceof Error && !error.message.includes('Error al generar el plan de entrenamiento')) {
+      throw error;
+    }
+    
     console.log('Intentando generar plan en modo offline como última opción...');
     return await generateOfflinePlan({ userProfile, previousWeekResults });
   }

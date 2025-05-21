@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import { generateTrainingPlan, loadLatestPlan, generateOfflinePlan } from "@/services/planService";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Sparkles } from "lucide-react";
 import TrainingPlanDisplay from "@/components/plan/TrainingPlanDisplay";
 import { WorkoutPlan } from "@/types";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -37,41 +36,23 @@ const Plan: React.FC = () => {
     }
   }, []);
 
-  // Load existing plan on component mount
+  // Load latest plan on mount
   useEffect(() => {
-    const fetchPlan = async () => {
+    const loadPlan = async () => {
       try {
-        console.log("Intentando cargar el plan existente...");
-        // Check if there's a plan in localStorage first
-        const localPlan = localStorage.getItem('last-training-plan');
-        if (localPlan) {
-          console.log("Plan encontrado en localStorage");
-          setCurrentPlan(JSON.parse(localPlan));
-          setIsLoading(false);
-          return;
-        }
-        
-        // Only try to load from Supabase if environment variables are set
-        if (!connectionError) {
-          const plan = await loadLatestPlan();
-          if (plan) {
-            console.log("Plan cargado exitosamente:", plan.name);
-            setCurrentPlan(plan);
-          } else {
-            console.log("No se encontró ningún plan existente");
-          }
-        } else {
-          console.log("No se intentó cargar el plan desde Supabase debido a falta de configuración");
+        const plan = await loadLatestPlan();
+        if (plan) {
+          setCurrentPlan(plan);
         }
       } catch (error) {
-        console.error("Error loading plan:", error);
+        console.error("Error loading latest plan:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchPlan();
-  }, [connectionError]);
+
+    loadPlan();
+  }, []);
 
   const handleGeneratePlan = async () => {
     if (!user.completedOnboarding) {
@@ -164,27 +145,22 @@ const Plan: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <div className="bg-runapp-purple text-white p-4">
-          <h1 className="text-xl font-bold mb-1">Hola, {user.name} 👋</h1>
-          <p className="text-sm opacity-90">Tu plan personalizado de entrenamiento</p>
-        </div>
-        
-        <div className="container max-w-md mx-auto p-4 flex justify-center items-center" style={{ minHeight: "60vh" }}>
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-runapp-purple mb-4" />
-            <p className="text-runapp-gray">Cargando tu plan de entrenamiento...</p>
-          </div>
-        </div>
-        
-        <BottomNav />
-      </div>
-    );
-  }
+  const renderLoadingState = () => {
+    const getLoadingMessage = () => {
+      switch (generationStage) {
+        case 'init':
+          return "Preparando tu plan personalizado...";
+        case 'rag':
+          return "Analizando tu perfil y objetivos...";
+        case 'api':
+          return "Generando tu plan de entrenamiento...";
+        case 'complete':
+          return "Finalizando tu plan...";
+        default:
+          return "Cargando...";
+      }
+    };
 
-  if (isGenerating) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
         <div className="bg-runapp-purple text-white p-4">
@@ -194,22 +170,22 @@ const Plan: React.FC = () => {
         
         <div className="container max-w-md mx-auto p-4 flex justify-center items-center" style={{ minHeight: "60vh" }}>
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-runapp-purple mb-4" />
-            {generationStage === 'init' && (
-              <p className="text-runapp-gray">Iniciando proceso de generación del plan...</p>
-            )}
-            {generationStage === 'rag' && (
-              <p className="text-runapp-gray">Analizando tu perfil y buscando entrenamientos adecuados...</p>
-            )}
-            {generationStage === 'api' && (
-              <p className="text-runapp-gray">Generando tu plan personalizado con IA...</p>
-            )}
+            <div className="relative mb-6">
+              <Sparkles className="h-12 w-12 text-runapp-purple animate-pulse" />
+              <Loader2 className="h-8 w-8 animate-spin absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white" />
+            </div>
+            <p className="text-runapp-gray font-medium">{getLoadingMessage()}</p>
+            <p className="text-runapp-gray text-sm mt-2">Esto puede tomar unos momentos...</p>
           </div>
         </div>
         
         <BottomNav />
       </div>
     );
+  };
+
+  if (isLoading || isGenerating) {
+    return renderLoadingState();
   }
 
   return (
@@ -222,40 +198,32 @@ const Plan: React.FC = () => {
       <div className="container max-w-md mx-auto p-4">
         {connectionError && (
           <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4 mr-2" />
+            <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error de conexión</AlertTitle>
             <AlertDescription>
-              No se detectaron las variables de entorno de Supabase. 
-              Se puede generar un plan en modo sin conexión, pero no se guardará en la base de datos.
+              No se pudo conectar con el servidor. El plan se generará en modo offline.
             </AlertDescription>
           </Alert>
         )}
-      
-        {!currentPlan ? (
-          <div className="bg-white rounded-xl p-6 shadow-sm text-center mb-6">
-            <h2 className="text-xl font-semibold text-runapp-navy mb-3">No tienes un plan de entrenamiento</h2>
-            <p className="text-runapp-gray mb-4">
-              Genera un plan personalizado basado en tu perfil, objetivos y nuestra base de conocimientos en entrenamientos de running.
-            </p>
-            <RunButton 
-              onClick={handleGeneratePlan}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generando plan con IA...
-                </>
-              ) : (
-                "Generar nuevo plan de entrenamiento"
-              )}
-            </RunButton>
-          </div>
-        ) : (
+        
+        {currentPlan ? (
           <TrainingPlanDisplay 
             plan={currentPlan} 
             onPlanUpdate={handlePlanUpdate} 
           />
+        ) : (
+          <div className="bg-white rounded-xl p-6 shadow-sm text-center">
+            <h2 className="text-xl font-bold text-runapp-navy mb-2">¡Comienza tu viaje!</h2>
+            <p className="text-runapp-gray mb-6">
+              Genera tu primer plan de entrenamiento personalizado basado en tu perfil y objetivos.
+            </p>
+            <RunButton 
+              onClick={handleGeneratePlan}
+              className="w-full"
+            >
+              Generar mi plan
+            </RunButton>
+          </div>
         )}
       </div>
       
