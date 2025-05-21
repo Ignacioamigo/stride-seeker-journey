@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
@@ -118,9 +119,9 @@ serve(async (req) => {
         throw new Error('Invalid embedding response');
       }
       
-      console.log("Embedding generated successfully");
+      console.log("Embedding generated successfully with dimensions:", embeddingData.embedding.length);
       
-      // Fix: Use direct RPC call for match_fragments with proper parameter names
+      // Use direct database query to match fragments - fix the implementation
       const { data: fragments, error } = await supabase.rpc('match_fragments', {
         query_embedding: embeddingData.embedding,
         match_threshold: 0.6,
@@ -163,7 +164,7 @@ Objetivo: ${userProfile.goal}
 Lesiones o condiciones: ${userProfile.injuries || 'Ninguna'}
 Frecuencia semanal deseada: ${userProfile.weeklyWorkouts || '3'} entrenamientos por semana\n`;
     
-    // RAG context section
+    // RAG context section - make sure this part is used!
     const ragSection = contextText ? `\nDOCUMENTOS RELEVANTES PARA REFERENCIA:\n${contextText}\n` : '';
     
     // Previous week results section if available
@@ -223,6 +224,8 @@ IMPORTANTE:
     // Build the final prompt
     const prompt = `${systemPrompt}\n${userProfileSection}${ragSection}${previousResultsSection}${customPromptSection}${mainInstruction}`;
     console.log("Prepared prompt for Gemini:", prompt.substring(0, 200) + "...");
+    console.log("RAG active:", ragActive ? "YES" : "NO");
+    console.log("RAG context length:", contextText.length);
 
     // 5. Call Gemini
     const apiKey = Deno.env.get('GEMINI_API_KEY');

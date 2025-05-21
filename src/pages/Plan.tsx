@@ -21,7 +21,7 @@ const Plan: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<boolean>(navigator.onLine);
   const [ragActive, setRagActive] = useState(false);
 
-  // Monitorear el estado de la conexión
+  // Monitor connection status
   useEffect(() => {
     const handleOnline = () => setConnectionStatus(true);
     const handleOffline = () => setConnectionStatus(false);
@@ -35,29 +35,27 @@ const Plan: React.FC = () => {
     };
   }, []);
 
-  // Cargar plan existente al montar componente
+  // Load existing plan on component mount
   useEffect(() => {
     const loadPlan = async () => {
       try {
-        console.log("Intentando cargar el plan existente...");
+        console.log("Attempting to load existing plan...");
         
         try {
           const plan = await loadLatestPlan();
           
           if (plan) {
-            console.log("Plan cargado exitosamente:", plan.name);
+            console.log("Plan loaded successfully:", plan.name);
             setCurrentPlan(plan);
             // Check if ragActive was included in the response
-            if ('ragActive' in plan) {
-              setRagActive(!!plan.ragActive);
-            }
+            setRagActive(!!plan.ragActive);
           } else {
-            console.log("No se encontró ningún plan existente");
+            console.log("No existing plan found");
           }
           setError(null);
         } catch (error) {
           console.error("Error loading plan:", error);
-          setError(getConnectionError() || error.message || "Error al cargar el plan de entrenamiento.");
+          setError(getConnectionError() || error.message || "Error loading training plan.");
         }
       } finally {
         setIsLoading(false);
@@ -70,8 +68,8 @@ const Plan: React.FC = () => {
   const handleGeneratePlan = async () => {
     if (!user.completedOnboarding) {
       toast({
-        title: "Completa tu perfil",
-        description: "Para generar un plan personalizado, primero completa tu perfil.",
+        title: "Complete your profile",
+        description: "To generate a personalized plan, first complete your profile.",
         variant: "destructive",
       });
       return;
@@ -79,8 +77,8 @@ const Plan: React.FC = () => {
 
     if (!navigator.onLine) {
       toast({
-        title: "Sin conexión",
-        description: "Necesitas conexión a internet para generar un plan. Por favor, conéctate e inténtalo de nuevo.",
+        title: "No connection",
+        description: "You need an internet connection to generate a plan. Please connect and try again.",
         variant: "destructive",
       });
       return;
@@ -91,7 +89,7 @@ const Plan: React.FC = () => {
     setError(null);
     
     try {
-      console.log("Iniciando generación de plan con los siguientes datos:", {
+      console.log("Starting plan generation with the following data:", {
         name: user.name,
         age: user.age,
         experienceLevel: user.experienceLevel,
@@ -101,38 +99,33 @@ const Plan: React.FC = () => {
         weeklyWorkouts: user.weeklyWorkouts
       });
       
-      // Fase RAG - recuperación de documentos relevantes
+      // RAG phase - retrieving relevant documents
       setGenerationStage('rag');
       
-      // Fase API - generación del plan
+      // API phase - generating the plan
       setGenerationStage('api');
       
       const plan = await generateTrainingPlan({ userProfile: user });
       
-      // Fase completada
+      // Completed phase
       setGenerationStage('complete');
-      console.log("Plan generado exitosamente:", plan);
+      console.log("Plan generated successfully:", plan);
       setCurrentPlan(plan);
       
-      // Check if ragActive was included in the response
-      if ('ragActive' in plan) {
-        setRagActive(!!plan.ragActive);
-      } else {
-        // Default to true if not specified
-        setRagActive(true);
-      }
+      // Set RAG status from the response
+      setRagActive(!!plan.ragActive);
       
       toast({
-        title: "Plan generado",
-        description: "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil y conocimientos de entrenamiento.",
+        title: "Plan generated",
+        description: "Your personalized training plan has been created based on your profile and training knowledge.",
       });
     } catch (error) {
-      console.error("Error al generar plan:", error);
-      setError(getConnectionError() || error.message || "Error al generar el plan de entrenamiento.");
+      console.error("Error generating plan:", error);
+      setError(getConnectionError() || error.message || "Error generating training plan.");
       
       toast({
         title: "Error",
-        description: "No se pudo generar el plan. Verifica tu conexión a Internet e intenta de nuevo.",
+        description: "Could not generate plan. Check your internet connection and try again.",
         variant: "destructive",
       });
     } finally {
@@ -158,15 +151,15 @@ const Plan: React.FC = () => {
     const getLoadingMessage = () => {
       switch (generationStage) {
         case 'init':
-          return "Preparando tu plan personalizado...";
+          return "Preparing your personalized plan...";
         case 'rag':
-          return "Analizando tu perfil y conocimientos de entrenamiento...";
+          return "Analyzing your profile and training knowledge...";
         case 'api':
-          return "Generando tu plan de entrenamiento...";
+          return "Generating your training plan...";
         case 'complete':
-          return "Finalizando tu plan...";
+          return "Finalizing your plan...";
         default:
-          return "Cargando...";
+          return "Loading...";
       }
     };
 
@@ -178,13 +171,13 @@ const Plan: React.FC = () => {
             <Loader2 className="h-8 w-8 animate-spin absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white" />
           </div>
           <p className="text-runapp-gray font-medium">{getLoadingMessage()}</p>
-          <p className="text-runapp-gray text-sm mt-2">Esto puede tomar unos momentos...</p>
+          <p className="text-runapp-gray text-sm mt-2">This may take a moment...</p>
         </div>
       </div>
     );
   };
 
-  // Renderizar el indicador de RAG
+  // Render RAG indicator
   const renderRagIndicator = () => {
     if (!currentPlan) return null;
     
@@ -194,8 +187,8 @@ const Plan: React.FC = () => {
           <Database size={14} />
           <span className="text-xs font-medium">
             {ragActive 
-              ? "Plan generado con conocimiento aumentado (RAG)" 
-              : "Plan generado sin RAG"}
+              ? "Plan generated with augmented knowledge (RAG)" 
+              : "Plan generated without RAG"}
           </span>
         </div>
       </div>
@@ -207,9 +200,9 @@ const Plan: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
         <div className="bg-runapp-purple text-white p-4">
-          <h1 className="text-xl font-bold mb-1">Hola, {user.name} 👋</h1>
+          <h1 className="text-xl font-bold mb-1">Hello, {user.name} 👋</h1>
           <p className="text-sm opacity-90">
-            Tu plan personalizado de entrenamiento
+            Your personalized training plan
           </p>
         </div>
         
@@ -218,16 +211,16 @@ const Plan: React.FC = () => {
           {!connectionStatus && (
             <Alert className="mb-4 bg-amber-50 border-amber-200">
               <WifiOff className="h-4 w-4 mr-2 text-amber-600" />
-              <AlertTitle className="text-amber-800">Sin conexión</AlertTitle>
+              <AlertTitle className="text-amber-800">No connection</AlertTitle>
               <AlertDescription className="text-amber-700">
-                No tienes conexión a Internet. Necesitas conexión para generar un plan de entrenamiento.
+                You have no internet connection. You need a connection to generate a training plan.
                 <div className="mt-2">
                   <Button
                     size="sm"
                     onClick={handleRetryConnection}
                     className="bg-amber-600 hover:bg-amber-700 text-white"
                   >
-                    Intentar reconectar
+                    Try to reconnect
                   </Button>
                 </div>
               </AlertDescription>
@@ -237,7 +230,7 @@ const Plan: React.FC = () => {
           {error && connectionStatus && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4 mr-2" />
-              <AlertTitle>Error de conexión</AlertTitle>
+              <AlertTitle>Connection error</AlertTitle>
               <AlertDescription>
                 {error}
                 <div className="mt-2">
@@ -246,7 +239,7 @@ const Plan: React.FC = () => {
                     className="mt-1"
                     onClick={handleRetryConnection}
                   >
-                    Reintentar conexión
+                    Retry connection
                   </Button>
                 </div>
               </AlertDescription>
@@ -281,20 +274,20 @@ const Plan: React.FC = () => {
 
     return (
       <div className="bg-white rounded-xl p-6 shadow-sm text-center">
-        <h2 className="text-xl font-bold text-runapp-navy mb-2">¡Comienza tu viaje!</h2>
+        <h2 className="text-xl font-bold text-runapp-navy mb-2">Start your journey!</h2>
         <p className="text-runapp-gray mb-6">
-          Genera tu plan de entrenamiento personalizado basado en tu perfil y objetivos.
+          Generate your personalized training plan based on your profile and goals.
         </p>
         <RunButton 
           onClick={handleGeneratePlan}
           className="w-full"
           disabled={!connectionStatus}
         >
-          {connectionStatus ? "Generar mi plan" : "Sin conexión"}
+          {connectionStatus ? "Generate my plan" : "No connection"}
         </RunButton>
         {!connectionStatus && (
           <p className="text-xs text-runapp-gray mt-3">
-            Necesitas conexión a Internet para generar un plan de entrenamiento.
+            You need an internet connection to generate a training plan.
           </p>
         )}
       </div>

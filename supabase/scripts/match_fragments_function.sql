@@ -2,8 +2,8 @@
 -- Function to match fragments by vector similarity
 CREATE OR REPLACE FUNCTION match_fragments(
   query_embedding vector(1536),
-  match_threshold float,
-  match_count int
+  match_threshold float DEFAULT 0.6,
+  match_count int DEFAULT 5
 )
 RETURNS TABLE (
   id text,
