@@ -19,9 +19,9 @@ const Plan: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [generationStage, setGenerationStage] = useState<'init' | 'rag' | 'api' | 'complete'>('init');
   const [offlineMode, setOfflineMode] = useState(false);
-  const [ragActive, setRagActive] = useState(true); // RAG siempre activo por defecto
+  const [ragActive, setRagActive] = useState(false);
 
-  // Cargar plan existente al montar componente, pero sin generar uno nuevo automáticamente
+  // Cargar plan existente al montar componente
   useEffect(() => {
     const loadPlan = async () => {
       try {
@@ -35,7 +35,6 @@ const Plan: React.FC = () => {
             setCurrentPlan(plan);
           } else {
             console.log("No se encontró ningún plan existente");
-            // Ya no generamos un plan por defecto aquí
           }
           setError(null);
           setOfflineMode(isOfflineMode());
@@ -65,7 +64,7 @@ const Plan: React.FC = () => {
     setIsGenerating(true);
     setGenerationStage('init');
     setError(null);
-    setRagActive(true); // Siempre activo
+    setRagActive(false);
     
     try {
       console.log("Iniciando generación de plan con los siguientes datos:", {
