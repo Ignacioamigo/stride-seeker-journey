@@ -95,12 +95,15 @@ export type Database = {
         Returns: unknown
       }
       match_fragments: {
-        Args: { query_embedding: string; match_count: number }
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
+        }
         Returns: {
           id: string
           content: string
-          metadata: Json
-          embedding: string
+          similarity: number
         }[]
       }
       sparsevec_out: {
