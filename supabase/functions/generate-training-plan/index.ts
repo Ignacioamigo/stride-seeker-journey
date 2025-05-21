@@ -129,25 +129,22 @@ serve(async (req) => {
       } else {
         console.log("No sample fragment found for embedding comparison");
       }
-      // Try match_fragments with array (native)
+      // Llamada correcta a la función RPC match_fragments con nombres de parámetros exactos
       let fragments = null;
       let error = null;
-      let triedString = false;
+      // Prueba con array de floats
       ({ data: fragments, error } = await supabase.rpc('match_fragments', {
         query_embedding: embeddingData.embedding,
-        min_similarity: 0,
+        min_similarity: 0.6,
         match_count: 5
       }));
-      console.log("match_fragments with array result:", fragments, error);
-      // If no results, try with stringified embedding
-      if (!fragments || fragments.length === 0) {
-        triedString = true;
+      if (error || !fragments || fragments.length === 0) {
+        // Si falla, prueba con string
         ({ data: fragments, error } = await supabase.rpc('match_fragments', {
           query_embedding: JSON.stringify(embeddingData.embedding),
-          min_similarity: 0,
+          min_similarity: 0.6,
           match_count: 5
         }));
-        console.log("match_fragments with string result:", fragments, error);
       }
       if (error) {
         console.error("Error in match_fragments RPC:", error);
@@ -156,10 +153,10 @@ serve(async (req) => {
       if (fragments && fragments.length > 0) {
         ragActive = true;
         contextText = fragments.map((f, i) => `Fragmento ${i+1}:\n${f.content}`).join('\n\n');
-        console.log("RAG Context retrieved successfully (triedString:", triedString, "):", fragments.length, "fragments");
+        console.log("RAG Context retrieved successfully:", fragments.length, "fragments");
         console.log("First fragment content snippet:", fragments[0].content.substring(0, 100) + "...");
       } else {
-        console.log("No relevant fragments found for RAG (triedString:", triedString, ")");
+        console.log("No relevant fragments found for RAG");
       }
     } catch (ragError) {
       console.error("Error during RAG processing:", ragError);
