@@ -108,8 +108,8 @@ serve(async (req) => {
           // Retrieve relevant fragments using vector similarity search
           const { data: fragments, error } = await supabase.rpc('match_fragments', {
             query_embedding: embedding,
-            match_count: 5,
-            min_similarity: 0.6
+            match_threshold: 0.6,
+            match_count: 5
           });
           
           if (!error && fragments && fragments.length > 0) {
@@ -175,7 +175,8 @@ Los días de la semana para este período son: ${datesList}
 IMPORTANTE:
 1. La distancia máxima del usuario es ${userProfile.maxDistance}km - NO crees entrenamientos que excedan esta distancia a menos que el usuario esté entrenando para un maratón y tenga experiencia suficiente.
 2. La variedad es esencial. Crea diferentes tipos de entrenamientos (intervalos, tempo, carrera larga) alineados con el objetivo del usuario.
-3. Genera una respuesta SOLO en formato JSON con esta estructura:
+3. NO incluyas ninguna marca de formato como \`\`\`json o ```. Responde directamente con el objeto JSON sin ningún envoltorio.
+4. Genera una respuesta en formato JSON siguiendo exactamente esta estructura:
 {
   "name": "...",
   "description": "...",
@@ -216,7 +217,17 @@ IMPORTANTE:
 
     // 5. Parse the response and return the plan
     try {
-      const plan = JSON.parse(text);
+      // Trim any extra characters or markdown that may be included
+      let cleanJson = text.trim();
+      
+      // Remove any markdown code block indicators if present
+      if (cleanJson.startsWith("```json")) {
+        cleanJson = cleanJson.replace(/```json\n/, '').replace(/\n```$/, '');
+      } else if (cleanJson.startsWith("```")) {
+        cleanJson = cleanJson.replace(/```\n/, '').replace(/\n```$/, '');
+      }
+      
+      const plan = JSON.parse(cleanJson);
       
       // Ensure all workouts have a date field
       for (let i = 0; i < plan.workouts.length; i++) {
@@ -233,7 +244,7 @@ IMPORTANTE:
         },
       );
     } catch (e) {
-      console.error("Failed to parse LLM response:", e);
+      console.error("Failed to parse LLM response:", e, "Response was:", text);
       throw new Error('Invalid response format from AI model');
     }
   } catch (error) {
