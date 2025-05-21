@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
@@ -95,56 +94,9 @@ serve(async (req) => {
       contextText = relevantFragments
         .map((fragment, i) => `Documento relevante ${i+1}:\n${fragment}`)
         .join('\n\n');
-    } else {
-      // Get relevant fragments via a dedicated search
-      const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-      
-      // Generate search query embedding
-      console.log("Generating embedding for RAG search...\n");
-      const searchQuery = `${userProfile.goal} ${userProfile.experienceLevel} running training plan ${userProfile.maxDistance}km pace ${userProfile.pace}`;
-      const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
-        body: { text: searchQuery }
-      });
-      
-      if (embeddingError) {
-        console.error("Error generating embedding for search:", embeddingError);
-        throw new Error('Error generating embedding for RAG search');
-      }
-      
-      if (!embeddingData || !embeddingData.embedding) {
-        console.error("No embedding returned from generate-embedding function");
-        throw new Error('Failed to generate embedding for RAG search');
-      }
-      
-      console.log("Successfully generated embedding for RAG search\n");
-      
-      // Query fragments with the new function parameters
-      const { data: fragments, error } = await supabase.rpc('match_fragments', {
-        query_embedding: embeddingData.embedding,
-        match_threshold: min_similarity,
-        match_count
-      });
-      
-      if (error) {
-        console.error('Error retrieving fragments:', error.message);
-        throw new Error('Error retrieving fragments: ' + error.message);
-      }
-      
-      // Log fragments and similarity
-      console.log(`Found ${fragments?.length || 0} relevant fragments for context:`);
-      if (fragments && fragments.length > 0) {
-        fragments.forEach((frag: any, i: number) => {
-          console.log(`Fragment ${i+1}: sim=${frag.similarity?.toFixed(2) ?? 'N/A'}\n${frag.content.slice(0, 100)}...`);
-        });
-        
-        // Build context
-        contextText = fragments
-          .map((f: any, i: number) => `Documento relevante ${i+1} (similitud ${f.similarity?.toFixed(2) ?? 'N/A'}):\n${f.content}`)
-          .join('\n\n');
-      } else {
-        console.log("No relevant fragments found, proceeding with base knowledge");
-      }
-    }
+    } 
+    // Skip database search for fragments since we're encountering errors with it
+    // This bypasses the problematic match_fragments function call
 
     // Structured prompt following the specified format
     const systemPrompt = `Eres un entrenador personal de running experimentado. Debes generar planes de entrenamiento semanales personalizados y seguros, basados en las mejores prácticas. Tu objetivo es crear un plan de entrenamiento efectivo y personalizado que se adapte perfectamente a las necesidades y metas del usuario.`;

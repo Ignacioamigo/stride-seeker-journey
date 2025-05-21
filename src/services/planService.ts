@@ -198,41 +198,8 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
     
     connectionError = null;
     
-    // Try to get relevant fragments for RAG
-    let relevantFragments: string[] = [];
-    
-    try {
-      // RAG search based on user profile and goal
-      const searchQuery = `${request.userProfile.goal} ${request.userProfile.experienceLevel} running training plan ${request.userProfile.maxDistance}km pace ${request.userProfile.pace}`;
-      
-      console.log("Looking for relevant fragments for RAG:", searchQuery);
-      
-      // First, convert the text query to an embedding
-      const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
-        body: { text: searchQuery }
-      });
-      
-      if (embeddingError) {
-        console.error("Error generating search embedding:", embeddingError);
-      } else if (embeddingData && embeddingData.embedding) {
-        // Now use the embedding for the search with the updated function parameters
-        const { data, error } = await supabase.rpc('match_fragments', {
-          query_embedding: embeddingData.embedding,
-          match_threshold: 0.6,
-          match_count: 5
-        });
-        
-        if (error) {
-          console.error("Error fetching relevant fragments:", error);
-        } else if (data && data.length > 0) {
-          relevantFragments = data.map((item: any) => item.content);
-          console.log(`Found ${relevantFragments.length} relevant fragments for RAG`);
-        }
-      }
-    } catch (ragError) {
-      console.error("Error in RAG process:", ragError);
-      // Continue without RAG if there's an error
-    }
+    // Instead of searching for fragments in the database (which is causing errors),
+    // we'll directly call the edge function
     
     // Call the Edge function to generate the plan
     console.log("Sending request to Edge function to generate plan...");
@@ -241,10 +208,6 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
     const requestBody: any = {
       userProfile: request.userProfile,
     };
-    
-    if (relevantFragments.length > 0) {
-      requestBody.relevantFragments = relevantFragments;
-    }
     
     if (request.previousWeekResults) {
       requestBody.previousWeekResults = request.previousWeekResults;
