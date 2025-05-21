@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
@@ -20,7 +21,6 @@ interface UserProfile {
   experienceLevel: string | null;
   injuries: string;
   completedOnboarding: boolean;
-  embedding: number[];
 }
 
 interface RequestBody {
@@ -59,7 +59,8 @@ serve(async (req) => {
       userProfile, 
       min_similarity = 0.6, 
       match_count = 5,
-      previousWeekResults
+      previousWeekResults,
+      relevantFragments
     } = requestData;
 
     // Validate required fields
@@ -88,53 +89,61 @@ serve(async (req) => {
     // Prepare RAG context
     let contextText = '';
     
-    // Get relevant fragments
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    
-    // Generate search query embedding
-    console.log("Generating embedding for RAG search...\n");
-    const searchQuery = `${userProfile.goal} ${userProfile.experienceLevel} running training plan ${userProfile.maxDistance}km pace ${userProfile.pace}`;
-    const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
-      body: { text: searchQuery }
-    });
-    
-    if (embeddingError) {
-      console.error("Error generating embedding for search:", embeddingError);
-      throw new Error('Error generating embedding for RAG search');
-    }
-    
-    if (!embeddingData || !embeddingData.embedding) {
-      console.error("No embedding returned from generate-embedding function");
-      throw new Error('Failed to generate embedding for RAG search');
-    }
-    
-    console.log("Successfully generated embedding for RAG search\n");
-    
-    // Query fragments with the new function parameters
-    const { data: fragments, error } = await supabase.rpc('match_fragments', {
-      query_embedding: embeddingData.embedding,
-      match_threshold: min_similarity,
-      match_count
-    });
-    
-    if (error) {
-      console.error('Error retrieving fragments:', error.message);
-      throw new Error('Error retrieving fragments: ' + error.message);
-    }
-    
-    // Log fragments and similarity
-    console.log(`Found ${fragments?.length || 0} relevant fragments for context:`);
-    if (fragments && fragments.length > 0) {
-      fragments.forEach((frag: any, i: number) => {
-        console.log(`Fragment ${i+1}: sim=${frag.similarity?.toFixed(2) ?? 'N/A'}\n${frag.content.slice(0, 100)}...`);
-      });
-      
-      // Build context
-      contextText = fragments
-        .map((f: any, i: number) => `Fragment ${i+1} (similarity ${f.similarity?.toFixed(2) ?? 'N/A'}):\n${f.content}`)
+    // Use fragments provided by the client if available
+    if (relevantFragments && relevantFragments.length > 0) {
+      console.log(`Using ${relevantFragments.length} provided fragments for context`);
+      contextText = relevantFragments
+        .map((fragment, i) => `Fragment ${i+1}:\n${fragment}`)
         .join('\n\n');
     } else {
-      console.log("No relevant fragments found, proceeding without RAG context");
+      // Get relevant fragments via a dedicated search
+      const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      
+      // Generate search query embedding
+      console.log("Generating embedding for RAG search...\n");
+      const searchQuery = `${userProfile.goal} ${userProfile.experienceLevel} running training plan ${userProfile.maxDistance}km pace ${userProfile.pace}`;
+      const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
+        body: { text: searchQuery }
+      });
+      
+      if (embeddingError) {
+        console.error("Error generating embedding for search:", embeddingError);
+        throw new Error('Error generating embedding for RAG search');
+      }
+      
+      if (!embeddingData || !embeddingData.embedding) {
+        console.error("No embedding returned from generate-embedding function");
+        throw new Error('Failed to generate embedding for RAG search');
+      }
+      
+      console.log("Successfully generated embedding for RAG search\n");
+      
+      // Query fragments with the new function parameters
+      const { data: fragments, error } = await supabase.rpc('match_fragments', {
+        query_embedding: embeddingData.embedding,
+        match_threshold: min_similarity,
+        match_count
+      });
+      
+      if (error) {
+        console.error('Error retrieving fragments:', error.message);
+        throw new Error('Error retrieving fragments: ' + error.message);
+      }
+      
+      // Log fragments and similarity
+      console.log(`Found ${fragments?.length || 0} relevant fragments for context:`);
+      if (fragments && fragments.length > 0) {
+        fragments.forEach((frag: any, i: number) => {
+          console.log(`Fragment ${i+1}: sim=${frag.similarity?.toFixed(2) ?? 'N/A'}\n${frag.content.slice(0, 100)}...`);
+        });
+        
+        // Build context
+        contextText = fragments
+          .map((f: any, i: number) => `Fragment ${i+1} (similarity ${f.similarity?.toFixed(2) ?? 'N/A'}):\n${f.content}`)
+          .join('\n\n');
+      } else {
+        console.log("No relevant fragments found, proceeding without RAG context");
+      }
     }
 
     // Enhanced prompt with more detailed instructions based on user profile
@@ -147,6 +156,8 @@ Use the context provided AND STRICTLY follow these guidelines:
 3. The user's typical pace is ${userProfile.pace}/km - adjust workout intensities accordingly.
 4. The user's goal is: ${userProfile.goal}
 5. The user's experience level is: ${userProfile.experienceLevel}
+
+IMPORTANT: Variety is essential. Create different types of running workouts (intervals, tempo, long run) aligned with the user's goal. Do not just give the same generic workout multiple times.
 
 Context:
 ${contextText || "No specific training context available, use general best practices for running training."}
@@ -191,6 +202,7 @@ IMPORTANT CHECKS:
 - For intermediates, include some speed work.
 - For advanced runners, include more specialized workouts.
 - Make sure workouts align with the user's goal of ${userProfile.goal}.
+- ENSURE VARIETY in workout types and intensities - don't just generate the same generic workout over and over.
 `;
 
     // Generate the plan

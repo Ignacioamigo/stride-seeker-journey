@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile, WorkoutPlan, Workout, TrainingPlanRequest, PreviousWeekResults } from '@/types';
@@ -428,11 +427,7 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
     
     // Include previous week's results if available
     const requestBody: any = {
-      userProfile: {
-        ...request.userProfile,
-        // The embedding is needed for the fragments search inside the edge function
-        embedding: request.userProfile.embedding || []
-      },
+      userProfile: request.userProfile,
     };
     
     if (relevantFragments.length > 0) {
