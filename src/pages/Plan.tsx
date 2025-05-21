@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
@@ -71,7 +70,10 @@ const Plan: React.FC = () => {
         name: user.name,
         age: user.age,
         experienceLevel: user.experienceLevel,
-        goal: user.goal
+        goal: user.goal,
+        maxDistance: user.maxDistance,
+        pace: user.pace,
+        weeklyWorkouts: user.weeklyWorkouts
       });
       
       // Fase RAG - recuperación de documentos relevantes
