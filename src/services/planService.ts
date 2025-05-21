@@ -336,7 +336,8 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
                   intensity: planData.intensity || 'Moderada',
                   workouts,
                   createdAt: new Date(planData.created_at),
-                  weekNumber: planData.week_number || 1
+                  weekNumber: planData.week_number || 1,
+                  ragActive: true // Assume saved plans used RAG
                 };
                 
                 // Update localStorage with the database version
@@ -505,19 +506,26 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
       requestBody.customPrompt = request.customPrompt;
     }
     
-    const response = await supabase.functions.invoke('generate-training-plan', {
+    const { data, error } = await supabase.functions.invoke('generate-training-plan', {
       body: requestBody
     });
     
-    if (response.error) {
-      console.error("Error calling Edge function:", response.error);
-      throw new Error(`Error de conexión con el servidor: ${response.error.message}`);
+    if (error) {
+      console.error("Error calling Edge function:", error);
+      throw new Error(`Error de conexión con el servidor: ${error.message}`);
     }
     
-    console.log("Training plan received from Edge function");
+    if (!data) {
+      throw new Error("No se recibió respuesta del servidor");
+    }
+    
+    console.log("Training plan received from Edge function:", data);
+    
+    // Extract RAG status if available
+    const ragActive = data.ragActive || false;
     
     // Create the plan with UUID
-    const edgePlanData = response.data;
+    const edgePlanData = data;
     
     const plan: WorkoutPlan = {
       id: uuidv4(),
@@ -525,6 +533,7 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
       description: edgePlanData.description,
       duration: edgePlanData.duration,
       intensity: edgePlanData.intensity,
+      ragActive: ragActive, // Store RAG status
       workouts: edgePlanData.workouts.map((workout: any) => ({
         id: uuidv4(),
         day: workout.day,

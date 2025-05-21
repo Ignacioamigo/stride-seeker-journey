@@ -24,7 +24,7 @@ export interface FormQuestion {
 export interface Workout {
   id: string;
   day: string;
-  date?: string; // Add date field for each workout
+  date?: string;
   title: string;
   description: string;
   distance: number | null;
@@ -45,6 +45,7 @@ export interface WorkoutPlan {
   workouts: Workout[];
   createdAt?: Date;
   weekNumber?: number;
+  ragActive?: boolean; // Add this field to track if RAG was used
 }
 
 export interface RunStats {

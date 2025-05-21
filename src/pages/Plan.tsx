@@ -47,6 +47,10 @@ const Plan: React.FC = () => {
           if (plan) {
             console.log("Plan cargado exitosamente:", plan.name);
             setCurrentPlan(plan);
+            // Check if ragActive was included in the response
+            if ('ragActive' in plan) {
+              setRagActive(!!plan.ragActive);
+            }
           } else {
             console.log("No se encontró ningún plan existente");
           }
@@ -85,7 +89,6 @@ const Plan: React.FC = () => {
     setIsGenerating(true);
     setGenerationStage('init');
     setError(null);
-    setRagActive(false);
     
     try {
       console.log("Iniciando generación de plan con los siguientes datos:", {
@@ -110,7 +113,14 @@ const Plan: React.FC = () => {
       setGenerationStage('complete');
       console.log("Plan generado exitosamente:", plan);
       setCurrentPlan(plan);
-      setRagActive(true); // Asumimos que si se completa con éxito, RAG estuvo activo
+      
+      // Check if ragActive was included in the response
+      if ('ragActive' in plan) {
+        setRagActive(!!plan.ragActive);
+      } else {
+        // Default to true if not specified
+        setRagActive(true);
+      }
       
       toast({
         title: "Plan generado",

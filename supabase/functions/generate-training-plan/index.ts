@@ -76,58 +76,80 @@ serve(async (req) => {
     const nextWeekDates = generateDatesFromToday();
     console.log("Generated dates:", nextWeekDates.map(d => `${d.dayName}: ${d.date.toISOString().split('T')[0]}`));
 
-    // 2. Prepare RAG context
+    // 2. Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase credentials');
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // 3. Prepare RAG context
     let contextText = '';
+    let ragActive = false;
+    
     try {
-      // Try to get relevant RAG content from the database
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      );
+      console.log("Starting RAG process to retrieve relevant training knowledge...");
       
       // Generate embedding for the user's goal and profile
+      const userQuery = `Perfil del corredor: Nombre: ${userProfile.name}, Edad: ${userProfile.age}, Sexo: ${userProfile.gender}, Nivel: ${userProfile.experienceLevel}, Ritmo: ${userProfile.pace}, Distancia máxima: ${userProfile.maxDistance}, Objetivo: ${userProfile.goal}, Lesiones: ${userProfile.injuries || 'Ninguna'}, Frecuencia semanal: ${userProfile.weeklyWorkouts}`;
+      
+      console.log("User query for embedding generation:", userQuery);
+      
       const embeddingRes = await fetch(
-        `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-embedding`,
+        `${supabaseUrl}/functions/v1/generate-embedding`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+            'Authorization': `Bearer ${supabaseKey}`
           },
-          body: JSON.stringify({
-            text: `Perfil del corredor: Nombre: ${userProfile.name}, Edad: ${userProfile.age}, Sexo: ${userProfile.gender}, Nivel: ${userProfile.experienceLevel}, Ritmo: ${userProfile.pace}, Distancia máxima: ${userProfile.maxDistance}, Objetivo: ${userProfile.goal}, Lesiones: ${userProfile.injuries}, Frecuencia semanal: ${userProfile.weeklyWorkouts}`
-          })
+          body: JSON.stringify({ text: userQuery })
         }
       );
       
-      if (embeddingRes.ok) {
-        const embeddingData = await embeddingRes.json();
-        const embedding = embeddingData.embedding;
-        
-        if (embedding && Array.isArray(embedding)) {
-          // Retrieve relevant fragments using vector similarity search
-          const { data: fragments, error } = await supabase.rpc('match_fragments', {
-            query_embedding: embedding,
-            match_threshold: 0.6,
-            match_count: 5
-          });
-          
-          if (!error && fragments && fragments.length > 0) {
-            contextText = fragments.map((f: any, i: number) => 
-              `Fragmento ${i+1}:\n${f.content}`
-            ).join('\n\n');
-            console.log("Retrieved RAG context successfully");
-          } else {
-            console.log("No relevant RAG fragments found or error:", error);
-          }
-        }
+      if (!embeddingRes.ok) {
+        throw new Error(`Error generating embedding: ${await embeddingRes.text()}`);
+      }
+      
+      const embeddingData = await embeddingRes.json();
+      if (!embeddingData.embedding || !Array.isArray(embeddingData.embedding)) {
+        throw new Error('Invalid embedding response');
+      }
+      
+      console.log("Embedding generated successfully");
+      
+      // Fix: Use direct RPC call for match_fragments with proper parameter names
+      const { data: fragments, error } = await supabase.rpc('match_fragments', {
+        query_embedding: embeddingData.embedding,
+        match_threshold: 0.6,
+        match_count: 5
+      });
+      
+      if (error) {
+        console.error("Error in match_fragments RPC:", error);
+        throw error;
+      }
+      
+      if (fragments && fragments.length > 0) {
+        ragActive = true;
+        contextText = fragments.map((f: any, i: number) => 
+          `Fragmento ${i+1}:\n${f.content}`
+        ).join('\n\n');
+        console.log("RAG Context retrieved successfully:", fragments.length, "fragments");
+        console.log("First fragment content snippet:", fragments[0].content.substring(0, 100) + "...");
+      } else {
+        console.log("No relevant fragments found for RAG");
       }
     } catch (ragError) {
       console.error("Error during RAG processing:", ragError);
-      // Continue without RAG if there's an error
+      // Continue without RAG context if there's an error
+      contextText = "";
     }
 
-    // 3. Prepare the prompt following the structure defined in the requirements
+    // 4. Prepare the prompt with or without RAG context
     const systemPrompt = `Eres un entrenador personal de running experimentado. Debes generar planes de entrenamiento semanales personalizados y seguros, basados en las mejores prácticas.`;
     
     // User profile section
@@ -201,21 +223,21 @@ IMPORTANTE:
     
     // Build the final prompt
     const prompt = `${systemPrompt}\n${userProfileSection}${ragSection}${previousResultsSection}${customPromptSection}${mainInstruction}`;
-    console.log("Prepared prompt for LLM:", prompt.substring(0, 200) + "...");
+    console.log("Prepared prompt for Gemini:", prompt.substring(0, 200) + "...");
 
-    // 4. Call Gemini
+    // 5. Call Gemini
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
     
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-    console.log("Calling Gemini...");
+    console.log("Calling Gemini API...");
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
     console.log("Received response from Gemini:", text.substring(0, 200) + "...");
 
-    // 5. Parse the response and return the plan
+    // 6. Parse the response and return the plan
     try {
       // Trim any extra characters or markdown that may be included
       let cleanJson = text.trim();
@@ -236,15 +258,112 @@ IMPORTANTE:
         }
       }
       
+      // 7. Store the plan in Supabase
+      console.log("Storing training plan in Supabase...");
+      
+      try {
+        // First, check if we have a user profile in the database
+        let userProfileId = userProfile.id;
+        
+        // If not, create a profile from the provided data
+        if (!userProfileId) {
+          const { data: userProfileData, error: userProfileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              name: userProfile.name,
+              age: userProfile.age,
+              gender: userProfile.gender,
+              max_distance: userProfile.maxDistance,
+              pace: userProfile.pace,
+              goal: userProfile.goal,
+              weekly_workouts: userProfile.weeklyWorkouts,
+              experience_level: userProfile.experienceLevel,
+              injuries: userProfile.injuries
+            })
+            .select('id')
+            .single();
+          
+          if (userProfileError) {
+            console.error("Error saving user profile:", userProfileError);
+          } else {
+            console.log("User profile saved successfully:", userProfileData);
+            userProfileId = userProfileData.id;
+          }
+        }
+        
+        // Save the training plan
+        const { data: trainingPlanData, error: trainingPlanError } = await supabase
+          .from('training_plans')
+          .insert({
+            user_id: userProfileId,
+            name: plan.name,
+            description: plan.description,
+            duration: plan.duration,
+            intensity: plan.intensity,
+            week_number: previousWeekResults?.weekNumber ? previousWeekResults.weekNumber + 1 : 1,
+            start_date: new Date().toISOString().split('T')[0]
+          })
+          .select()
+          .single();
+        
+        if (trainingPlanError) {
+          console.error("Error saving training plan:", trainingPlanError);
+        } else {
+          console.log("Training plan saved successfully:", trainingPlanData);
+          
+          // Save each workout session
+          const sessionsToInsert = plan.workouts.map((workout: any, index: number) => {
+            // Ensure we have a valid date from the workout or calculate it
+            let workoutDate = workout.date ? new Date(workout.date) : new Date();
+            if (!workout.date) {
+              workoutDate.setDate(new Date().getDate() + index);
+            }
+            
+            return {
+              plan_id: trainingPlanData.id,
+              day_number: index + 1,
+              day_date: workoutDate.toISOString().split('T')[0],
+              title: workout.title,
+              description: workout.description,
+              type: workout.type,
+              planned_distance: workout.distance,
+              planned_duration: workout.duration,
+              target_pace: userProfile.pace,
+              completed: false
+            };
+          });
+          
+          const { data: sessionsData, error: sessionsError } = await supabase
+            .from('training_sessions')
+            .insert(sessionsToInsert);
+          
+          if (sessionsError) {
+            console.error("Error saving workout sessions:", sessionsError);
+          } else {
+            console.log("Training sessions saved successfully:", sessionsData ? sessionsData.length : 0, "sessions");
+          }
+        }
+      } catch (dbError) {
+        console.error("Error storing data in Supabase:", dbError);
+        // Continue to return the plan even if DB storage fails
+      }
+      
+      // Add RAG status to the response
+      const finalResponse = {
+        ...plan,
+        ragActive: ragActive
+      };
+      
       return new Response(
-        JSON.stringify(plan),
+        JSON.stringify(finalResponse),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         },
       );
     } catch (e) {
-      console.error("Failed to parse LLM response:", e, "Response was:", text);
+      console.error("Failed to parse Gemini response:", e);
+      console.error("Raw response was:", text);
       throw new Error('Invalid response format from AI model');
     }
   } catch (error) {
