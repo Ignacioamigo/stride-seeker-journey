@@ -4,7 +4,7 @@ import RunButton from "../ui/RunButton";
 import { useNavigate } from "react-router-dom";
 import { loadLatestPlan } from "@/services/planService";
 import { WorkoutPlan } from "@/types";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, WifiOff } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 const WeeklyPlan: React.FC = () => {
@@ -13,6 +13,22 @@ const WeeklyPlan: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  
+  // Monitor connection status
+  useEffect(() => {
+    const handleConnectionChange = () => {
+      setIsOnline(navigator.onLine);
+    };
+    
+    window.addEventListener('online', handleConnectionChange);
+    window.addEventListener('offline', handleConnectionChange);
+    
+    return () => {
+      window.removeEventListener('online', handleConnectionChange);
+      window.removeEventListener('offline', handleConnectionChange);
+    };
+  }, []);
   
   const fetchLatestPlan = async (showToastOnError = true) => {
     try {
@@ -104,9 +120,20 @@ const WeeklyPlan: React.FC = () => {
           <RunButton 
             onClick={() => navigate('/plan')}
             className="bg-runapp-purple"
+            disabled={!isOnline}
           >
-            Generar nuevo plan de entrenamiento
+            {isOnline ? "Generar nuevo plan de entrenamiento" : (
+              <>
+                <WifiOff className="mr-2 h-4 w-4" />
+                Sin conexión
+              </>
+            )}
           </RunButton>
+          {!isOnline && (
+            <p className="text-xs text-runapp-gray mt-3">
+              Necesitas conexión a Internet para generar un plan de entrenamiento.
+            </p>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-xl p-4 shadow-sm">

@@ -93,7 +93,7 @@ serve(async (req) => {
     if (relevantFragments && relevantFragments.length > 0) {
       console.log(`Using ${relevantFragments.length} provided fragments for context`);
       contextText = relevantFragments
-        .map((fragment, i) => `Fragment ${i+1}:\n${fragment}`)
+        .map((fragment, i) => `Documento relevante ${i+1}:\n${fragment}`)
         .join('\n\n');
     } else {
       // Get relevant fragments via a dedicated search
@@ -139,71 +139,86 @@ serve(async (req) => {
         
         // Build context
         contextText = fragments
-          .map((f: any, i: number) => `Fragment ${i+1} (similarity ${f.similarity?.toFixed(2) ?? 'N/A'}):\n${f.content}`)
+          .map((f: any, i: number) => `Documento relevante ${i+1} (similitud ${f.similarity?.toFixed(2) ?? 'N/A'}):\n${f.content}`)
           .join('\n\n');
       } else {
-        console.log("No relevant fragments found, proceeding without RAG context");
+        console.log("No relevant fragments found, proceeding with base knowledge");
       }
     }
 
-    // Enhanced prompt with more detailed instructions based on user profile
-    let prompt = `
-You are an expert running coach creating a personalized weekly training plan. 
-Use the context provided AND STRICTLY follow these guidelines:
-
-1. The user's maximum distance is ${userProfile.maxDistance}km - DO NOT create workouts that exceed this distance unless the user is training for a marathon and has sufficient experience.
-2. The user wants exactly ${userProfile.weeklyWorkouts} workout days per week - the rest MUST be rest days.
-3. The user's typical pace is ${userProfile.pace}/km - adjust workout intensities accordingly.
-4. The user's goal is: ${userProfile.goal}
-5. The user's experience level is: ${userProfile.experienceLevel}
-
-IMPORTANT: Variety is essential. Create different types of running workouts (intervals, tempo, long run) aligned with the user's goal. Do not just give the same generic workout multiple times.
-
-Context:
-${contextText || "No specific training context available, use general best practices for running training."}
-
-User Profile:
-${JSON.stringify(userProfile, null, 2)}
+    // Structured prompt following the specified format
+    const systemPrompt = `Eres un entrenador personal de running experimentado. Debes generar planes de entrenamiento semanales personalizados y seguros, basados en las mejores prácticas. Tu objetivo es crear un plan de entrenamiento efectivo y personalizado que se adapte perfectamente a las necesidades y metas del usuario.`;
+    
+    // User profile section
+    let userProfileSection = `
+PERFIL DEL USUARIO:
+Nombre: ${userProfile.name}
+Edad: ${userProfile.age || 'No especificada'}
+Sexo: ${userProfile.gender || 'No especificado'}
+Nivel de experiencia: ${userProfile.experienceLevel || 'No especificado'}
+Ritmo actual: ${userProfile.pace || 'No especificado'} min/km
+Distancia máxima: ${userProfile.maxDistance || 'No especificada'} km
+Objetivo: ${userProfile.goal}
+Lesiones o condiciones: ${userProfile.injuries || 'Ninguna'}
+Frecuencia semanal deseada: ${userProfile.weeklyWorkouts || '3'} entrenamientos por semana
 `;
 
-    // Add previous week results to the prompt if available
+    // Previous week results context if available
+    let previousWeekContext = "";
     if (previousWeekResults) {
-      prompt += `\nPrevious Week Results (Week ${previousWeekResults.weekNumber}):
-${JSON.stringify(previousWeekResults.workouts, null, 2)}
+      previousWeekContext = `
+RESULTADOS DE LA SEMANA ANTERIOR (Semana ${previousWeekResults.weekNumber}):
+${previousWeekResults.workouts.map(w => 
+  `- ${w.day}: ${w.title} - ${w.completed ? 'COMPLETADO' : 'NO COMPLETADO'}
+   Planificado: ${w.plannedDistance ? w.plannedDistance + 'km' : ''} ${w.plannedDuration || ''}
+   Real: ${w.actualDistance ? w.actualDistance + 'km' : ''} ${w.actualDuration || ''}`
+).join('\n')}
 
-Based on the previous week's performance, adjust the plan to provide appropriate progression.
+Basándote en estos resultados, ajusta el plan para proporcionar una progresión adecuada.
 `;
     }
 
-    prompt += `
-Generate a weekly plan in JSON format:
+    // Main instruction
+    const mainInstruction = `
+INSTRUCCIÓN:
+Genera un plan de entrenamiento para los próximos 7 días (1 semana) adecuado para ${userProfile.name}, un corredor de ${userProfile.age || ''} años con ritmo ${userProfile.pace || 'no especificado'}, cuyo objetivo es ${userProfile.goal}.
+Incluye EXACTAMENTE ${userProfile.weeklyWorkouts || 3} sesiones de entrenamiento como indicó, especificando distancia/tiempo e intensidad de cada sesión.
+Asegúrate de que el plan sea seguro y progresivo.
+Formato: Proporciona el plan para cada día de la semana (Lunes a Domingo), con una breve descripción de cada sesión.
+
+IMPORTANTE:
+1. La distancia máxima del usuario es ${userProfile.maxDistance}km - NO crees entrenamientos que excedan esta distancia a menos que el usuario esté entrenando para un maratón y tenga experiencia suficiente.
+2. La variedad es esencial. Crea diferentes tipos de entrenamientos (intervalos, tempo, carrera larga) alineados con el objetivo del usuario.
+3. Genera una respuesta SOLO en formato JSON con esta estructura:
 {
-  "name": "...",
-  "description": "...",
-  "duration": "...",
-  "intensity": "...",
+  "name": "..." (nombre del plan),
+  "description": "..." (descripción breve),
+  "duration": "7 días",
+  "intensity": "..." (baja, media o alta según nivel),
   "workouts": [
     {
-      "day": "Lunes" (or other day of week in Spanish),
-      "title": "...",
-      "description": "...",
-      "distance": number or null,
-      "duration": "...",
+      "day": "Lunes",
+      "title": "..." (título breve),
+      "description": "..." (descripción detallada),
+      "distance": número o null,
+      "duration": "..." (duración estimada),
       "type": "carrera|fuerza|descanso|flexibilidad"
-    }
+    },
+    ...para cada día de la semana
   ]
 }
-
-IMPORTANT CHECKS:
-- Verify that there are EXACTLY ${userProfile.weeklyWorkouts} active workout days (non-rest days).
-- Respect the user's maximum distance of ${userProfile.maxDistance}km for individual runs.
-- Include proper progression based on the user's experience level.
-- For beginners, focus on building base endurance.
-- For intermediates, include some speed work.
-- For advanced runners, include more specialized workouts.
-- Make sure workouts align with the user's goal of ${userProfile.goal}.
-- ENSURE VARIETY in workout types and intensities - don't just generate the same generic workout over and over.
 `;
+
+    // Complete prompt
+    let prompt = `${systemPrompt}
+
+${userProfileSection}
+
+${contextText ? 'DOCUMENTOS RELEVANTES PARA REFERENCIA:\n' + contextText + '\n\n' : ''}
+
+${previousWeekContext}
+
+${mainInstruction}`;
 
     // Generate the plan
     console.log("Generating plan with Gemini...");
@@ -299,6 +314,7 @@ IMPORTANT CHECKS:
             if (w.distance && w.distance > userProfile.maxDistance) {
               const newDistance = Math.round(userProfile.maxDistance * 0.9 * 10) / 10;
               w.title = w.title.replace(/\d+(\.\d+)?/, newDistance.toString());
+              w.description = w.description.replace(/\d+(\.\d+)?\s*km/, `${newDistance} km`);
               w.distance = newDistance;
             }
             return w;

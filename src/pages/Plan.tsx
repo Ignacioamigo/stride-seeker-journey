@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
@@ -17,8 +18,22 @@ const Plan: React.FC = () => {
   const [currentPlan, setCurrentPlan] = useState<WorkoutPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generationStage, setGenerationStage] = useState<'init' | 'rag' | 'api' | 'complete'>('init');
-  const [offlineMode, setOfflineMode] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<boolean>(navigator.onLine);
   const [ragActive, setRagActive] = useState(false);
+
+  // Monitorear el estado de la conexión
+  useEffect(() => {
+    const handleOnline = () => setConnectionStatus(true);
+    const handleOffline = () => setConnectionStatus(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Cargar plan existente al montar componente
   useEffect(() => {
@@ -36,11 +51,9 @@ const Plan: React.FC = () => {
             console.log("No se encontró ningún plan existente");
           }
           setError(null);
-          setOfflineMode(isOfflineMode());
         } catch (error) {
           console.error("Error loading plan:", error);
           setError(getConnectionError() || error.message || "Error al cargar el plan de entrenamiento.");
-          setOfflineMode(isOfflineMode());
         }
       } finally {
         setIsLoading(false);
@@ -55,6 +68,15 @@ const Plan: React.FC = () => {
       toast({
         title: "Completa tu perfil",
         description: "Para generar un plan personalizado, primero completa tu perfil.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!navigator.onLine) {
+      toast({
+        title: "Sin conexión",
+        description: "Necesitas conexión a internet para generar un plan. Por favor, conéctate e inténtalo de nuevo.",
         variant: "destructive",
       });
       return;
@@ -88,25 +110,19 @@ const Plan: React.FC = () => {
       setGenerationStage('complete');
       console.log("Plan generado exitosamente:", plan);
       setCurrentPlan(plan);
-      setOfflineMode(isOfflineMode());
-      setRagActive(navigator.onLine); // Si estamos online, asumimos que RAG está activo
+      setRagActive(true); // Asumimos que si se completa con éxito, RAG estuvo activo
       
       toast({
         title: "Plan generado",
-        description: offlineMode ? 
-          "Plan generado en modo offline." :
-          "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil y conocimientos de entrenamiento.",
+        description: "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil y conocimientos de entrenamiento.",
       });
     } catch (error) {
       console.error("Error al generar plan:", error);
       setError(getConnectionError() || error.message || "Error al generar el plan de entrenamiento.");
-      setOfflineMode(isOfflineMode());
       
       toast({
         title: "Error",
-        description: offlineMode ? 
-          "Generando plan en modo offline. La funcionalidad puede ser limitada." : 
-          "No se pudo generar el plan. Intenta de nuevo más tarde.",
+        description: "No se pudo generar el plan. Verifica tu conexión a Internet e intenta de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -160,7 +176,7 @@ const Plan: React.FC = () => {
 
   // Renderizar el indicador de RAG
   const renderRagIndicator = () => {
-    if (!currentPlan || offlineMode) return null;
+    if (!currentPlan) return null;
     
     return (
       <div className="mb-4 flex items-center justify-center">
@@ -188,13 +204,13 @@ const Plan: React.FC = () => {
         </div>
         
         <div className="container max-w-md mx-auto p-4">
-          {/* Offline mode indicator */}
-          {offlineMode && (
+          {/* Connection status indicator */}
+          {!connectionStatus && (
             <Alert className="mb-4 bg-amber-50 border-amber-200">
               <WifiOff className="h-4 w-4 mr-2 text-amber-600" />
-              <AlertTitle className="text-amber-800">Modo sin conexión</AlertTitle>
+              <AlertTitle className="text-amber-800">Sin conexión</AlertTitle>
               <AlertDescription className="text-amber-700">
-                Estás utilizando la aplicación en modo sin conexión. Algunas funciones pueden estar limitadas.
+                No tienes conexión a Internet. Necesitas conexión para generar un plan de entrenamiento.
                 <div className="mt-2">
                   <Button
                     size="sm"
@@ -208,7 +224,7 @@ const Plan: React.FC = () => {
             </Alert>
           )}
           
-          {error && !offlineMode && (
+          {error && connectionStatus && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4 mr-2" />
               <AlertTitle>Error de conexión</AlertTitle>
@@ -248,7 +264,7 @@ const Plan: React.FC = () => {
         <TrainingPlanDisplay 
           plan={currentPlan} 
           onPlanUpdate={handlePlanUpdate}
-          offlineMode={offlineMode}
+          offlineMode={!connectionStatus}
         />
       );
     }
@@ -262,9 +278,15 @@ const Plan: React.FC = () => {
         <RunButton 
           onClick={handleGeneratePlan}
           className="w-full"
+          disabled={!connectionStatus}
         >
-          Generar mi plan
+          {connectionStatus ? "Generar mi plan" : "Sin conexión"}
         </RunButton>
+        {!connectionStatus && (
+          <p className="text-xs text-runapp-gray mt-3">
+            Necesitas conexión a Internet para generar un plan de entrenamiento.
+          </p>
+        )}
       </div>
     );
   };
