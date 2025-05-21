@@ -27,15 +27,33 @@ const WorkoutCard: React.FC<{
     return null;
   }
   
+  // Format the date if available
+  const formattedDate = workout.date 
+    ? new Date(workout.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) 
+    : '';
+  
+  // Check if this workout is today
+  const isToday = workout.date 
+    ? new Date(workout.date).toDateString() === new Date().toDateString() 
+    : false;
+  
   return (
-    <div className="bg-white rounded-lg p-4 shadow-sm mb-3">
+    <div className={`bg-white rounded-lg p-4 shadow-sm mb-3 ${isToday ? 'border-2 border-runapp-purple' : ''}`}>
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-semibold text-runapp-navy">{workout.title}</h3>
-        <span className={`text-xs px-2 py-1 rounded-full ${
-          workout.completed ? 'bg-green-100 text-green-700' : 'bg-runapp-light-purple text-runapp-purple'
-        }`}>
-          {workout.day}
-        </span>
+        <div className="flex flex-col items-end">
+          <span className={`text-xs px-2 py-1 rounded-full ${
+            workout.completed ? 'bg-green-100 text-green-700' : 'bg-runapp-light-purple text-runapp-purple'
+          }`}>
+            {workout.day}
+          </span>
+          {formattedDate && (
+            <span className="text-xs text-runapp-gray mt-1">{formattedDate}</span>
+          )}
+          {isToday && (
+            <span className="text-xs bg-runapp-purple text-white px-2 py-0.5 rounded-full mt-1">Hoy</span>
+          )}
+        </div>
       </div>
       
       <p className="text-sm text-runapp-gray mb-2">{workout.description}</p>
@@ -100,10 +118,31 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [isGeneratingNextWeek, setIsGeneratingNextWeek] = useState(false);
   
+  // Sort workouts by date if dates are available
+  const sortedWorkouts = [...plan.workouts].sort((a, b) => {
+    if (a.date && b.date) {
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    } else {
+      return 0; // Keep original order if no dates
+    }
+  });
+  
   // Filtrar los entrenamientos para excluir los días de descanso
-  const activeWorkouts = plan.workouts.filter(workout => workout.type !== 'descanso');
+  const activeWorkouts = sortedWorkouts.filter(workout => workout.type !== 'descanso');
   
   const allWorkoutsCompleted = activeWorkouts.every(workout => workout.completed);
+  
+  // Find today's workout
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todaysWorkout = sortedWorkouts.find(w => {
+    if (w.date) {
+      const workoutDate = new Date(w.date);
+      workoutDate.setHours(0, 0, 0, 0);
+      return workoutDate.getTime() === today.getTime();
+    }
+    return false;
+  });
   
   const handleCompleteWorkout = async (
     workoutId: string, 
@@ -175,6 +214,11 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
             <p className="text-sm text-runapp-gray">
               {plan.duration} • {plan.intensity} {plan.weekNumber ? `• Semana ${plan.weekNumber}` : ''}
             </p>
+            {plan.createdAt && (
+              <p className="text-xs text-runapp-gray mt-1">
+                Generado el: {new Date(plan.createdAt).toLocaleDateString('es-ES')}
+              </p>
+            )}
           </div>
           <div className="p-2 bg-runapp-light-purple rounded-full">
             <Calendar className="text-runapp-purple" size={20} />
@@ -182,12 +226,20 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
         </div>
         <p className="text-runapp-gray mb-4 text-sm">{plan.description}</p>
         
-        <RunButton 
-          onClick={() => navigate('/train')}
-          className="w-full"
-        >
-          Comenzar entrenamiento de hoy
-        </RunButton>
+        {todaysWorkout && todaysWorkout.type !== 'descanso' && (
+          <RunButton 
+            onClick={() => {
+              setExpandedWorkoutId(todaysWorkout.id);
+              const element = document.getElementById(`workout-${todaysWorkout.id}`);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            className="w-full"
+          >
+            Comenzar entrenamiento de hoy
+          </RunButton>
+        )}
       </div>
       
       <div className="flex justify-between items-center mb-3">
@@ -213,17 +265,18 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
       </div>
       
       <div className="space-y-1">
-        {plan.workouts.map((workout) => (
-          <WorkoutCard 
-            key={workout.id} 
-            workout={workout} 
-            planId={plan.id}
-            onComplete={handleCompleteWorkout}
-            expanded={expandedWorkoutId === workout.id}
-            onToggleExpand={() => setExpandedWorkoutId(
-              expandedWorkoutId === workout.id ? null : workout.id
-            )}
-          />
+        {sortedWorkouts.map((workout) => (
+          <div key={workout.id} id={`workout-${workout.id}`}>
+            <WorkoutCard 
+              workout={workout} 
+              planId={plan.id}
+              onComplete={handleCompleteWorkout}
+              expanded={expandedWorkoutId === workout.id}
+              onToggleExpand={() => setExpandedWorkoutId(
+                expandedWorkoutId === workout.id ? null : workout.id
+              )}
+            />
+          </div>
         ))}
       </div>
     </div>
