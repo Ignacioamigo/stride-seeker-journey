@@ -133,13 +133,12 @@ serve(async (req) => {
       } else {
         console.log("No sample fragment found or error:", sampleError);
       }
-      // Use RPC call for match_fragments with lower threshold
+      // Llamada correcta a la función RPC match_fragments con vector(768)
       const { data: fragments, error } = await supabase.rpc('match_fragments', {
-        query_embedding: embeddingData.embedding,
-        match_threshold: 0.3, // Lowered threshold for debugging
+        query_embedding: embeddingData.embedding, // array de floats
+        min_similarity: 0.6,
         match_count: 5
       });
-      console.log("match_fragments result:", fragments, error);
       if (error) {
         console.error("Error in match_fragments RPC:", error);
         throw error;
@@ -152,19 +151,7 @@ serve(async (req) => {
         console.log("RAG Context retrieved successfully:", fragments.length, "fragments");
         console.log("First fragment content snippet:", fragments[0].content.substring(0, 100) + "...");
       } else {
-        // Forzar el flujo RAG devolviendo el primer fragmento si no hay matches
-        const { data: fallbackFragment } = await supabase
-          .from('fragments')
-          .select('content')
-          .limit(1)
-          .single();
-        if (fallbackFragment) {
-          ragActive = true;
-          contextText = `Fragmento 1 (forzado):\n${fallbackFragment.content}`;
-          console.log("No matches found, using fallback fragment for RAG test.");
-        } else {
-          console.log("No relevant fragments found for RAG and no fallback available");
-        }
+        console.log("No relevant fragments found for RAG");
       }
     } catch (ragError) {
       console.error("Error during RAG processing:", ragError);
