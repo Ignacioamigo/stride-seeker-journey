@@ -175,7 +175,7 @@ Los días de la semana para este período son: ${datesList}
 IMPORTANTE:
 1. La distancia máxima del usuario es ${userProfile.maxDistance}km - NO crees entrenamientos que excedan esta distancia a menos que el usuario esté entrenando para un maratón y tenga experiencia suficiente.
 2. La variedad es esencial. Crea diferentes tipos de entrenamientos (intervalos, tempo, carrera larga) alineados con el objetivo del usuario.
-3. NO incluyas ninguna marca de formato como \`\`\`json o ```. Responde directamente con el objeto JSON sin ningún envoltorio.
+3. NO incluyas ninguna marca de formato como \`\`\`json o \`\`\`. Responde directamente con el objeto JSON sin ningún envoltorio.
 4. Genera una respuesta en formato JSON siguiendo exactamente esta estructura:
 {
   "name": "...",
