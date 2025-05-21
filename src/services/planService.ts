@@ -1,4 +1,3 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -250,7 +249,7 @@ export const generateTrainingPlan = async ({ userProfile }: { userProfile: UserP
     const { data, error } = await supabase.functions.invoke('generate-training-plan', {
       body: { 
         userProfile,
-        relevantFragments // Pasamos los fragmentos relevantes
+        relevantFragments // Pass the relevant fragments
       }
     });
 
