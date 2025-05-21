@@ -153,39 +153,26 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
     if (!embedding || embedding.length === 0) {
       throw new Error("No se proporcionó un embedding válido para la búsqueda");
     }
-    
-    console.log("Buscando fragmentos relevantes con el embedding...");
-    
-    try {
-      // Using proper type-safe vector search syntax with stringified embedding
-      const { data, error } = await supabase
-        .from('fragments')
-        .select('content')
-        .order('embedding <-> $1', { 
-          ascending: true,
-          // Convert the embedding array to a string for the query parameter
-          foreignTable: JSON.stringify(embedding)
-        })
-        .limit(limit);
-      
-      if (error) {
-        console.error('Error en consulta de fragmentos:', error);
-        throw new Error(`Error en consulta de fragmentos: ${error.message}`);
-      }
-      
-      // Type-safe handling of results
-      if (!data) {
-        return [];
-      }
-      
-      console.log(`Recuperados ${data.length} fragmentos relevantes`);
-      return data.map(doc => doc.content || '').filter(Boolean);
-      
-    } catch (e: any) {
-      console.error("Error en la consulta a la base de datos:", e);
-      throw new Error(`Error en la consulta a la base de datos: ${e.message}`);
+
+    // Llamada a la función SQL match_fragments
+    const { data, error } = await supabase.rpc('match_fragments', {
+      query_embedding: embedding,
+      match_count: limit
+    });
+
+    if (error) {
+      console.error('Error en consulta de fragmentos:', error);
+      throw new Error(`Error en consulta de fragmentos: ${error.message}`);
     }
-  } catch (error: any) {
+
+    if (!data) {
+      return [];
+    }
+
+    // Extrae el contenido de los fragmentos relevantes
+    return data.map(doc => doc.content || '').filter(Boolean);
+
+  } catch (error) {
     console.error('Error retrieving fragments:', error);
     return [];
   }
