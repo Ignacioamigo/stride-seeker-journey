@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
@@ -121,18 +120,15 @@ serve(async (req) => {
       
       console.log("Embedding generated successfully");
       
-      // Query fragments directly with proper casting from jsonb to vector
-      // This is a workaround for the type mismatch between jsonb and vector
-      const { data: fragments, error } = await supabase
-        .from('fragments')
-        .select('id, content, (1 - (embedding::vector <=> $1::vector)) as similarity')
-        .gte('(1 - (embedding::vector <=> $1::vector))', 0.6)
-        .order('(embedding::vector <=> $1::vector)', { ascending: true })
-        .limit(5)
-        .values([embeddingData.embedding]);
+      // Fix: Use direct RPC call for match_fragments with proper parameter names
+      const { data: fragments, error } = await supabase.rpc('match_fragments', {
+        query_embedding: embeddingData.embedding,
+        match_threshold: 0.6,
+        match_count: 5
+      });
       
       if (error) {
-        console.error("Error fetching fragments:", error);
+        console.error("Error in match_fragments RPC:", error);
         throw error;
       }
       
