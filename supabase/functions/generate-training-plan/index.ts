@@ -206,6 +206,36 @@ serve(async (req) => {
       try {
         plan = JSON.parse(jsonString);
         console.log("JSON del plan analizado correctamente");
+        
+        // Asegúrate de que el plan tiene un ID único
+        plan.id = crypto.randomUUID();
+        // Añadir la fecha de creación
+        plan.createdAt = new Date();
+        // Añadir número de semana si no existe
+        if (!plan.weekNumber) {
+          plan.weekNumber = previousWeekResults ? previousWeekResults.weekNumber + 1 : 1;
+        }
+        
+        // Asignar IDs a los entrenamientos si no los tienen
+        if (plan.workouts) {
+          plan.workouts.forEach(workout => {
+            if (!workout.id) {
+              workout.id = crypto.randomUUID();
+            }
+            // Asegurarnos de que completed está inicializado
+            if (workout.completed === undefined) {
+              workout.completed = false;
+            }
+            // Inicializar resultados
+            if (!workout.actualDistance) {
+              workout.actualDistance = null;
+            }
+            if (!workout.actualDuration) {
+              workout.actualDuration = null;
+            }
+          });
+        }
+        
       } catch (e) {
         // If JSON parsing fails, use a regex approach to extract the plan
         console.error("Error al analizar JSON:", e);
@@ -213,20 +243,23 @@ serve(async (req) => {
         console.log("Contenido recibido (primeras 200 caracteres):", generatedText.substring(0, 200) + "...");
         
         plan = {
+          id: crypto.randomUUID(),
           name: previousWeekResults 
             ? `Plan de entrenamiento: Semana ${previousWeekResults.weekNumber + 1}` 
             : "Plan de entrenamiento personalizado: Semana 1",
           description: "Plan adaptado a tu perfil y objetivos",
           duration: "7 días",
           intensity: "Adaptada a tu nivel",
-          workouts: extractWorkoutsFromText(generatedText)
+          workouts: extractWorkoutsFromText(generatedText),
+          createdAt: new Date(),
+          weekNumber: previousWeekResults ? previousWeekResults.weekNumber + 1 : 1
         };
       }
 
       console.log("Devolviendo datos del plan");
       
       return new Response(
-        JSON.stringify({ plan }),
+        JSON.stringify(plan),
         { 
           headers: { 'Content-Type': 'application/json', ...corsHeaders } 
         }
@@ -282,26 +315,34 @@ function extractWorkoutsFromText(text) {
       const paceMatch = content.match(/(?:ritmo|pace):?\s*([^\n]+?)(?:\/km|$)/i);
       
       workouts.push({
+        id: crypto.randomUUID(),
         day,
         title: titleMatch ? titleMatch[1].trim() : `Entrenamiento de ${day}`,
         description: descriptionMatch ? descriptionMatch[1].trim() : content.split('\n').slice(1).join(' ').trim(),
         distance: distanceMatch ? parseFloat(distanceMatch[1]) : null,
         duration: durationMatch ? durationMatch[1].trim() : null,
         type: determineWorkoutType(content),
-        targetPace: paceMatch ? paceMatch[1].trim() : null
+        targetPace: paceMatch ? paceMatch[1].trim() : null,
+        completed: false,
+        actualDistance: null,
+        actualDuration: null
       });
       
       console.log(`Extracted workout for ${day}: ${titleMatch ? titleMatch[1].trim() : `Entrenamiento de ${day}`}`);
     } else {
       // If no match for this day, create a rest day
       workouts.push({
+        id: crypto.randomUUID(),
         day,
         title: `Descanso`,
         description: "Día de recuperación",
         distance: null,
         duration: null,
         type: "descanso",
-        targetPace: null
+        targetPace: null,
+        completed: false,
+        actualDistance: null,
+        actualDuration: null
       });
       
       console.log(`No match found for ${day}, created rest day`);

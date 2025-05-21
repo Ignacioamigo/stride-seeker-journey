@@ -12,7 +12,9 @@ let connectionError: string | null = null;
  * Comprueba si la aplicación está en modo offline
  */
 export const isOfflineMode = (): boolean => {
-  return !navigator.onLine || !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+  // Solo comprobamos la conexión a internet, no las credenciales de Supabase
+  // ya que las variables de entorno están configuradas correctamente
+  return !navigator.onLine;
 };
 
 /**
@@ -21,10 +23,6 @@ export const isOfflineMode = (): boolean => {
 export const getConnectionError = (): string | null => {
   if (!navigator.onLine) {
     return "No hay conexión a internet. La aplicación funcionará en modo offline.";
-  }
-  
-  if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-    return "Error de configuración: Faltan las credenciales de Supabase.";
   }
   
   return null;
@@ -232,30 +230,52 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
  */
 export const generateTrainingPlan = async ({ userProfile }: { userProfile: UserProfile }): Promise<WorkoutPlan> => {
   try {
-    if (isOfflineMode()) {
+    // Verificar si estamos en modo offline
+    const offline = isOfflineMode();
+    console.log("¿Modo offline?", offline);
+    
+    if (offline) {
       console.log("Modo offline: Generando plan básico");
       return generateMockPlan(userProfile);
     }
 
-    // Call the Edge Function to generate the plan
-    const { data, error } = await supabase.functions.invoke('generate-training-plan', {
-      body: { userProfile }
+    console.log("Modo online: Llamando a la Edge Function...");
+    
+    // Call the Edge Function to generate the plan with explicit error handling
+    const response = await supabase.functions.invoke('generate-training-plan', {
+      body: { 
+        userProfile,
+        context: "", // Podemos pasar un contexto vacío o no pasarlo
+      }
     });
-
-    if (error) {
-      console.error("Error calling Edge Function:", error);
-      throw error;
+    
+    console.log("Respuesta de la edge function:", response);
+    
+    if (response.error) {
+      console.error("Error calling Edge Function:", response.error);
+      throw new Error(`Error al llamar a la Edge Function: ${response.error.message}`);
     }
 
-    if (!data) {
+    if (!response.data) {
       throw new Error("No se recibió respuesta del servidor");
     }
-
-    return data;
+    
+    // La Edge Function devuelve un objeto con la propiedad 'plan'
+    const plan = response.data;
+    
+    // Guardar el plan en localStorage para acceso offline
+    try {
+      localStorage.setItem('current_training_plan', JSON.stringify(plan));
+    } catch (e) {
+      console.warn("No se pudo guardar el plan en localStorage:", e);
+    }
+    
+    return plan;
   } catch (error) {
     console.error("Error in generateTrainingPlan:", error);
     
-    // If there's an error, fall back to offline mode
+    // Si hay un error, mostramos información detallada y recurrimos al modo offline
+    console.log("Error completo:", JSON.stringify(error));
     console.log("Fallback a modo offline debido al error");
     return generateMockPlan(userProfile);
   }
@@ -269,6 +289,11 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
   try {
     if (isOfflineMode()) {
       console.log("Modo offline: No se puede cargar el plan desde la base de datos");
+      // Intentar cargar desde localStorage
+      const savedPlan = localStorage.getItem('current_training_plan');
+      if (savedPlan) {
+        return JSON.parse(savedPlan) as WorkoutPlan;
+      }
       return null;
     }
 
@@ -281,9 +306,9 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
     } catch (e) {
       console.warn("No se pudo cargar el plan desde almacenamiento local:", e);
     }
-
-    // The database doesn't have a workout_plans table yet, so we'll return null
-    // When the table is created in the future, we can uncomment and adapt this code
+    
+    // Por ahora devolvemos null ya que no tenemos una tabla workout_plans
+    // En el futuro cuando se cree la tabla, podemos descomentar este código
     /*
     const { data: plans, error } = await supabase
       .from('workout_plans')
