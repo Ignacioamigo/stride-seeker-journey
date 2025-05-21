@@ -120,38 +120,46 @@ serve(async (req) => {
       
       console.log("Embedding generated successfully with dimensions:", embeddingData.embedding.length);
       
-      // Log the user embedding
-      console.log("User embedding (first 10 values):", embeddingData.embedding.slice(0, 10));
-      // Fetch one fragment to log its embedding
-      const { data: sampleFragment, error: sampleError } = await supabase
-        .from('fragments')
-        .select('embedding, id')
-        .limit(1)
-        .single();
+      // Log dimension and type of user embedding
+      console.log("User embedding length:", embeddingData.embedding.length, "Type:", typeof embeddingData.embedding[0]);
+      // Log dimension and type of a fragment embedding
+      const { data: sampleFragment } = await supabase.from('fragments').select('embedding').limit(1).single();
       if (sampleFragment) {
-        console.log("Sample fragment embedding (first 10 values):", sampleFragment.embedding.slice(0, 10));
+        console.log("Fragment embedding length:", sampleFragment.embedding.length, "Type:", typeof sampleFragment.embedding[0]);
       } else {
-        console.log("No sample fragment found or error:", sampleError);
+        console.log("No sample fragment found for embedding comparison");
       }
-      // Llamada correcta a la función RPC match_fragments con vector(768)
-      const { data: fragments, error } = await supabase.rpc('match_fragments', {
-        query_embedding: embeddingData.embedding, // array de floats
-        min_similarity: 0.6,
+      // Try match_fragments with array (native)
+      let fragments = null;
+      let error = null;
+      let triedString = false;
+      ({ data: fragments, error } = await supabase.rpc('match_fragments', {
+        query_embedding: embeddingData.embedding,
+        min_similarity: 0,
         match_count: 5
-      });
+      }));
+      console.log("match_fragments with array result:", fragments, error);
+      // If no results, try with stringified embedding
+      if (!fragments || fragments.length === 0) {
+        triedString = true;
+        ({ data: fragments, error } = await supabase.rpc('match_fragments', {
+          query_embedding: JSON.stringify(embeddingData.embedding),
+          min_similarity: 0,
+          match_count: 5
+        }));
+        console.log("match_fragments with string result:", fragments, error);
+      }
       if (error) {
         console.error("Error in match_fragments RPC:", error);
         throw error;
       }
       if (fragments && fragments.length > 0) {
         ragActive = true;
-        contextText = fragments.map((f: any, i: number) => 
-          `Fragmento ${i+1}:\n${f.content}`
-        ).join('\n\n');
-        console.log("RAG Context retrieved successfully:", fragments.length, "fragments");
+        contextText = fragments.map((f, i) => `Fragmento ${i+1}:\n${f.content}`).join('\n\n');
+        console.log("RAG Context retrieved successfully (triedString:", triedString, "):", fragments.length, "fragments");
         console.log("First fragment content snippet:", fragments[0].content.substring(0, 100) + "...");
       } else {
-        console.log("No relevant fragments found for RAG");
+        console.log("No relevant fragments found for RAG (triedString:", triedString, ")");
       }
     } catch (ragError) {
       console.error("Error during RAG processing:", ragError);
