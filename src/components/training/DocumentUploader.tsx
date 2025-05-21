@@ -41,8 +41,8 @@ const DocumentUploader: React.FC = () => {
       } else {
         setUploadError("No se pudo procesar el documento. Por favor, inténtalo de nuevo.");
       }
-    } catch (error) {
-      setUploadError("Error al subir el documento: " + error.message);
+    } catch (error: any) {
+      setUploadError("Error al subir el documento: " + (error.message || "Error desconocido"));
     } finally {
       setIsUploading(false);
     }

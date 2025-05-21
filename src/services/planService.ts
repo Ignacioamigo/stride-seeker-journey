@@ -374,16 +374,27 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
       
       console.log("Buscando fragmentos relevantes para RAG:", searchQuery);
       
-      const { data, error } = await supabase.rpc('match_fragments', {
-        query_text: searchQuery,
-        match_count: 3
+      // FIXED: Changed query_text to query_embedding and added embedding conversion
+      // We need to convert the text query to an embedding first
+      const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
+        body: { text: searchQuery }
       });
       
-      if (error) {
-        console.error("Error al obtener fragmentos relevantes:", error);
-      } else if (data && data.length > 0) {
-        relevantFragments = data.map((item: any) => item.content);
-        console.log(`Se encontraron ${relevantFragments.length} fragmentos relevantes para RAG`);
+      if (embeddingError) {
+        console.error("Error al generar el embedding para la búsqueda:", embeddingError);
+      } else if (embeddingData && embeddingData.embedding) {
+        // Now use the embedding for the search
+        const { data, error } = await supabase.rpc('match_fragments', {
+          query_embedding: embeddingData.embedding,
+          match_count: 3
+        });
+        
+        if (error) {
+          console.error("Error al obtener fragmentos relevantes:", error);
+        } else if (data && data.length > 0) {
+          relevantFragments = data.map((item: any) => item.content);
+          console.log(`Se encontraron ${relevantFragments.length} fragmentos relevantes para RAG`);
+        }
       }
     } catch (ragError) {
       console.error("Error en el proceso RAG:", ragError);
