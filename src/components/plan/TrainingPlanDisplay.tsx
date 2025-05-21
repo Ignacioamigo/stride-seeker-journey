@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { WorkoutPlan, Workout } from "@/types";
 import RunButton from "@/components/ui/RunButton";
@@ -21,6 +22,11 @@ const WorkoutCard: React.FC<{
   expanded: boolean;
   onToggleExpand: () => void;
 }> = ({ workout, planId, onComplete, expanded, onToggleExpand }) => {
+  // No mostrar los entrenamientos de tipo "descanso"
+  if (workout.type === 'descanso') {
+    return null;
+  }
+  
   return (
     <div className="bg-white rounded-lg p-4 shadow-sm mb-3">
       <div className="flex justify-between items-start mb-2">
@@ -51,12 +57,19 @@ const WorkoutCard: React.FC<{
             {workout.duration}
           </span>
         )}
+        {workout.targetPace && (
+          <span className="flex items-center">
+            <span className="w-4 h-4 rounded-full bg-runapp-light-purple flex items-center justify-center mr-1">
+              🏃
+            </span>
+            {workout.targetPace}/km
+          </span>
+        )}
         <span className="flex items-center">
           <span className="w-4 h-4 rounded-full bg-runapp-light-purple flex items-center justify-center mr-1">
-            🏃
+            🔄
           </span>
           {workout.type === 'carrera' ? 'Carrera' : 
-           workout.type === 'descanso' ? 'Descanso' : 
            workout.type === 'fuerza' ? 'Fuerza' : 
            workout.type === 'flexibilidad' ? 'Flexibilidad' : 'Otro'}
         </span>
@@ -67,7 +80,7 @@ const WorkoutCard: React.FC<{
           onClick={onToggleExpand}
           className="text-xs text-runapp-purple hover:underline"
         >
-          {expanded ? 'Ocultar detalles' : 'Ver detalles'}
+          {expanded ? 'Ocultar formulario' : 'Meter datos entrenamiento'}
         </button>
       </div>
       
@@ -87,7 +100,10 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [isGeneratingNextWeek, setIsGeneratingNextWeek] = useState(false);
   
-  const allWorkoutsCompleted = plan.workouts.every(workout => workout.completed);
+  // Filtrar los entrenamientos para excluir los días de descanso
+  const activeWorkouts = plan.workouts.filter(workout => workout.type !== 'descanso');
+  
+  const allWorkoutsCompleted = activeWorkouts.every(workout => workout.completed);
   
   const handleCompleteWorkout = async (
     workoutId: string, 

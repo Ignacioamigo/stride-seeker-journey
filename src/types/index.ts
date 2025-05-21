@@ -1,4 +1,3 @@
-
 export interface UserProfile {
   name: string;
   age: number | null;
@@ -31,6 +30,7 @@ export interface Workout {
   completed?: boolean;
   actualDistance?: number | null;
   actualDuration?: string | null;
+  targetPace?: string | null;
 }
 
 export interface WorkoutPlan {

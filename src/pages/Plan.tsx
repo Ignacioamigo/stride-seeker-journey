@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
@@ -219,7 +220,8 @@ const Plan: React.FC = () => {
       return (
         <TrainingPlanDisplay 
           plan={currentPlan} 
-          onPlanUpdate={handlePlanUpdate} 
+          onPlanUpdate={handlePlanUpdate}
+          offlineMode={offlineMode}
         />
       );
     }
@@ -228,7 +230,7 @@ const Plan: React.FC = () => {
       <div className="bg-white rounded-xl p-6 shadow-sm text-center">
         <h2 className="text-xl font-bold text-runapp-navy mb-2">¡Comienza tu viaje!</h2>
         <p className="text-runapp-gray mb-6">
-          Genera tu primer plan de entrenamiento personalizado basado en tu perfil y objetivos.
+          Genera tu plan de entrenamiento personalizado basado en tu perfil y objetivos.
         </p>
         <RunButton 
           onClick={handleGeneratePlan}

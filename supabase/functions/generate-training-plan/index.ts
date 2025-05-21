@@ -50,27 +50,35 @@ serve(async (req) => {
     }
     
     // Create system prompt with running expertise and RAG context
-    let systemPrompt = `Eres un entrenador de running profesional y experto. 
-    Tu tarea es crear un plan de entrenamiento personalizado de 7 días para un corredor, basado en su perfil 
-    y en tus conocimientos sobre entrenamiento de running.
+    let systemPrompt = `Actúa como un entrenador de running de élite con experiencia en preparación de atletas de todos los niveles. 
+    Tu tarea es diseñar un plan de entrenamiento personalizado para un corredor, basado en su perfil 
+    y aplicando principios científicos avanzados de entrenamiento deportivo.
     
-    El plan debe estar adaptado al nivel del corredor y tener en cuenta sus objetivos, lesiones, y capacidades.
-    Incluye descansos apropiados y variación en los tipos de entrenamiento.
+    El plan debe estar meticulosamente adaptado al nivel del corredor, considerando sus objetivos específicos,
+    historial de lesiones, y capacidades actuales. Incluye una distribución óptima de estímulos de entrenamiento,
+    con períodos de recuperación estratégicos y variación metodológica en los tipos de entrenamiento.
     
+    Para cada sesión de entrenamiento, debes especificar:
+    - Ritmo objetivo por kilómetro (ejemplo: 5:30/km)
+    - Distancia precisa en kilómetros
+    - Duración estimada del entrenamiento
+    - Descripción detallada con instrucciones técnicas
+
     La respuesta debe estar en español y debe estar estructurada en formato JSON como este:
     {
       "name": "Nombre del plan",
-      "description": "Descripción general del plan",
-      "duration": "7 días",
+      "description": "Descripción general del plan con enfoque metodológico",
+      "duration": "Duración total del plan",
       "intensity": "Intensidad general del plan",
       "workouts": [
         {
           "day": "Lunes",
-          "title": "Título del entrenamiento",
-          "description": "Descripción detallada",
+          "title": "Título descriptivo del entrenamiento",
+          "description": "Descripción técnica detallada",
           "distance": null o número en km,
           "duration": "Duración estimada",
-          "type": "carrera|descanso|fuerza|flexibilidad|otro"
+          "type": "carrera|descanso|fuerza|flexibilidad|otro",
+          "targetPace": "5:30/km o null si no aplica"
         },
         // Repetir para cada día de la semana
       ]
@@ -79,12 +87,12 @@ serve(async (req) => {
     IMPORTANTE: DEBES devolver SOLO un objeto JSON válido, sin texto adicional.
     
     CONOCIMIENTOS ESPECÍFICOS DE RUNNING:
-    ${context || 'Basa tu plan en principios generales de entrenamiento de running.'}
+    ${context || 'Aplica los principios fundamentales de periodización, progresión gradual y especificidad del entrenamiento.'}
     `;
 
     // Format user profile for prompt
     let userPrompt = `
-    Perfil del corredor:
+    Perfil detallado del corredor:
     - Nombre: ${userProfile.name}
     - Edad: ${userProfile.age || 'No especificado'}
     - Género: ${userProfile.gender || 'No especificado'} 
@@ -96,6 +104,10 @@ serve(async (req) => {
     - Objetivo: ${userProfile.goal}
     - Entrenamientos semanales deseados: ${userProfile.weeklyWorkouts || 'No especificado'}
     - Lesiones o limitaciones: ${userProfile.injuries || 'Ninguna'}
+    
+    Requisitos específicos:
+    - Plan para principiantes enfocado en alcanzar los 10K en menos de 50 minutos
+    - Énfasis en construir una base sólida con carreras cortas y recuperación adecuada
     `;
     
     // Add previous week results if available
@@ -120,7 +132,7 @@ serve(async (req) => {
       
       userPrompt += `\nPor favor, genera un plan para la Semana ${previousWeekResults.weekNumber + 1} ajustando la intensidad y progresión en función de los resultados de la semana anterior.`;
     } else {
-      userPrompt += `\nGenera un plan de entrenamiento personalizado de 7 días para este corredor (Semana 1).`;
+      userPrompt += `\nGenera un plan de entrenamiento personalizado para este corredor (Semana 1).`;
     }
 
     console.log("Llamando a la API de Gemini para generar el plan");
@@ -267,6 +279,7 @@ function extractWorkoutsFromText(text) {
       const distanceMatch = content.match(/(?:distancia|distance):?\s*(\d+(?:\.\d+)?)\s*km/i);
       const durationMatch = content.match(/(?:duración|duration):?\s*([^\n]+?)(?:min|$)/i);
       const typeMatch = content.match(/(?:tipo|type):?\s*([^\n]+)/i);
+      const paceMatch = content.match(/(?:ritmo|pace):?\s*([^\n]+?)(?:\/km|$)/i);
       
       workouts.push({
         day,
@@ -274,7 +287,8 @@ function extractWorkoutsFromText(text) {
         description: descriptionMatch ? descriptionMatch[1].trim() : content.split('\n').slice(1).join(' ').trim(),
         distance: distanceMatch ? parseFloat(distanceMatch[1]) : null,
         duration: durationMatch ? durationMatch[1].trim() : null,
-        type: determineWorkoutType(content)
+        type: determineWorkoutType(content),
+        targetPace: paceMatch ? paceMatch[1].trim() : null
       });
       
       console.log(`Extracted workout for ${day}: ${titleMatch ? titleMatch[1].trim() : `Entrenamiento de ${day}`}`);
@@ -286,7 +300,8 @@ function extractWorkoutsFromText(text) {
         description: "Día de recuperación",
         distance: null,
         duration: null,
-        type: "descanso"
+        type: "descanso",
+        targetPace: null
       });
       
       console.log(`No match found for ${day}, created rest day`);
