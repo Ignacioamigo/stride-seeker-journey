@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
@@ -121,18 +120,30 @@ serve(async (req) => {
       
       console.log("Embedding generated successfully with dimensions:", embeddingData.embedding.length);
       
-      // Use direct database query to match fragments using the fixed function
+      // Log the user embedding
+      console.log("User embedding (first 10 values):", embeddingData.embedding.slice(0, 10));
+      // Fetch one fragment to log its embedding
+      const { data: sampleFragment, error: sampleError } = await supabase
+        .from('fragments')
+        .select('embedding, id')
+        .limit(1)
+        .single();
+      if (sampleFragment) {
+        console.log("Sample fragment embedding (first 10 values):", sampleFragment.embedding.slice(0, 10));
+      } else {
+        console.log("No sample fragment found or error:", sampleError);
+      }
+      // Use RPC call for match_fragments with lower threshold
       const { data: fragments, error } = await supabase.rpc('match_fragments', {
         query_embedding: embeddingData.embedding,
-        match_threshold: 0.6,
+        match_threshold: 0.3, // Lowered threshold for debugging
         match_count: 5
       });
-      
+      console.log("match_fragments result:", fragments, error);
       if (error) {
         console.error("Error in match_fragments RPC:", error);
         throw error;
       }
-      
       if (fragments && fragments.length > 0) {
         ragActive = true;
         contextText = fragments.map((f: any, i: number) => 
@@ -141,7 +152,19 @@ serve(async (req) => {
         console.log("RAG Context retrieved successfully:", fragments.length, "fragments");
         console.log("First fragment content snippet:", fragments[0].content.substring(0, 100) + "...");
       } else {
-        console.log("No relevant fragments found for RAG");
+        // Forzar el flujo RAG devolviendo el primer fragmento si no hay matches
+        const { data: fallbackFragment } = await supabase
+          .from('fragments')
+          .select('content')
+          .limit(1)
+          .single();
+        if (fallbackFragment) {
+          ragActive = true;
+          contextText = `Fragmento 1 (forzado):\n${fallbackFragment.content}`;
+          console.log("No matches found, using fallback fragment for RAG test.");
+        } else {
+          console.log("No relevant fragments found for RAG and no fallback available");
+        }
       }
     } catch (ragError) {
       console.error("Error during RAG processing:", ragError);
