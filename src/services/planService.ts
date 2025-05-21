@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile, WorkoutPlan, Workout, TrainingPlanRequest, PreviousWeekResults } from '@/types';
@@ -523,6 +522,7 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
     
     // Extract RAG status if available
     const ragActive = data.ragActive || false;
+    console.log("RAG status:", ragActive ? "Active" : "Inactive");
     
     // Create the plan with UUID
     const edgePlanData = data;

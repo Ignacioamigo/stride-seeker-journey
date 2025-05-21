@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { WorkoutPlan, Workout } from "@/types";
 import RunButton from "@/components/ui/RunButton";
@@ -217,6 +216,17 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
             {plan.createdAt && (
               <p className="text-xs text-runapp-gray mt-1">
                 Generado el: {new Date(plan.createdAt).toLocaleDateString('es-ES')}
+              </p>
+            )}
+            {plan.ragActive !== undefined && (
+              <p className="text-xs mt-1">
+                <span className={`px-2 py-0.5 rounded-full ${
+                  plan.ragActive 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {plan.ragActive ? 'Plan generado con RAG' : 'Plan generado sin RAG'}
+                </span>
               </p>
             )}
           </div>
