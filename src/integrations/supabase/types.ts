@@ -257,7 +257,7 @@ export type Database = {
       match_fragments: {
         Args: {
           query_embedding: string
-          min_similarity?: number
+          match_threshold?: number
           match_count?: number
         }
         Returns: {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
@@ -112,8 +111,6 @@ const Plan: React.FC = () => {
       console.log("Plan generated successfully:", plan);
       setCurrentPlan(plan);
       
-      // Set RAG status from the response
-      setRagActive(!!plan.ragActive);
       console.log("RAG status from plan:", plan.ragActive);
       
       toast({
