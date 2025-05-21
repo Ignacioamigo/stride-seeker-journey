@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 // Variables para controlar el estado de Supabase
 let offlineMode = false;
