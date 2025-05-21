@@ -121,7 +121,7 @@ serve(async (req) => {
       
       console.log("Embedding generated successfully with dimensions:", embeddingData.embedding.length);
       
-      // Use direct database query to match fragments - fix the implementation
+      // Use direct database query to match fragments using the fixed function
       const { data: fragments, error } = await supabase.rpc('match_fragments', {
         query_embedding: embeddingData.embedding,
         match_threshold: 0.6,

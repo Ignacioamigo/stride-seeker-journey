@@ -17,10 +17,11 @@ BEGIN
   SELECT
     fragments.id,
     fragments.content,
-    1 - (fragments.embedding::vector <=> query_embedding) AS similarity
+    1 - (fragments.embedding <=> query_embedding) AS similarity
   FROM fragments
-  WHERE 1 - (fragments.embedding::vector <=> query_embedding) > match_threshold
-  ORDER BY fragments.embedding::vector <=> query_embedding
+  WHERE fragments.embedding IS NOT NULL
+  AND 1 - (fragments.embedding <=> query_embedding) > match_threshold
+  ORDER BY fragments.embedding <=> query_embedding
   LIMIT match_count;
 END;
 $$;

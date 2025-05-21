@@ -114,10 +114,11 @@ const Plan: React.FC = () => {
       
       // Set RAG status from the response
       setRagActive(!!plan.ragActive);
+      console.log("RAG status from plan:", plan.ragActive);
       
       toast({
         title: "Plan generated",
-        description: "Your personalized training plan has been created based on your profile and training knowledge.",
+        description: `Your personalized training plan has been created ${plan.ragActive ? 'with knowledge augmentation (RAG)' : 'without RAG'}.`,
       });
     } catch (error) {
       console.error("Error generating plan:", error);
@@ -183,12 +184,12 @@ const Plan: React.FC = () => {
     
     return (
       <div className="mb-4 flex items-center justify-center">
-        <div className={`flex items-center space-x-1 px-2 py-1 rounded-full ${ragActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-          <Database size={14} />
-          <span className="text-xs font-medium">
+        <div className={`flex items-center space-x-1 px-3 py-1.5 rounded-full ${ragActive ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-700'}`}>
+          <Database size={16} className="mr-1" />
+          <span className="text-sm font-medium">
             {ragActive 
-              ? "Plan generated with augmented knowledge (RAG)" 
-              : "Plan generated without RAG"}
+              ? "Plan generated with knowledge augmentation (RAG)" 
+              : "Plan generated without knowledge augmentation"}
           </span>
         </div>
       </div>
