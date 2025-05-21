@@ -1,4 +1,6 @@
+
 export interface UserProfile {
+  id?: string;
   name: string;
   age: number | null;
   gender: 'masculino' | 'femenino' | 'otro' | null;
@@ -22,6 +24,7 @@ export interface FormQuestion {
 export interface Workout {
   id: string;
   day: string;
+  date?: string; // Add date field for each workout
   title: string;
   description: string;
   distance: number | null;

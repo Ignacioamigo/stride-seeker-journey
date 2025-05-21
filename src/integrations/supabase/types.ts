@@ -33,6 +33,166 @@ export type Database = {
         }
         Relationships: []
       }
+      training_plans: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          duration: string | null
+          id: string
+          intensity: string | null
+          name: string
+          start_date: string
+          user_id: string | null
+          week_number: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          duration?: string | null
+          id?: string
+          intensity?: string | null
+          name: string
+          start_date: string
+          user_id?: string | null
+          week_number?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          duration?: string | null
+          id?: string
+          intensity?: string | null
+          name?: string
+          start_date?: string
+          user_id?: string | null
+          week_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_sessions: {
+        Row: {
+          actual_distance: number | null
+          actual_duration: string | null
+          completed: boolean | null
+          completion_date: string | null
+          day_date: string
+          day_number: number
+          description: string | null
+          id: string
+          notes: string | null
+          plan_id: string | null
+          planned_distance: number | null
+          planned_duration: string | null
+          target_pace: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          actual_distance?: number | null
+          actual_duration?: string | null
+          completed?: boolean | null
+          completion_date?: string | null
+          day_date: string
+          day_number: number
+          description?: string | null
+          id?: string
+          notes?: string | null
+          plan_id?: string | null
+          planned_distance?: number | null
+          planned_duration?: string | null
+          target_pace?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          actual_distance?: number | null
+          actual_duration?: string | null
+          completed?: boolean | null
+          completion_date?: string | null
+          day_date?: string
+          day_number?: number
+          description?: string | null
+          id?: string
+          notes?: string | null
+          plan_id?: string | null
+          planned_distance?: number | null
+          planned_duration?: string | null
+          target_pace?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_sessions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_profiles: {
+        Row: {
+          age: number | null
+          experience_level: string | null
+          gender: string | null
+          goal: string
+          height: number | null
+          id: string
+          injuries: string | null
+          last_updated: string | null
+          max_distance: number | null
+          name: string
+          pace: string | null
+          registration_date: string | null
+          user_auth_id: string | null
+          weekly_workouts: number | null
+          weight: number | null
+        }
+        Insert: {
+          age?: number | null
+          experience_level?: string | null
+          gender?: string | null
+          goal: string
+          height?: number | null
+          id?: string
+          injuries?: string | null
+          last_updated?: string | null
+          max_distance?: number | null
+          name: string
+          pace?: string | null
+          registration_date?: string | null
+          user_auth_id?: string | null
+          weekly_workouts?: number | null
+          weight?: number | null
+        }
+        Update: {
+          age?: number | null
+          experience_level?: string | null
+          gender?: string | null
+          goal?: string
+          height?: number | null
+          id?: string
+          injuries?: string | null
+          last_updated?: string | null
+          max_distance?: number | null
+          name?: string
+          pace?: string | null
+          registration_date?: string | null
+          user_auth_id?: string | null
+          weekly_workouts?: number | null
+          weight?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
