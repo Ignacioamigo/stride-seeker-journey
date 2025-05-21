@@ -94,6 +94,15 @@ export type Database = {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: unknown
       }
+      match_fragments: {
+        Args: { query_embedding: string; match_count: number }
+        Returns: {
+          id: string
+          content: string
+          metadata: Json
+          embedding: string
+        }[]
+      }
       sparsevec_out: {
         Args: { "": unknown }
         Returns: unknown

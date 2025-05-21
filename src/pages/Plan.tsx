@@ -5,7 +5,7 @@ import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import { generateTrainingPlan, loadLatestPlan, isOfflineMode, getConnectionError } from "@/services/planService";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, AlertCircle, Sparkles, WifiOff } from "lucide-react";
+import { Loader2, AlertCircle, Sparkles, WifiOff, Database } from "lucide-react";
 import TrainingPlanDisplay from "@/components/plan/TrainingPlanDisplay";
 import { WorkoutPlan } from "@/types";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -19,6 +19,7 @@ const Plan: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [generationStage, setGenerationStage] = useState<'init' | 'rag' | 'api' | 'complete'>('init');
   const [offlineMode, setOfflineMode] = useState(false);
+  const [ragActive, setRagActive] = useState(false);
 
   // Cargar plan existente al montar componente
   useEffect(() => {
@@ -63,6 +64,7 @@ const Plan: React.FC = () => {
     setIsGenerating(true);
     setGenerationStage('init');
     setError(null);
+    setRagActive(false);
     
     try {
       console.log("Iniciando generación de plan con los siguientes datos:", {
@@ -85,10 +87,13 @@ const Plan: React.FC = () => {
       console.log("Plan generado exitosamente:", plan);
       setCurrentPlan(plan);
       setOfflineMode(isOfflineMode());
+      setRagActive(navigator.onLine); // Si estamos online, asumimos que RAG está activo
       
       toast({
         title: "Plan generado",
-        description: "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil.",
+        description: offlineMode ? 
+          "Plan generado en modo offline." :
+          "Se ha creado tu plan de entrenamiento personalizado basado en tu perfil y conocimientos de entrenamiento.",
       });
     } catch (error) {
       console.error("Error al generar plan:", error);
@@ -127,7 +132,7 @@ const Plan: React.FC = () => {
         case 'init':
           return "Preparando tu plan personalizado...";
         case 'rag':
-          return "Analizando tu perfil y objetivos...";
+          return "Analizando tu perfil y conocimientos de entrenamiento...";
         case 'api':
           return "Generando tu plan de entrenamiento...";
         case 'complete':
@@ -146,6 +151,24 @@ const Plan: React.FC = () => {
           </div>
           <p className="text-runapp-gray font-medium">{getLoadingMessage()}</p>
           <p className="text-runapp-gray text-sm mt-2">Esto puede tomar unos momentos...</p>
+        </div>
+      </div>
+    );
+  };
+
+  // Renderizar el indicador de RAG
+  const renderRagIndicator = () => {
+    if (!currentPlan || offlineMode) return null;
+    
+    return (
+      <div className="mb-4 flex items-center justify-center">
+        <div className={`flex items-center space-x-1 px-2 py-1 rounded-full ${ragActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+          <Database size={14} />
+          <span className="text-xs font-medium">
+            {ragActive 
+              ? "Plan generado con conocimiento aumentado (RAG)" 
+              : "Plan generado sin RAG"}
+          </span>
         </div>
       </div>
     );
@@ -201,6 +224,8 @@ const Plan: React.FC = () => {
               </AlertDescription>
             </Alert>
           )}
+          
+          {renderRagIndicator()}
           
           {renderContent()}
         </div>

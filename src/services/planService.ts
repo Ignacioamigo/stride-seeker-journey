@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -115,32 +116,27 @@ const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
     console.log("Generando embedding para el texto:", text.substring(0, 50) + "...");
     
-    try {
-      // Type-safe function invocation with proper error handling
-      const { data, error } = await supabase.functions.invoke('generate-embedding', {
-        body: { text }
-      });
-      
-      if (error) {
-        console.error("Error en edge function generate-embedding:", error);
-        throw new Error(`Error en generate-embedding: ${error.message}`);
-      }
-      
-      // Safe type checking
-      if (!data || !Array.isArray((data as any).embedding)) {
-        throw new Error("No se recibió un embedding válido de la edge function");
-      }
-      
-      console.log("Embedding generado correctamente");
-      return (data as any).embedding as number[];
-    } catch (e: any) {
-      console.error("Error al invocar edge function:", e);
-      throw new Error(`Error al invocar generate-embedding: ${e.message}`);
+    // Type-safe function invocation with proper error handling
+    const { data, error } = await supabase.functions.invoke('generate-embedding', {
+      body: { text }
+    });
+    
+    if (error) {
+      console.error("Error en edge function generate-embedding:", error);
+      throw new Error(`Error en generate-embedding: ${error.message}`);
     }
-  } catch (error: any) {
-    console.error('Error generating embedding:', error);
-    // Return empty array as a fallback
-    return [];
+    
+    // Safe type checking
+    if (!data || !Array.isArray((data as any).embedding)) {
+      console.error("Respuesta inválida de generate-embedding:", data);
+      throw new Error("No se recibió un embedding válido de la edge function");
+    }
+    
+    console.log("Embedding generado correctamente, longitud:", (data as any).embedding.length);
+    return (data as any).embedding as number[];
+  } catch (e: any) {
+    console.error("Error al generar embedding:", e);
+    throw new Error(`Error al invocar generate-embedding: ${e.message}`);
   }
 };
 
@@ -148,15 +144,19 @@ const generateEmbedding = async (text: string): Promise<number[]> => {
  * Retrieves relevant training documents using direct query
  * This is a type-safe implementation
  */
-const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promise<string[]> => {
+const retrieveRelevantFragments = async (embedding: number[], limit = 5, threshold = 0.5): Promise<string[]> => {
   try {
     if (!embedding || embedding.length === 0) {
-      throw new Error("No se proporcionó un embedding válido para la búsqueda");
+      console.warn("No se proporcionó un embedding válido para la búsqueda");
+      return [];
     }
+
+    console.log(`Buscando los ${limit} fragmentos más relevantes con umbral ${threshold}...`);
 
     // Llamada a la función SQL match_fragments
     const { data, error } = await supabase.rpc('match_fragments', {
       query_embedding: embedding,
+      match_threshold: threshold,
       match_count: limit
     });
 
@@ -165,14 +165,17 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
       throw new Error(`Error en consulta de fragmentos: ${error.message}`);
     }
 
-    if (!data) {
+    if (!data || data.length === 0) {
+      console.warn("No se encontraron fragmentos relevantes");
       return [];
     }
 
     // Extrae el contenido de los fragmentos relevantes
-    return data.map(doc => doc.content || '').filter(Boolean);
+    const fragments = data.map(doc => doc.content || '').filter(Boolean);
+    console.log(`Se encontraron ${fragments.length} fragmentos relevantes`);
+    return fragments;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error retrieving fragments:', error);
     return [];
   }
@@ -227,25 +230,33 @@ export const generateTrainingPlan = async ({ userProfile }: { userProfile: UserP
     
     // 2. Generate embedding for the query
     console.log("Generando embedding para la consulta...");
-    const embedding = await generateEmbedding(query);
-    console.log("Embedding generado correctamente, longitud:", embedding.length);
+    let embedding: number[] = [];
+    let relevantFragments: string[] = [];
     
-    // 3. Retrieve relevant fragments
-    const relevantFragments = await retrieveRelevantFragments(embedding);
-    console.log("Fragmentos relevantes recuperados:", relevantFragments.length);
+    try {
+      // Implementamos RAG solo si podemos generar el embedding
+      embedding = await generateEmbedding(query);
+      console.log("Embedding generado correctamente, longitud:", embedding.length);
+      
+      // 3. Retrieve relevant fragments
+      relevantFragments = await retrieveRelevantFragments(embedding);
+      console.log("Fragmentos relevantes recuperados:", relevantFragments.length);
+    } catch (error) {
+      console.warn("No se pudo implementar RAG, continuando sin contexto:", error);
+    }
     
     // 4. Call edge function to generate a plan with RAG context
     console.log("Llamando a edge function para generar plan con contexto RAG...");
     const { data, error } = await supabase.functions.invoke('generate-training-plan', {
       body: { 
         userProfile,
-        context: relevantFragments.join('\n\n')
+        relevantFragments // Pasamos los fragmentos relevantes
       }
     });
 
     if (error) {
       console.error("Error calling Edge Function:", error);
-      throw error;
+      throw new Error(`Error en generate-training-plan: ${error.message}`);
     }
 
     if (!data) {
