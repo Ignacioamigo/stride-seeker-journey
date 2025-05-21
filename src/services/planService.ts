@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -195,12 +196,12 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
     // Create a unique ID for the document
     const id = uuidv4();
     
-    // Insert the document into the fragments table
+    // Insert the document into the fragments table - FIX: Converting embedding to string for storage
     const { error } = await supabase.from('fragments').insert([{
       id,
       title,
       content,
-      embedding
+      embedding: JSON.stringify(embedding) // Convert embedding array to string
     }]);
     
     if (error) throw new Error(`Error saving document: ${error.message}`);
