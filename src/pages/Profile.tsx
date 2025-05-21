@@ -1,12 +1,25 @@
-
-import { User, Award, Send } from "lucide-react";
+import { User, Award, Send, RefreshCw } from "lucide-react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 
 const Profile: React.FC = () => {
-  const { user } = useUser();
+  const { user, resetUser } = useUser();
   const navigate = useNavigate();
+
+  const handleResetOnboarding = () => {
+    if (window.confirm("¿Estás seguro que deseas reiniciar el proceso de onboarding? Se borrarán todos tus datos de perfil.")) {
+      resetUser();
+      toast({
+        title: "Perfil reiniciado",
+        description: "Serás redirigido al inicio del onboarding.",
+      });
+      // Redireccionar al inicio del onboarding
+      setTimeout(() => navigate("/"), 1500);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -53,6 +66,17 @@ const Profile: React.FC = () => {
               <p className="text-sm text-runapp-gray">Frecuencia</p>
               <p className="font-medium text-runapp-navy">{user.weeklyWorkouts || "--"}</p>
             </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <Button 
+              variant="outline" 
+              className="w-full flex items-center justify-center text-red-500 border-red-200 hover:bg-red-50"
+              onClick={handleResetOnboarding}
+            >
+              <RefreshCw size={16} className="mr-2" />
+              Reiniciar Onboarding
+            </Button>
           </div>
         </div>
         

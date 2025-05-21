@@ -3,14 +3,19 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
+import { removeSavedPlan } from "@/services/planService";
 
 const WelcomePage: React.FC = () => {
   const { user } = useUser();
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Si el usuario ya completó el onboarding, redirigir al dashboard
     if (user.completedOnboarding) {
       navigate("/dashboard");
+    } else {
+      // Si el usuario está comenzando de nuevo, asegurarse de que no haya plan guardado
+      removeSavedPlan();
     }
   }, [user.completedOnboarding, navigate]);
 
