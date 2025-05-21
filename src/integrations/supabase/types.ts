@@ -13,21 +13,21 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string | null
-          embedding: Json | null
+          embedding: string | null
           id: string
           metadata: Json | null
         }
         Insert: {
           content?: string | null
           created_at?: string | null
-          embedding?: Json | null
+          embedding?: string | null
           id: string
           metadata?: Json | null
         }
         Update: {
           content?: string | null
           created_at?: string | null
-          embedding?: Json | null
+          embedding?: string | null
           id?: string
           metadata?: Json | null
         }
@@ -257,11 +257,11 @@ export type Database = {
       match_fragments: {
         Args: {
           query_embedding: string
-          match_threshold?: number
+          min_similarity?: number
           match_count?: number
         }
         Returns: {
-          id: string
+          fragment_id: string
           content: string
           similarity: number
         }[]

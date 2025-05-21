@@ -129,27 +129,19 @@ serve(async (req) => {
       } else {
         console.log("No sample fragment found for embedding comparison");
       }
-      // Llamada correcta a la función RPC match_fragments con nombres de parámetros exactos
-      let fragments = null;
-      let error = null;
-      // Prueba con array de floats
-      ({ data: fragments, error } = await supabase.rpc('match_fragments', {
+      
+      // Call the match_fragments function with the correct parameter names
+      const { data: fragments, error } = await supabase.rpc('match_fragments', {
         query_embedding: embeddingData.embedding,
-        min_similarity: 0.6,
+        match_threshold: 0.6,
         match_count: 5
-      }));
-      if (error || !fragments || fragments.length === 0) {
-        // Si falla, prueba con string
-        ({ data: fragments, error } = await supabase.rpc('match_fragments', {
-          query_embedding: JSON.stringify(embeddingData.embedding),
-          min_similarity: 0.6,
-          match_count: 5
-        }));
-      }
+      });
+      
       if (error) {
         console.error("Error in match_fragments RPC:", error);
         throw error;
       }
+      
       if (fragments && fragments.length > 0) {
         ragActive = true;
         contextText = fragments.map((f, i) => `Fragmento ${i+1}:\n${f.content}`).join('\n\n');

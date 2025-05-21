@@ -184,10 +184,10 @@ const Plan: React.FC = () => {
     
     return (
       <div className="mb-4 flex items-center justify-center">
-        <div className={`flex items-center space-x-1 px-3 py-1.5 rounded-full ${ragActive ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-700'}`}>
+        <div className={`flex items-center space-x-1 px-3 py-1.5 rounded-full ${currentPlan.ragActive ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-700'}`}>
           <Database size={16} className="mr-1" />
           <span className="text-sm font-medium">
-            {ragActive 
+            {currentPlan.ragActive 
               ? "Plan generated with knowledge augmentation (RAG)" 
               : "Plan generated without knowledge augmentation"}
           </span>
