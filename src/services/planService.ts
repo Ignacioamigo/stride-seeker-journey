@@ -1,26 +1,93 @@
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import { supabase } from "@/lib/supabase";
 
-// Initialize Supabase client with environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Variables para controlar el estado de Supabase
+let offlineMode = false;
+let connectionError: string | null = null;
 
-// Create client if both variables are available
-let supabase = null;
-try {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Variables de entorno faltantes:", {
-      VITE_SUPABASE_URL: Boolean(supabaseUrl),
-      VITE_SUPABASE_ANON_KEY: Boolean(supabaseAnonKey)
-    });
-  } else {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
-    console.log("Cliente Supabase inicializado correctamente");
+/**
+ * Comprueba si la aplicación está en modo offline
+ */
+export const isOfflineMode = (): boolean => {
+  return !navigator.onLine || !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+};
+
+/**
+ * Devuelve el mensaje de error de conexión
+ */
+export const getConnectionError = (): string | null => {
+  if (!navigator.onLine) {
+    return "No hay conexión a internet. La aplicación funcionará en modo offline.";
   }
-} catch (error) {
-  console.error("Error al inicializar el cliente de Supabase:", error);
-}
+  
+  if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    return "Error de configuración: Faltan las credenciales de Supabase.";
+  }
+  
+  return null;
+};
+
+/**
+ * Genera un plan de entrenamiento mock para modo offline
+ */
+const generateMockPlan = (userProfile: UserProfile): WorkoutPlan => {
+  console.log("Generando plan de entrenamiento en modo offline para:", userProfile.name);
+  
+  const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const workoutTypes = ['carrera', 'fuerza', 'descanso', 'flexibilidad'] as const;
+  
+  // Crear workouts basados en perfil del usuario
+  const workouts: Workout[] = daysOfWeek.map((day, index) => {
+    const isRestDay = index === 3 || index === 6; // Miércoles y domingo de descanso
+    const type = isRestDay ? 'descanso' : 
+                (index === 1 || index === 4) ? 'fuerza' : 
+                (index === 5) ? 'flexibilidad' : 'carrera';
+    
+    let distance = null;
+    if (type === 'carrera') {
+      // Basado en nivel de experiencia y distancia máxima
+      const maxDistance = userProfile.maxDistance || 5;
+      const expFactor = userProfile.experienceLevel === 'principiante' ? 0.4 :
+                        userProfile.experienceLevel === 'intermedio' ? 0.7 : 0.9;
+      distance = Math.round((maxDistance * expFactor) * 10) / 10;
+    }
+    
+    return {
+      id: uuidv4(),
+      day,
+      title: isRestDay ? 'Día de descanso' : 
+             type === 'fuerza' ? 'Entrenamiento de fuerza' :
+             type === 'flexibilidad' ? 'Flexibilidad y movilidad' :
+             `Carrera de ${distance} km`,
+      description: isRestDay ? 'Descansa para recuperarte adecuadamente' : 
+                  type === 'fuerza' ? 'Ejercicios de fuerza para mejorar tu rendimiento' :
+                  type === 'flexibilidad' ? 'Sesión de estiramientos y movilidad' :
+                  `Carrera a ritmo moderado`,
+      distance,
+      duration: type === 'carrera' ? `${Math.round(distance ? distance * 7 : 30)} min` :
+                type === 'fuerza' ? '30 min' :
+                type === 'flexibilidad' ? '20 min' : null,
+      type,
+      completed: false,
+      actualDistance: null,
+      actualDuration: null
+    };
+  });
+  
+  return {
+    id: uuidv4(),
+    name: `Plan de entrenamiento para ${userProfile.name} (Offline)`,
+    description: `Plan generado en modo offline adaptado a tu nivel ${userProfile.experienceLevel || 'actual'} y tu objetivo: ${userProfile.goal || 'mejorar rendimiento'}`,
+    duration: "7 días",
+    intensity: userProfile.experienceLevel === 'principiante' ? "Baja" : 
+               userProfile.experienceLevel === 'intermedio' ? "Media" : "Alta",
+    workouts,
+    createdAt: new Date(),
+    weekNumber: 1
+  };
+};
 
 /**
  * Creates a profile summary for the LLM
@@ -43,246 +110,84 @@ const createUserProfileSummary = (profile: UserProfile): string => {
 };
 
 /**
- * Generates a training plan without Supabase (offline mode)
- */
-export const generateOfflinePlan = async ({ userProfile, previousWeekResults }: TrainingPlanRequest): Promise<WorkoutPlan> => {
-  console.log("Generando plan offline para:", userProfile.name);
-  
-  // Create default workouts based on experience level
-  const generateDefaultWorkouts = (): Workout[] => {
-    const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    const workouts: Workout[] = [];
-    
-    // Determine experience level for plan generation
-    const level = userProfile.experienceLevel || 'principiante';
-    let runDays = 3; // Default for beginners
-    
-    if (level === 'intermedio') runDays = 4;
-    else if (level === 'avanzado') runDays = 5;
-    
-    // Target distances based on experience and max distance
-    const maxDistance = userProfile.maxDistance || 5;
-    let longRunDistance = Math.min(maxDistance * 1.1, maxDistance + 2);
-    let shortRunDistance = Math.max(maxDistance * 0.6, 2);
-    
-    // Create workout schedule
-    days.forEach((day, index) => {
-      if (index < runDays) {
-        // Running days
-        if (index === runDays - 1) {
-          // Long run day (usually weekend)
-          workouts.push({
-            id: uuidv4(),
-            day,
-            title: "Carrera larga",
-            description: `Carrera a ritmo cómodo para construir resistencia. Este es tu entrenamiento más importante de la semana.`,
-            distance: Math.round(longRunDistance * 10) / 10,
-            duration: `${Math.round(longRunDistance * 10)} minutos`,
-            type: 'carrera',
-            completed: false,
-            actualDistance: null,
-            actualDuration: null
-          });
-        } else if (index === 1 || index === 3) {
-          // Interval or tempo day
-          workouts.push({
-            id: uuidv4(),
-            day,
-            title: index === 1 ? "Intervalos de velocidad" : "Entrenamiento de tempo",
-            description: index === 1 
-              ? `8-10 repeticiones de 400m a ritmo rápido con 200m de recuperación` 
-              : `20 minutos de carrera a ritmo constante ligeramente más rápido que tu ritmo cómodo`,
-            distance: Math.round(shortRunDistance * 10) / 10,
-            duration: `${Math.round(shortRunDistance * 9)} minutos`,
-            type: 'carrera',
-            completed: false,
-            actualDistance: null,
-            actualDuration: null
-          });
-        } else {
-          // Regular easy day
-          workouts.push({
-            id: uuidv4(),
-            day,
-            title: "Carrera suave",
-            description: "Carrera a ritmo conversacional para acumular kilómetros y recuperar.",
-            distance: Math.round(shortRunDistance * 10) / 10,
-            duration: `${Math.round(shortRunDistance * 10)} minutos`,
-            type: 'carrera',
-            completed: false,
-            actualDistance: null,
-            actualDuration: null
-          });
-        }
-      } else if (index === runDays) {
-        // Strength day
-        workouts.push({
-          id: uuidv4(),
-          day,
-          title: "Entrenamiento de fuerza",
-          description: "Ejercicios para fortalecer las piernas, core y parte superior del cuerpo. Incluye sentadillas, planks y push-ups.",
-          distance: null,
-          duration: "30 minutos",
-          type: 'fuerza',
-          completed: false,
-          actualDistance: null,
-          actualDuration: null
-        });
-      } else {
-        // Rest days
-        workouts.push({
-          id: uuidv4(),
-          day,
-          title: "Descanso activo",
-          description: "Recuperación con estiramientos ligeros o caminata. Prioriza el descanso y recuperación.",
-          distance: null,
-          duration: null,
-          type: 'descanso',
-          completed: false,
-          actualDistance: null,
-          actualDuration: null
-        });
-      }
-    });
-    
-    return workouts;
-  };
-
-  // Create plan name and description based on user profile
-  let planName = "Plan de entrenamiento personalizado";
-  let planDescription = "Plan adaptado a tu nivel y objetivos";
-  let weekNumber = previousWeekResults ? previousWeekResults.weekNumber + 1 : 1;
-  
-  if (userProfile.goal) {
-    if (userProfile.goal.includes("maratón")) {
-      planName = "Plan de entrenamiento para maratón";
-      planDescription = "Plan enfocado en construir resistencia para completar un maratón.";
-    } else if (userProfile.goal.includes("10K") || userProfile.goal.includes("10k")) {
-      planName = "Plan de entrenamiento para 10K";
-      planDescription = "Plan diseñado para mejorar tu rendimiento en 10K.";
-    } else if (userProfile.goal.includes("5K") || userProfile.goal.includes("5k")) {
-      planName = "Plan de entrenamiento para 5K";
-      planDescription = "Plan progresivo para mejorar tu tiempo en 5K.";
-    }
-  }
-  
-  if (weekNumber > 1) {
-    planName += `: Semana ${weekNumber}`;
-  }
-  
-  // Create the plan object
-  const plan: WorkoutPlan = {
-    id: uuidv4(),
-    name: planName,
-    description: planDescription,
-    duration: "7 días",
-    intensity: userProfile.experienceLevel === 'principiante' 
-      ? "Baja-Moderada" 
-      : userProfile.experienceLevel === 'intermedio' 
-        ? "Moderada" 
-        : "Moderada-Alta",
-    workouts: generateDefaultWorkouts(),
-    createdAt: new Date(),
-    weekNumber
-  };
-  
-  // Save to localStorage
-  try {
-    localStorage.setItem('last-training-plan', JSON.stringify(plan));
-    console.log("Plan guardado en localStorage");
-  } catch (e) {
-    console.warn("No se pudo guardar el plan en localStorage:", e);
-  }
-  
-  return plan;
-};
-
-/**
  * Generates a vector embedding for the query
+ * This is a safe implementation that handles errors and returns an empty array if needed
  */
 const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
-    if (!supabase) {
-      console.error("Cliente Supabase no inicializado. Verifica las variables de entorno.");
-      return [];
-    }
-    
     console.log("Generando embedding para el texto:", text.substring(0, 50) + "...");
     
     try {
+      // Type-safe function invocation with proper error handling
       const { data, error } = await supabase.functions.invoke('generate-embedding', {
         body: { text }
       });
       
       if (error) {
         console.error("Error en edge function generate-embedding:", error);
-        return [];
+        throw new Error(`Error en generate-embedding: ${error.message}`);
+      }
+      
+      // Safe type checking
+      if (!data || !Array.isArray((data as any).embedding)) {
+        throw new Error("No se recibió un embedding válido de la edge function");
       }
       
       console.log("Embedding generado correctamente");
-      return data.embedding;
-    } catch (e) {
+      return (data as any).embedding as number[];
+    } catch (e: any) {
       console.error("Error al invocar edge function:", e);
-      return [];
+      throw new Error(`Error al invocar generate-embedding: ${e.message}`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating embedding:', error);
+    // Return empty array as a fallback
     return [];
   }
 };
 
 /**
- * Retrieves relevant training documents from the fragments table
+ * Retrieves relevant training documents using direct query
+ * This is a type-safe implementation
  */
 const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promise<string[]> => {
   try {
-    if (!supabase) {
-      console.error("Cliente Supabase no inicializado. Verifica las variables de entorno.");
-      return [];
-    }
-    
     if (!embedding || embedding.length === 0) {
-      console.warn("No se proporcionó un embedding válido para la búsqueda");
-      return [];
+      throw new Error("No se proporcionó un embedding válido para la búsqueda");
     }
     
     console.log("Buscando fragmentos relevantes con el embedding...");
     
-    // Query the fragments table with vector similarity search
     try {
-      const { data, error } = await supabase.rpc('match_fragments', {
-        query_embedding: embedding,
-        match_count: limit,
-        match_threshold: 0.6
-      });
+      // Using proper type-safe vector search syntax with stringified embedding
+      const { data, error } = await supabase
+        .from('fragments')
+        .select('content')
+        .order('embedding <-> $1', { 
+          ascending: true,
+          // Convert the embedding array to a string for the query parameter
+          foreignTable: JSON.stringify(embedding)
+        })
+        .limit(limit);
       
       if (error) {
-        console.error('Error al recuperar fragmentos con RPC:', error);
-        console.log('Intentando consulta alternativa sin RPC...');
-        
-        // Try alternative query if RPC doesn't exist
-        const altQuery = await supabase
-          .from('fragments')
-          .select('content')
-          .order('embedding <-> $1', { ascending: true })
-          .limit(limit);
-        
-        if (altQuery.error) {
-          console.error('Error en consulta alternativa:', altQuery.error);
-          return [];
-        }
-        
-        console.log(`Recuperados ${altQuery.data?.length || 0} fragmentos con consulta alternativa`);
-        return altQuery.data?.map((doc: any) => doc.content) || [];
+        console.error('Error en consulta de fragmentos:', error);
+        throw new Error(`Error en consulta de fragmentos: ${error.message}`);
       }
       
-      console.log(`Recuperados ${data?.length || 0} fragmentos relevantes`);
-      return data?.map((doc: any) => doc.content) || [];
-    } catch (e) {
+      // Type-safe handling of results
+      if (!data) {
+        return [];
+      }
+      
+      console.log(`Recuperados ${data.length} fragmentos relevantes`);
+      return data.map(doc => doc.content || '').filter(Boolean);
+      
+    } catch (e: any) {
       console.error("Error en la consulta a la base de datos:", e);
-      return [];
+      throw new Error(`Error en la consulta a la base de datos: ${e.message}`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error retrieving fragments:', error);
     return [];
   }
@@ -293,10 +198,6 @@ const retrieveRelevantFragments = async (embedding: number[], limit = 8): Promis
  */
 export const uploadTrainingDocument = async (title: string, content: string): Promise<void> => {
   try {
-    if (!supabase) {
-      throw new Error("Supabase client is not initialized. Please check your environment variables.");
-    }
-    
     // First, generate an embedding for the document
     const embedding = await generateEmbedding(content);
     
@@ -318,7 +219,7 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
     if (error) throw new Error(`Error saving document: ${error.message}`);
     
     console.log(`Document "${title}" uploaded successfully with ID: ${id}`);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error uploading training document:', error);
     throw error;
   }
@@ -326,224 +227,65 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
 
 /**
  * Generates a training plan using RAG and Gemini
+ * with proper error handling and offline mode
  */
-export const generateTrainingPlan = async ({ userProfile, previousWeekResults }: TrainingPlanRequest): Promise<WorkoutPlan> => {
+export const generateTrainingPlan = async ({ userProfile }: { userProfile: UserProfile }): Promise<WorkoutPlan> => {
   try {
-    if (!supabase) {
-      console.error("Cliente Supabase no inicializado. Verifica las variables de entorno VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.");
-      throw new Error("Supabase client is not initialized");
+    if (isOfflineMode()) {
+      console.log("Modo offline: Generando plan básico");
+      return generateMockPlan(userProfile);
     }
-    
-    // 1. Create a query from the user profile
-    const query = createUserProfileSummary(userProfile);
-    console.log("Creado resumen de perfil de usuario para consulta:", query);
-    
-    // 2. Generate embedding for the query
-    console.log("Generando embedding para la consulta...");
-    let embedding = [];
-    try {
-      embedding = await generateEmbedding(query);
-      console.log("Embedding generado correctamente, longitud:", embedding.length);
-    } catch (embeddingError) {
-      console.error("Error al generar embedding, continuando sin contexto RAG:", embeddingError);
-    }
-    
-    // 3. Retrieve relevant fragments (if embedding was successful)
-    let relevantFragments: string[] = [];
-    if (embedding && embedding.length > 0) {
-      try {
-        relevantFragments = await retrieveRelevantFragments(embedding);
-        console.log("Fragmentos relevantes recuperados:", relevantFragments.length);
-      } catch (fragmentError) {
-        console.error("Error al recuperar fragmentos, continuando sin contexto RAG:", fragmentError);
-      }
-    }
-    
-    // 4. Call edge function to generate a plan
-    console.log("Llamando a edge function para generar plan...");
+
+    // Call the Edge Function to generate the plan
     const { data, error } = await supabase.functions.invoke('generate-training-plan', {
-      body: { 
-        userProfile, 
-        context: relevantFragments.join('\n\n'),
-        previousWeekResults
-      }
+      body: { userProfile }
     });
-    
+
     if (error) {
-      console.error("Error al llamar a edge function generate-training-plan:", error);
-      
-      // Check if it's a timeout error
-      if (error.message?.includes('timeout') || error.message?.includes('timed out')) {
-        throw new Error("La generación del plan está tomando más tiempo de lo esperado. Por favor, intenta de nuevo en unos momentos.");
-      }
-      
-      // Check if it's a connection error
-      if (error.message?.includes('Failed to fetch') || error.message?.includes('network')) {
-        throw new Error("No se pudo conectar con el servidor. Por favor, verifica tu conexión a internet e intenta de nuevo.");
-      }
-      
-      // Check if it's an API key error
-      if (error.message?.includes('API key') || error.message?.includes('GEMINI_API_KEY')) {
-        throw new Error("Error de configuración del servidor. Por favor, contacta al soporte técnico.");
-      }
-      
-      console.log("Intentando generar plan en modo offline como fallback...");
-      return await generateOfflinePlan({ userProfile, previousWeekResults });
-    }
-    
-    console.log("Respuesta de edge function recibida:", data);
-    
-    if (!data || !data.plan) {
-      console.error("La edge function devolvió una respuesta sin plan:", data);
-      console.log("Intentando generar plan en modo offline como fallback...");
-      return await generateOfflinePlan({ userProfile, previousWeekResults });
-    }
-    
-    // 5. Process and return the plan
-    const planData = data.plan;
-    console.log("Plan recibido:", planData);
-    
-    if (!planData.workouts || !Array.isArray(planData.workouts)) {
-      console.error("El plan recibido no contiene workouts válidos:", planData);
-      console.log("Intentando generar plan en modo offline como fallback...");
-      return await generateOfflinePlan({ userProfile, previousWeekResults });
-    }
-    
-    // Create workouts based on the plan
-    const workouts: Workout[] = planData.workouts.map((workout: any) => ({
-      id: uuidv4(),
-      day: workout.day || "Día sin especificar",
-      title: workout.title || "Entrenamiento sin título",
-      description: workout.description || "Sin descripción",
-      distance: workout.distance || null,
-      duration: workout.duration || null,
-      type: workout.type || 'carrera',
-      completed: false,
-      actualDistance: null,
-      actualDuration: null
-    }));
-    
-    // Create the plan object
-    const plan: WorkoutPlan = {
-      id: uuidv4(),
-      name: planData.name || "Plan de entrenamiento personalizado",
-      description: planData.description || `Plan generado para ${userProfile.name}`,
-      duration: planData.duration || "7 días",
-      intensity: planData.intensity || "Adaptado a tu nivel",
-      workouts: workouts,
-      createdAt: new Date(),
-      weekNumber: previousWeekResults ? (previousWeekResults.weekNumber + 1) : 1
-    };
-    
-    // Save the plan to Supabase for future reference
-    try {
-      console.log("Guardando plan en Supabase...");
-      
-      // Use anonymous ID if not authenticated
-      let userId = 'anonymous';
-      try {
-        const userResponse = await supabase.auth.getUser();
-        userId = userResponse.data.user?.id || 'anonymous';
-      } catch (authError) {
-        console.warn("No se pudo obtener el usuario autenticado, usando ID anónimo:", authError);
-      }
-      
-      await supabase.from('training_plans').insert([{
-        id: plan.id,
-        user_id: userId,
-        plan_data: plan,
-        week_number: plan.weekNumber
-      }]);
-      
-      console.log("Plan guardado correctamente");
-    } catch (saveError) {
-      console.error("Error al guardar plan en la base de datos:", saveError);
-      // Continue anyway as we have the plan data already
-    }
-    
-    // Save to localStorage as backup
-    try {
-      localStorage.setItem('last-training-plan', JSON.stringify(plan));
-      console.log("Plan guardado en localStorage como respaldo");
-    } catch (localStorageError) {
-      console.warn("No se pudo guardar el plan en localStorage:", localStorageError);
-    }
-    
-    return plan;
-  } catch (error) {
-    console.error('Error al generar el plan de entrenamiento:', error);
-    
-    // If it's already a custom error message, throw it directly
-    if (error instanceof Error && !error.message.includes('Error al generar el plan de entrenamiento')) {
+      console.error("Error calling Edge Function:", error);
       throw error;
     }
+
+    if (!data) {
+      throw new Error("No se recibió respuesta del servidor");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in generateTrainingPlan:", error);
     
-    console.log('Intentando generar plan en modo offline como última opción...');
-    return await generateOfflinePlan({ userProfile, previousWeekResults });
+    // If there's an error, fall back to offline mode
+    console.log("Fallback a modo offline debido al error");
+    return generateMockPlan(userProfile);
   }
 };
 
 /**
  * Loads the user's latest training plan
+ * with fallback to local storage
  */
 export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
   try {
-    // Try to get plan from localStorage first
-    const localPlan = localStorage.getItem('last-training-plan');
-    if (localPlan) {
-      console.log("Plan encontrado en localStorage");
-      return JSON.parse(localPlan);
-    }
-    
-    if (!supabase) {
-      console.error("Cliente Supabase no inicializado. Verifica las variables de entorno.");
+    if (isOfflineMode()) {
+      console.log("Modo offline: No se puede cargar el plan desde la base de datos");
       return null;
     }
-    
-    console.log("Intentando cargar el último plan de entrenamiento desde Supabase...");
-    
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      
-      if (!user.user) {
-        console.log("No hay usuario autenticado, no se puede cargar plan desde Supabase");
-        return null;
-      }
-      
-      const { data, error } = await supabase
-        .from('training_plans')
-        .select('plan_data')
-        .eq('user_id', user.user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (error) {
-        console.error("Error al consultar la base de datos:", error);
-        return null;
-      }
-      
-      if (!data || data.length === 0) {
-        console.log("No se encontró ningún plan guardado en Supabase");
-        return null;
-      }
-      
-      console.log("Plan cargado correctamente desde Supabase");
-      
-      // Save to localStorage as backup
-      try {
-        localStorage.setItem('last-training-plan', JSON.stringify(data[0].plan_data));
-      } catch (e) {
-        console.warn("No se pudo guardar el plan en localStorage:", e);
-      }
-      
-      return data[0].plan_data as WorkoutPlan;
-    } catch (e) {
-      console.error("Error al cargar el plan desde Supabase:", e);
-      return null;
+
+    const { data: plans, error } = await supabase
+      .from('workout_plans')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error("Error loading latest plan:", error);
+      throw error;
     }
+
+    return plans?.[0] || null;
   } catch (error) {
-    console.error('Error al cargar el último plan:', error);
-    return null;
+    console.error("Error in loadLatestPlan:", error);
+    throw error;
   }
 };
 
@@ -557,23 +299,18 @@ export const updateWorkoutResults = async (
   actualDuration: string | null
 ): Promise<WorkoutPlan | null> => {
   try {
-    if (!supabase) {
-      console.error("Supabase client is not initialized. Check your environment variables.");
-      return null;
+    // Try loading the current plan from localStorage
+    let plan: WorkoutPlan | null = null;
+    try {
+      const savedPlan = localStorage.getItem('current_training_plan');
+      if (savedPlan) {
+        plan = JSON.parse(savedPlan) as WorkoutPlan;
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar el plan desde almacenamiento local:", e);
     }
     
-    // Get the current plan
-    const { data: planData, error: planError } = await supabase
-      .from('training_plans')
-      .select('plan_data')
-      .eq('id', planId)
-      .single();
-    
-    if (planError) throw planError;
-    
-    if (!planData) return null;
-    
-    const plan = planData.plan_data as WorkoutPlan;
+    if (!plan) return null;
     
     // Update the specific workout
     const updatedWorkouts = plan.workouts.map(workout => {
@@ -593,18 +330,17 @@ export const updateWorkoutResults = async (
       workouts: updatedWorkouts
     };
     
-    // Save the updated plan
-    const { error: updateError } = await supabase
-      .from('training_plans')
-      .update({ plan_data: updatedPlan })
-      .eq('id', planId);
-    
-    if (updateError) throw updateError;
+    // Store updated plan in local storage
+    try {
+      localStorage.setItem('current_training_plan', JSON.stringify(updatedPlan));
+    } catch (e) {
+      console.warn("No se pudo guardar el plan actualizado en almacenamiento local:", e);
+    }
     
     return updatedPlan;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating workout results:', error);
-    return null;
+    throw error;
   }
 };
 
@@ -613,23 +349,34 @@ export const updateWorkoutResults = async (
  */
 export const generateNextWeekPlan = async (currentPlan: WorkoutPlan): Promise<WorkoutPlan | null> => {
   try {
-    if (!supabase) {
-      console.error("Supabase client is not initialized. Check your environment variables.");
-      return null;
+    // Get user profile from localStorage if available
+    let userProfile: UserProfile | null = null;
+    try {
+      const savedProfile = localStorage.getItem('user_profile');
+      if (savedProfile) {
+        userProfile = JSON.parse(savedProfile) as UserProfile;
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar el perfil desde almacenamiento local:", e);
     }
     
-    // Get current user
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return null;
-    
-    // Get the user profile
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userData.user.id)
-      .single();
-    
-    if (!profileData) return null;
+    if (!userProfile) {
+      // Create minimal user profile
+      userProfile = {
+        name: "Usuario",
+        age: null,
+        gender: null,
+        height: null,
+        weight: null,
+        maxDistance: null,
+        pace: null,
+        goal: "Mejorar condición física",
+        weeklyWorkouts: null,
+        experienceLevel: null,
+        injuries: "",
+        completedOnboarding: true
+      };
+    }
     
     // Prepare the previous week results
     const previousWeekResults = {
@@ -646,12 +393,9 @@ export const generateNextWeekPlan = async (currentPlan: WorkoutPlan): Promise<Wo
     };
     
     // Generate new plan with the previous week results
-    return generateTrainingPlan({ 
-      userProfile: profileData as UserProfile,
-      previousWeekResults
-    });
-  } catch (error) {
+    return generateTrainingPlan({ userProfile });
+  } catch (error: any) {
     console.error('Error generating next week plan:', error);
-    return null;
+    throw error;
   }
 };

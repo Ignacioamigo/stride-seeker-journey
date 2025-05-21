@@ -1,14 +1,13 @@
 
--- Esta función permite buscar fragmentos similares en base a un embedding de consulta
+-- Function to match fragments by vector similarity
 CREATE OR REPLACE FUNCTION match_fragments(
-  query_embedding vector(768),
+  query_embedding vector(1536),
   match_threshold float,
   match_count int
 )
 RETURNS TABLE (
-  id uuid,
+  id text,
   content text,
-  title text,
   similarity float
 )
 LANGUAGE plpgsql
@@ -18,7 +17,6 @@ BEGIN
   SELECT
     fragments.id,
     fragments.content,
-    fragments.title,
     1 - (fragments.embedding <=> query_embedding) AS similarity
   FROM fragments
   WHERE 1 - (fragments.embedding <=> query_embedding) > match_threshold

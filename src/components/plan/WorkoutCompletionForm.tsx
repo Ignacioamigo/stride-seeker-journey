@@ -1,10 +1,9 @@
-import { useState } from 'react';
-import { Workout } from '@/types';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import RunButton from '@/components/ui/RunButton';
-import { CheckCircle, Loader2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+
+import { useState } from "react";
+import { Workout } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
 
 interface WorkoutCompletionFormProps {
   workout: Workout;
@@ -14,41 +13,28 @@ interface WorkoutCompletionFormProps {
 
 const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
   workout, 
-  planId,
-  onComplete 
+  planId, 
+  onComplete
 }) => {
-  const [actualDistance, setActualDistance] = useState<string>(
-    workout.actualDistance ? workout.actualDistance.toString() : ''
-  );
-  const [actualDuration, setActualDuration] = useState<string>(
-    workout.actualDuration || ''
-  );
+  const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
+  const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  
+  // Para entrenamientos de descanso, no necesitamos recopilar datos
+  const isRestDay = workout.type === 'descanso';
+  
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     
     setIsSubmitting(true);
     try {
-      // Convert distance to number or null
-      const distanceValue = actualDistance.trim() !== '' ? parseFloat(actualDistance) : null;
-      
-      // Keep duration as string or null
-      const durationValue = actualDuration.trim() !== '' ? actualDuration : null;
+      // Conversión de tipos para la distancia
+      const distanceValue = actualDistance ? parseFloat(actualDistance) : null;
+      const durationValue = actualDuration || null;
       
       await onComplete(workout.id, distanceValue, durationValue);
-      
-      toast({
-        title: "¡Entrenamiento completado!",
-        description: "Los resultados han sido registrados correctamente.",
-      });
     } catch (error) {
-      console.error("Error al registrar el entrenamiento:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron guardar los resultados.",
-        variant: "destructive",
-      });
+      console.error("Error al guardar resultados:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -56,67 +42,63 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
   
   if (workout.completed) {
     return (
-      <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-100 flex items-center">
-        <CheckCircle className="text-green-500 mr-2 h-5 w-5" />
-        <div className="text-sm text-green-800">
-          <p className="font-medium">¡Entrenamiento completado!</p>
-          {workout.actualDistance && (
-            <p>Distancia: {workout.actualDistance} km</p>
-          )}
-          {workout.actualDuration && (
-            <p>Duración: {workout.actualDuration}</p>
-          )}
-        </div>
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <h4 className="text-sm font-medium text-green-700 mb-2">✓ Entrenamiento completado</h4>
+        {workout.actualDistance && (
+          <p className="text-xs text-runapp-gray">Distancia: {workout.actualDistance} km</p>
+        )}
+        {workout.actualDuration && (
+          <p className="text-xs text-runapp-gray">Duración: {workout.actualDuration}</p>
+        )}
       </div>
     );
   }
-
+  
   return (
-    <form onSubmit={handleSubmit} className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-      <h4 className="font-medium text-runapp-navy mb-3">Registrar resultados</h4>
+    <form onSubmit={handleSubmit} className="mt-4 pt-4 border-t border-gray-100">
+      <h4 className="text-sm font-medium text-runapp-navy mb-3">Completar entrenamiento</h4>
       
-      {workout.type !== 'descanso' && (
+      {isRestDay ? (
+        <p className="text-xs text-runapp-gray mb-3">Este es un día de descanso. Simplemente marca como completado.</p>
+      ) : (
         <>
-          <div className="space-y-4 mb-4">
-            {workout.distance !== null && (
-              <div>
-                <Label htmlFor="actual-distance" className="text-sm">
-                  Distancia real (km)
-                </Label>
-                <Input 
-                  id="actual-distance"
-                  type="number"
-                  step="0.01"
-                  placeholder={workout.distance?.toString()}
-                  value={actualDistance}
-                  onChange={(e) => setActualDistance(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            )}
-            
-            {workout.duration && (
-              <div>
-                <Label htmlFor="actual-duration" className="text-sm">
-                  Duración real
-                </Label>
-                <Input 
-                  id="actual-duration"
-                  placeholder={workout.duration}
-                  value={actualDuration}
-                  onChange={(e) => setActualDuration(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            )}
+          {workout.distance !== null && (
+            <div className="mb-3">
+              <label htmlFor="actualDistance" className="block text-xs text-runapp-gray mb-1">
+                Distancia recorrida (km)
+              </label>
+              <Input
+                id="actualDistance"
+                type="number"
+                step="0.01"
+                placeholder="Ej: 5.2"
+                value={actualDistance}
+                onChange={(e) => setActualDistance(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+          )}
+          
+          <div className="mb-3">
+            <label htmlFor="actualDuration" className="block text-xs text-runapp-gray mb-1">
+              Duración (ej: 45min)
+            </label>
+            <Input
+              id="actualDuration"
+              type="text"
+              placeholder="Ej: 45min"
+              value={actualDuration}
+              onChange={(e) => setActualDuration(e.target.value)}
+              className="h-8 text-sm"
+            />
           </div>
         </>
       )}
       
-      <RunButton 
-        type="submit"
+      <Button 
+        type="submit" 
+        className="w-full bg-runapp-purple hover:bg-runapp-purple/90 text-sm h-9"
         disabled={isSubmitting}
-        className="w-full"
       >
         {isSubmitting ? (
           <>
@@ -126,7 +108,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         ) : (
           "Marcar como completado"
         )}
-      </RunButton>
+      </Button>
     </form>
   );
 };
