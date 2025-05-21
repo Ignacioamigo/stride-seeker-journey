@@ -1,369 +1,133 @@
-
-import { serve } from 'https://deno.land/std@0.131.0/http/server.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface UserProfile {
+  name: string;
+  age: number | null;
+  gender: string | null;
+  height: number | null;
+  weight: number | null;
+  maxDistance: number | null;
+  pace: string | null;
+  goal: string;
+  weeklyWorkouts: number | null;
+  experienceLevel: string | null;
+  injuries: string;
+  completedOnboarding: boolean;
+}
+
+interface RequestBody {
+  userProfile: UserProfile;
+  context?: string;
+}
+
 serve(async (req) => {
-  // Handle CORS preflight request
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    console.log("Edge function generate-training-plan invocada");
-    
-    const { userProfile, context, previousWeekResults } = await req.json();
+    // Get request body
+    const { userProfile, context } = await req.json() as RequestBody;
 
-    if (!userProfile) {
-      console.error("Perfil de usuario no proporcionado");
-      return new Response(
-        JSON.stringify({ error: 'Missing user profile' }),
-        { 
-          status: 400, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
+    // Validate required fields
+    if (!userProfile || !userProfile.name || !userProfile.goal) {
+      throw new Error('Missing required user profile information');
     }
 
-    // Get API key from environment variable
-    console.log("Verificando la clave de API de Gemini...");
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
-    
-    if (!apiKey) {
-      console.error("GEMINI_API_KEY no encontrada en las variables de entorno");
-      return new Response(
-        JSON.stringify({ 
-          error: 'API key not configured',
-          message: 'La variable de entorno GEMINI_API_KEY no está configurada en los secrets de Supabase',
-          details: 'Es necesario configurar esta variable en la sección de Secrets en el panel de administración de Supabase Edge Functions'
-        }),
-        { 
-          status: 500, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
-    } else {
-      console.log("Clave de API encontrada, longitud:", apiKey.length);
-    }
-    
-    // Create system prompt with running expertise and RAG context
-    let systemPrompt = `Actúa como un entrenador de running de élite con experiencia en preparación de atletas de todos los niveles. 
-    Tu tarea es diseñar un plan de entrenamiento personalizado para un corredor, basado en su perfil 
-    y aplicando principios científicos avanzados de entrenamiento deportivo.
-    
-    El plan debe estar meticulosamente adaptado al nivel del corredor, considerando sus objetivos específicos,
-    historial de lesiones, y capacidades actuales. Incluye una distribución óptima de estímulos de entrenamiento,
-    con períodos de recuperación estratégicos y variación metodológica en los tipos de entrenamiento.
-    
-    Para cada sesión de entrenamiento, debes especificar:
-    - Ritmo objetivo por kilómetro (ejemplo: 5:30/km)
-    - Distancia precisa en kilómetros
-    - Duración estimada del entrenamiento
-    - Descripción detallada con instrucciones técnicas
+    // Initialize Gemini
+    const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY') || '');
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    La respuesta debe estar en español y debe estar estructurada en formato JSON como este:
-    {
-      "name": "Nombre del plan",
-      "description": "Descripción general del plan con enfoque metodológico",
-      "duration": "Duración total del plan",
-      "intensity": "Intensidad general del plan",
-      "workouts": [
-        {
-          "day": "Lunes",
-          "title": "Título descriptivo del entrenamiento",
-          "description": "Descripción técnica detallada",
-          "distance": null o número en km,
-          "duration": "Duración estimada",
-          "type": "carrera|descanso|fuerza|flexibilidad|otro",
-          "targetPace": "5:30/km o null si no aplica"
-        },
-        // Repetir para cada día de la semana
-      ]
-    }
+    // Create the prompt with RAG context
+    const prompt = `
+    Eres un experto entrenador de running que genera planes de entrenamiento personalizados.
     
-    IMPORTANTE: DEBES devolver SOLO un objeto JSON válido, sin texto adicional.
+    ${context ? `Aquí tienes información relevante sobre entrenamientos y mejores prácticas:
+    ${context}
+    ` : ''}
     
-    CONOCIMIENTOS ESPECÍFICOS DE RUNNING:
-    ${context || 'Aplica los principios fundamentales de periodización, progresión gradual y especificidad del entrenamiento.'}
-    `;
-
-    // Format user profile for prompt
-    let userPrompt = `
-    Perfil detallado del corredor:
+    Genera un plan de entrenamiento semanal para el siguiente perfil:
     - Nombre: ${userProfile.name}
-    - Edad: ${userProfile.age || 'No especificado'}
-    - Género: ${userProfile.gender || 'No especificado'} 
-    - Altura: ${userProfile.height ? `${userProfile.height} cm` : 'No especificado'}
-    - Peso: ${userProfile.weight ? `${userProfile.weight} kg` : 'No especificado'}
+    - Edad: ${userProfile.age || 'No especificada'}
+    - Género: ${userProfile.gender || 'No especificado'}
     - Nivel de experiencia: ${userProfile.experienceLevel || 'No especificado'}
-    - Distancia máxima recorrida: ${userProfile.maxDistance ? `${userProfile.maxDistance} km` : 'No especificado'}
+    - Distancia máxima recorrida: ${userProfile.maxDistance ? `${userProfile.maxDistance} km` : 'No especificada'}
     - Ritmo actual: ${userProfile.pace || 'No especificado'}
     - Objetivo: ${userProfile.goal}
-    - Entrenamientos semanales deseados: ${userProfile.weeklyWorkouts || 'No especificado'}
+    - Entrenamientos semanales: ${userProfile.weeklyWorkouts || 'No especificado'}
     - Lesiones o limitaciones: ${userProfile.injuries || 'Ninguna'}
-    
-    Requisitos específicos:
-    - Plan para principiantes enfocado en alcanzar los 10K en menos de 50 minutos
-    - Énfasis en construir una base sólida con carreras cortas y recuperación adecuada
-    `;
-    
-    // Add previous week results if available
-    if (previousWeekResults) {
-      userPrompt += `\nResultados de la semana anterior (Semana ${previousWeekResults.weekNumber}):\n`;
-      
-      previousWeekResults.workouts.forEach((workout) => {
-        userPrompt += `- ${workout.day}: ${workout.title}. `;
-        if (workout.completed) {
-          userPrompt += `Completado. `;
-          if (workout.plannedDistance && workout.actualDistance) {
-            userPrompt += `Distancia planificada: ${workout.plannedDistance}km, Distancia real: ${workout.actualDistance}km. `;
-          }
-          if (workout.plannedDuration && workout.actualDuration) {
-            userPrompt += `Duración planificada: ${workout.plannedDuration}, Duración real: ${workout.actualDuration}. `;
-          }
-        } else {
-          userPrompt += `No completado. `;
-        }
-        userPrompt += '\n';
-      });
-      
-      userPrompt += `\nPor favor, genera un plan para la Semana ${previousWeekResults.weekNumber + 1} ajustando la intensidad y progresión en función de los resultados de la semana anterior.`;
-    } else {
-      userPrompt += `\nGenera un plan de entrenamiento personalizado para este corredor (Semana 1).`;
-    }
 
-    console.log("Llamando a la API de Gemini para generar el plan");
-    console.log("URL de la API:", `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=[REDACTED]`);
-    
-    try {
-      // Call the Gemini API
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
+    El plan debe incluir:
+    1. Un nombre descriptivo
+    2. Una descripción general
+    3. La duración del plan
+    4. El nivel de intensidad
+    5. Una lista de entrenamientos para cada día de la semana, incluyendo:
+       - Día de la semana
+       - Título del entrenamiento
+       - Descripción detallada
+       - Distancia (en km) si aplica
+       - Duración (en minutos)
+       - Tipo de entrenamiento (carrera, fuerza, descanso, flexibilidad)
+
+    Responde en formato JSON con la siguiente estructura:
+    {
+      "name": "string",
+      "description": "string",
+      "duration": "string",
+      "intensity": "string",
+      "workouts": [
         {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  { text: systemPrompt },
-                  { text: userPrompt }
-                ]
-              }
-            ],
-            generation_config: {
-              temperature: 0.2,
-              top_p: 0.95,
-              top_k: 40,
-              max_output_tokens: 8192
-            }
-          }),
+          "day": "string",
+          "title": "string",
+          "description": "string",
+          "distance": number | null,
+          "duration": "string",
+          "type": "carrera" | "fuerza" | "descanso" | "flexibilidad"
         }
-      );
-
-      console.log("Estado de la respuesta de Gemini:", response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error en la API de Gemini:", errorText);
-        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-      }
-
-      console.log("Respuesta recibida de la API de Gemini");
-      
-      const data = await response.json();
-      
-      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0].text) {
-        console.error("Formato de respuesta de Gemini inesperado:", JSON.stringify(data));
-        throw new Error("Formato de respuesta de Gemini inesperado");
-      }
-      
-      const generatedText = data.candidates[0].content.parts[0].text;
-      
-      console.log("Texto generado por Gemini, procesando para extraer el plan...");
-      console.log("Longitud del texto generado:", generatedText.length);
-      
-      // Extract JSON from the response 
-      // (sometimes Gemini includes markdown code blocks or additional text)
-      let jsonString = generatedText;
-      const jsonMatch = generatedText.match(/```json\n([\s\S]*?)\n```/) || 
-                        generatedText.match(/```\n([\s\S]*?)\n```/) ||
-                        generatedText.match(/{[\s\S]*}/);
-                        
-      if (jsonMatch) {
-        jsonString = jsonMatch[0].replace(/```json\n|```\n|```/g, '');
-        console.log("JSON extraído de bloques de código markdown");
-      }
-      
-      // Parse the JSON plan
-      let plan;
-      try {
-        plan = JSON.parse(jsonString);
-        console.log("JSON del plan analizado correctamente");
-        
-        // Asegúrate de que el plan tiene un ID único
-        plan.id = crypto.randomUUID();
-        // Añadir la fecha de creación
-        plan.createdAt = new Date();
-        // Añadir número de semana si no existe
-        if (!plan.weekNumber) {
-          plan.weekNumber = previousWeekResults ? previousWeekResults.weekNumber + 1 : 1;
-        }
-        
-        // Asignar IDs a los entrenamientos si no los tienen
-        if (plan.workouts) {
-          plan.workouts.forEach(workout => {
-            if (!workout.id) {
-              workout.id = crypto.randomUUID();
-            }
-            // Asegurarnos de que completed está inicializado
-            if (workout.completed === undefined) {
-              workout.completed = false;
-            }
-            // Inicializar resultados
-            if (!workout.actualDistance) {
-              workout.actualDistance = null;
-            }
-            if (!workout.actualDuration) {
-              workout.actualDuration = null;
-            }
-          });
-        }
-        
-      } catch (e) {
-        // If JSON parsing fails, use a regex approach to extract the plan
-        console.error("Error al analizar JSON:", e);
-        console.log("Intentando extraer plan manualmente...");
-        console.log("Contenido recibido (primeras 200 caracteres):", generatedText.substring(0, 200) + "...");
-        
-        plan = {
-          id: crypto.randomUUID(),
-          name: previousWeekResults 
-            ? `Plan de entrenamiento: Semana ${previousWeekResults.weekNumber + 1}` 
-            : "Plan de entrenamiento personalizado: Semana 1",
-          description: "Plan adaptado a tu perfil y objetivos",
-          duration: "7 días",
-          intensity: "Adaptada a tu nivel",
-          workouts: extractWorkoutsFromText(generatedText),
-          createdAt: new Date(),
-          weekNumber: previousWeekResults ? previousWeekResults.weekNumber + 1 : 1
-        };
-      }
-
-      console.log("Devolviendo datos del plan");
-      
-      return new Response(
-        JSON.stringify(plan),
-        { 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
-    } catch (apiError) {
-      console.error("Error al llamar a la API de Gemini:", apiError);
-      return new Response(
-        JSON.stringify({ 
-          error: apiError.message || String(apiError),
-          type: 'api_error'
-        }),
-        { 
-          status: 500, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
+      ]
     }
-  } catch (error) {
-    console.error("Error en generate-training-plan:", error);
+    `;
+
+    // Generate the plan
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Parse the JSON response
+    let plan;
+    try {
+      plan = JSON.parse(text);
+    } catch (e) {
+      console.error('Error parsing JSON response:', e);
+      throw new Error('Invalid response format from AI model');
+    }
+
+    // Return the plan
     return new Response(
-      JSON.stringify({ 
-        error: error.message || String(error),
-        stack: error.stack,
-        type: 'general_error'
-      }),
-      { 
-        status: 500, 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-      }
+      JSON.stringify(plan),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      },
+    );
+
+  } catch (error) {
+    console.error('Error:', error.message);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      },
     );
   }
 });
-
-// Fallback function to extract workouts from text if JSON parsing fails
-function extractWorkoutsFromText(text) {
-  const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-  const workouts = [];
-  
-  // For debugging
-  console.log("Extracting workouts manually from text");
-  
-  for (const day of days) {
-    const dayRegex = new RegExp(`${day}[\\s\\S]*?(?=${days.filter(d => d !== day).join('|')}|$)`, 'i');
-    const match = text.match(dayRegex);
-    
-    if (match) {
-      const content = match[0];
-      const titleMatch = content.match(/(?:${day}:?\s*)([^\n]+)/i);
-      const descriptionMatch = content.match(/(?:descripción|description):?\s*([^\n]+)/i);
-      const distanceMatch = content.match(/(?:distancia|distance):?\s*(\d+(?:\.\d+)?)\s*km/i);
-      const durationMatch = content.match(/(?:duración|duration):?\s*([^\n]+?)(?:min|$)/i);
-      const typeMatch = content.match(/(?:tipo|type):?\s*([^\n]+)/i);
-      const paceMatch = content.match(/(?:ritmo|pace):?\s*([^\n]+?)(?:\/km|$)/i);
-      
-      workouts.push({
-        id: crypto.randomUUID(),
-        day,
-        title: titleMatch ? titleMatch[1].trim() : `Entrenamiento de ${day}`,
-        description: descriptionMatch ? descriptionMatch[1].trim() : content.split('\n').slice(1).join(' ').trim(),
-        distance: distanceMatch ? parseFloat(distanceMatch[1]) : null,
-        duration: durationMatch ? durationMatch[1].trim() : null,
-        type: determineWorkoutType(content),
-        targetPace: paceMatch ? paceMatch[1].trim() : null,
-        completed: false,
-        actualDistance: null,
-        actualDuration: null
-      });
-      
-      console.log(`Extracted workout for ${day}: ${titleMatch ? titleMatch[1].trim() : `Entrenamiento de ${day}`}`);
-    } else {
-      // If no match for this day, create a rest day
-      workouts.push({
-        id: crypto.randomUUID(),
-        day,
-        title: `Descanso`,
-        description: "Día de recuperación",
-        distance: null,
-        duration: null,
-        type: "descanso",
-        targetPace: null,
-        completed: false,
-        actualDistance: null,
-        actualDuration: null
-      });
-      
-      console.log(`No match found for ${day}, created rest day`);
-    }
-  }
-  
-  console.log(`Total workouts extracted: ${workouts.length}`);
-  return workouts;
-}
-
-function determineWorkoutType(content) {
-  const content_lower = content.toLowerCase();
-  if (content_lower.includes('descanso') || content_lower.includes('rest') || content_lower.includes('recuperación')) {
-    return 'descanso';
-  } else if (content_lower.includes('fuerza') || content_lower.includes('strength')) {
-    return 'fuerza';
-  } else if (content_lower.includes('flexibilidad') || content_lower.includes('flexibility') || content_lower.includes('estiramientos')) {
-    return 'flexibilidad';
-  } else if (content_lower.includes('otro')) {
-    return 'otro';
-  } else {
-    return 'carrera';
-  }
-}

@@ -1,4 +1,3 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -230,52 +229,91 @@ export const uploadTrainingDocument = async (title: string, content: string): Pr
  */
 export const generateTrainingPlan = async ({ userProfile }: { userProfile: UserProfile }): Promise<WorkoutPlan> => {
   try {
-    // Verificar si estamos en modo offline
-    const offline = isOfflineMode();
-    console.log("¿Modo offline?", offline);
-    
-    if (offline) {
+    if (isOfflineMode()) {
       console.log("Modo offline: Generando plan básico");
       return generateMockPlan(userProfile);
     }
 
-    console.log("Modo online: Llamando a la Edge Function...");
+    // 1. Create a query from the user profile
+    const query = createUserProfileSummary(userProfile);
+    console.log("Creado resumen de perfil de usuario para consulta:", query);
     
-    // Call the Edge Function to generate the plan with explicit error handling
-    const response = await supabase.functions.invoke('generate-training-plan', {
+    // 2. Generate embedding for the query
+    console.log("Generando embedding para la consulta...");
+    const embedding = await generateEmbedding(query);
+    console.log("Embedding generado correctamente, longitud:", embedding.length);
+    
+    // 3. Retrieve relevant fragments
+    const relevantFragments = await retrieveRelevantFragments(embedding);
+    console.log("Fragmentos relevantes recuperados:", relevantFragments.length);
+    
+    // 4. Call edge function to generate a plan with RAG context
+    console.log("Llamando a edge function para generar plan con contexto RAG...");
+    const { data, error } = await supabase.functions.invoke('generate-training-plan', {
       body: { 
         userProfile,
-        context: "", // Podemos pasar un contexto vacío o no pasarlo
+        context: relevantFragments.join('\n\n')
       }
     });
-    
-    console.log("Respuesta de la edge function:", response);
-    
-    if (response.error) {
-      console.error("Error calling Edge Function:", response.error);
-      throw new Error(`Error al llamar a la Edge Function: ${response.error.message}`);
+
+    if (error) {
+      console.error("Error calling Edge Function:", error);
+      throw error;
     }
 
-    if (!response.data) {
+    if (!data) {
       throw new Error("No se recibió respuesta del servidor");
     }
+
+    // 5. Process and return the plan
+    const planData = data;
+    console.log("Plan recibido:", planData);
     
-    // La Edge Function devuelve un objeto con la propiedad 'plan'
-    const plan = response.data;
+    if (!planData.workouts || !Array.isArray(planData.workouts)) {
+      console.error("El plan recibido no contiene workouts válidos:", planData);
+      throw new Error("El formato del plan generado es incorrecto");
+    }
     
-    // Guardar el plan en localStorage para acceso offline
+    // Create workouts based on the plan
+    const workouts: Workout[] = planData.workouts.map((workout: any) => ({
+      id: uuidv4(),
+      day: workout.day || "Día sin especificar",
+      title: workout.title || "Entrenamiento sin título",
+      description: workout.description || "Sin descripción",
+      distance: workout.distance || null,
+      duration: workout.duration || null,
+      type: (workout.type || 'carrera') as 'carrera' | 'descanso' | 'fuerza' | 'flexibilidad' | 'otro',
+      completed: false,
+      actualDistance: null,
+      actualDuration: null
+    }));
+    
+    // Create the plan object
+    const plan: WorkoutPlan = {
+      id: uuidv4(),
+      name: planData.name || "Plan de entrenamiento personalizado",
+      description: planData.description || `Plan generado para ${userProfile.name}`,
+      duration: planData.duration || "7 días",
+      intensity: planData.intensity || "Adaptado a tu nivel",
+      workouts: workouts,
+      createdAt: new Date(),
+      weekNumber: 1
+    };
+    
+    // Try to save the plan - but don't fail if storage fails
     try {
+      console.log("Intentando guardar plan en almacenamiento local...");
       localStorage.setItem('current_training_plan', JSON.stringify(plan));
-    } catch (e) {
-      console.warn("No se pudo guardar el plan en localStorage:", e);
+      console.log("Plan guardado correctamente en almacenamiento local");
+    } catch (storageError) {
+      console.warn("No se pudo guardar plan en almacenamiento local:", storageError);
     }
     
     return plan;
   } catch (error) {
     console.error("Error in generateTrainingPlan:", error);
     
-    // Si hay un error, mostramos información detallada y recurrimos al modo offline
-    console.log("Error completo:", JSON.stringify(error));
+    // If there's an error, fall back to offline mode
     console.log("Fallback a modo offline debido al error");
     return generateMockPlan(userProfile);
   }
