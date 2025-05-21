@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 import { TrainingPlanRequest, UserProfile, WorkoutPlan, Workout } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -271,6 +272,19 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
       return null;
     }
 
+    // Try to load from local storage first
+    try {
+      const savedPlan = localStorage.getItem('current_training_plan');
+      if (savedPlan) {
+        return JSON.parse(savedPlan) as WorkoutPlan;
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar el plan desde almacenamiento local:", e);
+    }
+
+    // The database doesn't have a workout_plans table yet, so we'll return null
+    // When the table is created in the future, we can uncomment and adapt this code
+    /*
     const { data: plans, error } = await supabase
       .from('workout_plans')
       .select('*')
@@ -283,9 +297,12 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
     }
 
     return plans?.[0] || null;
+    */
+    
+    return null;
   } catch (error) {
     console.error("Error in loadLatestPlan:", error);
-    throw error;
+    return null; // Return null instead of throwing to prevent crashing the app
   }
 };
 
