@@ -4,6 +4,7 @@ import { Workout } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 interface WorkoutCompletionFormProps {
   workout: Workout;
@@ -32,9 +33,26 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       const distanceValue = actualDistance ? parseFloat(actualDistance) : null;
       const durationValue = actualDuration || null;
       
+      console.log("Enviando datos de entrenamiento completado:", {
+        workoutId: workout.id,
+        planId: planId,
+        distanceValue,
+        durationValue
+      });
+      
       await onComplete(workout.id, distanceValue, durationValue);
+      
+      toast({
+        title: "Entrenamiento completado",
+        description: "Los datos de tu entrenamiento se han guardado correctamente.",
+      });
     } catch (error) {
       console.error("Error al guardar resultados:", error);
+      toast({
+        title: "Error al guardar datos",
+        description: "No se pudieron guardar los datos del entrenamiento. Intenta nuevamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
