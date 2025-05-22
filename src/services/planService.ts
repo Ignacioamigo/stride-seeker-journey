@@ -375,7 +375,12 @@ export const updateWorkoutResults = async (
   actualDuration: string | null
 ): Promise<WorkoutPlan | null> => {
   try {
-    console.log("Actualizando resultados del entrenamiento:", { planId, workoutId, actualDistance, actualDuration });
+    console.log("Actualizando resultados del entrenamiento:", {
+      planId,
+      workoutId,
+      actualDistance,
+      actualDuration
+    });
     
     // Update in memory first
     const plan = await loadLatestPlan();
@@ -406,7 +411,8 @@ export const updateWorkoutResults = async (
       try {
         console.log("Actualizando entrenamiento en la base de datos Supabase:", workoutId);
         
-        // Update the training session in Supabase
+        // IMPORTANTE: Usamos el ID directamente del workout para la tabla training_sessions
+        // Este es el ID que se guarda en la tabla cuando se crea el plan
         const { data, error } = await supabase
           .from('training_sessions')
           .update({
@@ -415,13 +421,14 @@ export const updateWorkoutResults = async (
             actual_duration: actualDuration,
             completion_date: new Date().toISOString()
           })
-          .eq('id', workoutId);
+          .eq('id', workoutId)
+          .select();
         
         if (error) {
           console.error("Error al actualizar entrenamiento en la base de datos:", error);
           // Registrar el error pero continuar para actualizar localStorage
         } else {
-          console.log("Entrenamiento actualizado con éxito en Supabase");
+          console.log("Actualización exitosa en Supabase:", data);
         }
       } catch (dbError) {
         console.error("Error de base de datos al actualizar entrenamiento:", dbError);
