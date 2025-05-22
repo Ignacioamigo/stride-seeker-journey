@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile, WorkoutPlan, Workout, TrainingPlanRequest, PreviousWeekResults } from '@/types';
@@ -375,19 +374,9 @@ export const updateWorkoutResults = async (
   actualDuration: string | null
 ): Promise<WorkoutPlan | null> => {
   try {
-    console.log("Actualizando resultados del entrenamiento:", {
-      planId,
-      workoutId,
-      actualDistance,
-      actualDuration
-    });
-    
     // Update in memory first
     const plan = await loadLatestPlan();
-    if (!plan || plan.id !== planId) {
-      console.error("Plan no encontrado o ID no coincide:", { planId, loadedPlanId: plan?.id });
-      return null;
-    }
+    if (!plan || plan.id !== planId) return null;
     
     const updatedWorkouts = plan.workouts.map(workout => {
       if (workout.id === workoutId) {
@@ -409,11 +398,8 @@ export const updateWorkoutResults = async (
     // Try to update in database if online
     if (!isOfflineMode()) {
       try {
-        console.log("Actualizando entrenamiento en la base de datos Supabase:", workoutId);
-        
-        // IMPORTANTE: Usamos el ID directamente del workout para la tabla training_sessions
-        // Este es el ID que se guarda en la tabla cuando se crea el plan
-        const { data, error } = await supabase
+        // Update the training session
+        await supabase
           .from('training_sessions')
           .update({
             completed: true,
@@ -421,28 +407,18 @@ export const updateWorkoutResults = async (
             actual_duration: actualDuration,
             completion_date: new Date().toISOString()
           })
-          .eq('id', workoutId)
-          .select();
-        
-        if (error) {
-          console.error("Error al actualizar entrenamiento en la base de datos:", error);
-          // Registrar el error pero continuar para actualizar localStorage
-        } else {
-          console.log("Actualización exitosa en Supabase:", data);
-        }
+          .eq('id', workoutId);
       } catch (dbError) {
-        console.error("Error de base de datos al actualizar entrenamiento:", dbError);
-        // Continuar con la actualización local
+        console.error("Error updating workout in database:", dbError);
+        // Continue anyway as we'll update localStorage
       }
-    } else {
-      console.log("Modo sin conexión - omitiendo actualización de base de datos");
     }
     
     // Always update localStorage
     await savePlan(updatedPlan);
     return updatedPlan;
   } catch (error: any) {
-    console.error("Error al actualizar resultados del entrenamiento:", error);
+    console.error("Error updating workout results:", error);
     return null;
   }
 };
