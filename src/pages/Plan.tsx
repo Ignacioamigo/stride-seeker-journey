@@ -111,6 +111,8 @@ const Plan: React.FC = () => {
       console.log("Plan generated successfully:", plan);
       setCurrentPlan(plan);
       
+      // Set RAG status from the response
+      setRagActive(!!plan.ragActive);
       console.log("RAG status from plan:", plan.ragActive);
       
       toast({
@@ -132,6 +134,7 @@ const Plan: React.FC = () => {
   };
   
   const handlePlanUpdate = (updatedPlan: WorkoutPlan) => {
+    console.log("Plan updated:", updatedPlan);
     setCurrentPlan(updatedPlan);
   };
 

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { WorkoutPlan, Workout } from "@/types";
 import RunButton from "@/components/ui/RunButton";
@@ -150,6 +149,12 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
     actualDuration: string | null
   ) => {
     try {
+      console.log("Completing workout:", {
+        workoutId,
+        actualDistance,
+        actualDuration
+      });
+      
       // Usar el servicio para actualizar el entrenamiento
       const updatedPlan = await updateWorkoutResults(
         plan.id,
@@ -159,7 +164,13 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
       );
       
       if (updatedPlan) {
+        console.log("Plan updated successfully:", updatedPlan);
         onPlanUpdate(updatedPlan);
+        
+        toast({
+          title: "Entrenamiento completado",
+          description: "Los datos del entrenamiento se han guardado correctamente.",
+        });
       }
     } catch (error) {
       console.error("Error al completar entrenamiento:", error);

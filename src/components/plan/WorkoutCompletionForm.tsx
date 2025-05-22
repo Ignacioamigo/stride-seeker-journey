@@ -32,6 +32,13 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       const distanceValue = actualDistance ? parseFloat(actualDistance) : null;
       const durationValue = actualDuration || null;
       
+      console.log("Submitting workout data:", {
+        workoutId: workout.id,
+        planId: planId,
+        actualDistance: distanceValue,
+        actualDuration: durationValue
+      });
+      
       await onComplete(workout.id, distanceValue, durationValue);
     } catch (error) {
       console.error("Error al guardar resultados:", error);
