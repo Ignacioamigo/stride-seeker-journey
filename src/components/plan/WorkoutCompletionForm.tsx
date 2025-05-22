@@ -4,6 +4,7 @@ import { Workout } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 interface WorkoutCompletionFormProps {
   workout: Workout;
@@ -30,11 +31,28 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
     try {
       // Conversión de tipos para la distancia
       const distanceValue = actualDistance ? parseFloat(actualDistance) : null;
-      const durationValue = actualDuration || null;
+      const durationValue = actualDuration.trim() || null;
+      
+      console.log("Submitting workout completion:", {
+        workoutId: workout.id,
+        distanceValue,
+        durationValue
+      });
       
       await onComplete(workout.id, distanceValue, durationValue);
+      
+      toast({
+        title: "Entrenamiento completado",
+        description: "Los datos del entrenamiento se han guardado correctamente.",
+      });
     } catch (error) {
       console.error("Error al guardar resultados:", error);
+      
+      toast({
+        title: "Error",
+        description: "No se pudieron guardar los datos del entrenamiento. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -62,7 +80,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         <p className="text-xs text-runapp-gray mb-3">Este es un día de descanso. Simplemente marca como completado.</p>
       ) : (
         <>
-          {workout.distance !== null && (
+          {workout.type === 'carrera' && (
             <div className="mb-3">
               <label htmlFor="actualDistance" className="block text-xs text-runapp-gray mb-1">
                 Distancia recorrida (km)

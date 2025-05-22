@@ -374,20 +374,40 @@ export const updateWorkoutResults = async (
   actualDuration: string | null
 ): Promise<WorkoutPlan | null> => {
   try {
-    console.log("[updateWorkoutResults] INICIO", { planId, workoutId, actualDistance, actualDuration });
+    console.log("[updateWorkoutResults] INICIO", { 
+      planId, 
+      workoutId, 
+      actualDistance, 
+      actualDuration 
+    });
     
+    if (!workoutId || !planId) {
+      console.error("[updateWorkoutResults] ID del entrenamiento o plan faltante");
+      return null;
+    }
+
     // First, try to update the database if online
     if (!isOfflineMode()) {
       try {
         console.log("[updateWorkoutResults] Actualizando en Supabase", { workoutId });
+        
+        const updateData: any = {
+          completed: true,
+          completion_date: new Date().toISOString()
+        };
+        
+        // Only include these fields if they have values
+        if (actualDistance !== null) {
+          updateData.actual_distance = actualDistance;
+        }
+        
+        if (actualDuration !== null) {
+          updateData.actual_duration = actualDuration;
+        }
+        
         const { error } = await supabase
           .from('training_sessions')
-          .update({
-            completed: true,
-            actual_distance: actualDistance,
-            actual_duration: actualDuration,
-            completion_date: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', workoutId);
           
         if (error) {
@@ -406,8 +426,13 @@ export const updateWorkoutResults = async (
 
     // Then load and update the plan
     const plan = await loadLatestPlan();
-    if (!plan || plan.id !== planId) {
-      console.error("[updateWorkoutResults] Plan no encontrado o ID no coincide", { planId, loadedPlanId: plan?.id });
+    if (!plan) {
+      console.error("[updateWorkoutResults] Plan no encontrado");
+      return null;
+    }
+    
+    if (plan.id !== planId) {
+      console.error("[updateWorkoutResults] ID de plan no coincide", { planId, loadedPlanId: plan?.id });
       return null;
     }
 

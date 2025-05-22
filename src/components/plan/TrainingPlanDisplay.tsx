@@ -150,6 +150,13 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
     actualDuration: string | null
   ) => {
     try {
+      console.log("TrainingPlanDisplay: calling updateWorkoutResults with:", {
+        planId: plan.id,
+        workoutId,
+        actualDistance,
+        actualDuration
+      });
+      
       // Usar el servicio para actualizar el entrenamiento
       const updatedPlan = await updateWorkoutResults(
         plan.id,
@@ -159,10 +166,18 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
       );
       
       if (updatedPlan) {
+        console.log("TrainingPlanDisplay: Plan updated successfully:", updatedPlan);
         onPlanUpdate(updatedPlan);
+      } else {
+        console.error("TrainingPlanDisplay: updateWorkoutResults returned null");
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar el entrenamiento. No se recibieron datos actualizados.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      console.error("Error al completar entrenamiento:", error);
+      console.error("TrainingPlanDisplay: Error al completar entrenamiento:", error);
       
       toast({
         title: "Error al guardar datos",
