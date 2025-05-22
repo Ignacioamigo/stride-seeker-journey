@@ -102,7 +102,9 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
       intensity: data.intensity || "",
       createdAt: new Date(data.created_at),
       weekNumber: data.week_number || 1,
-      ragActive: data.rag_active || false,
+      // Fixed: Use a boolean value for ragActive instead of trying to access rag_active
+      // which might not exist in the database response
+      ragActive: false, // Default to false since this field doesn't exist in the database
       workouts: data.training_sessions.map((session: any) => ({
         id: session.id,
         day: getDayName(session.day_number),
