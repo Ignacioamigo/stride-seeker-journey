@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile, WorkoutPlan, Workout, TrainingPlanRequest, PreviousWeekResults } from '@/types';
@@ -376,14 +375,13 @@ export const updateWorkoutResults = async (
 ): Promise<WorkoutPlan | null> => {
   try {
     console.log("Actualizando resultados del entrenamiento:", { planId, workoutId, actualDistance, actualDuration });
-    
-    // Update in memory first
+    // Cargar el plan actual
     const plan = await loadLatestPlan();
     if (!plan || plan.id !== planId) {
       console.error("Plan no encontrado o ID no coincide:", { planId, loadedPlanId: plan?.id });
       return null;
     }
-    
+    // Actualizar solo el workout correspondiente, manteniendo todos los campos del plan
     const updatedWorkouts = plan.workouts.map(workout => {
       if (workout.id === workoutId) {
         return {
@@ -395,19 +393,16 @@ export const updateWorkoutResults = async (
       }
       return workout;
     });
-    
-    const updatedPlan = {
+    const updatedPlan: WorkoutPlan = {
       ...plan,
-      workouts: updatedWorkouts
+      workouts: updatedWorkouts,
+      ragActive: plan.ragActive // mantener el estado RAG
     };
-    
-    // Try to update in database if online
+    // Actualizar en la base de datos si hay conexión
     if (!isOfflineMode()) {
       try {
         console.log("Actualizando entrenamiento en la base de datos Supabase:", workoutId);
-        
-        // Update the training session in Supabase
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('training_sessions')
           .update({
             completed: true,
@@ -416,23 +411,17 @@ export const updateWorkoutResults = async (
             completion_date: new Date().toISOString()
           })
           .eq('id', workoutId);
-        
         if (error) {
           console.error("Error al actualizar entrenamiento en la base de datos:", error);
-          // Registrar el error pero continuar para actualizar localStorage
-        } else {
-          console.log("Entrenamiento actualizado con éxito en Supabase");
         }
       } catch (dbError) {
         console.error("Error de base de datos al actualizar entrenamiento:", dbError);
-        // Continuar con la actualización local
       }
     } else {
       console.log("Modo sin conexión - omitiendo actualización de base de datos");
     }
-    
-    // Always update localStorage
-    await savePlan(updatedPlan);
+    // Siempre actualizar localStorage manteniendo todos los campos
+    localStorage.setItem('savedPlan', JSON.stringify(updatedPlan));
     return updatedPlan;
   } catch (error: any) {
     console.error("Error al actualizar resultados del entrenamiento:", error);
