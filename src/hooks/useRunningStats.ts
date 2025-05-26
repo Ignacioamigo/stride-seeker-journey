@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -11,14 +10,12 @@ interface RunningStats {
   monthlyDistance: number;
   paceImprovement: number;
   weeklyData: Array<{ day: string; distance: number }>;
-  // Nuevas métricas mensuales
-  monthlyTotalTime: number; // en minutos
+  monthlyTotalTime: number;
   monthlyAveragePace: string;
   longestRun: number;
   bestPace: string;
   distanceVariation: number;
   paceVariation: number;
-  // Datos del mes anterior para comparación
   previousMonthDistance: number;
   previousMonthAveragePace: string;
 }
@@ -129,6 +126,13 @@ export const useRunningStats = () => {
   };
 
   const calculateStatsFromData = (workouts: any[]) => {
+    // Si no hay entrenamientos, resetear todas las estadísticas
+    if (!workouts || workouts.length === 0) {
+      console.log('No hay entrenamientos, reseteando estadísticas');
+      resetStats();
+      return;
+    }
+
     const now = new Date();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
@@ -170,7 +174,7 @@ export const useRunningStats = () => {
     const totalDistanceAllRuns = validWorkouts.reduce((sum, w) => sum + w.actual_distance, 0);
     const averageDistancePerRun = totalRuns > 0 ? totalDistanceAllRuns / totalRuns : 0;
 
-    // Calcular tiempo total y ritmo promedio global - CORREGIDO
+    // Calcular tiempo total y ritmo promedio global - CORREGIDA
     let totalTimeMinutes = 0;
     let totalDistance = 0;
 
@@ -302,6 +306,7 @@ export const useRunningStats = () => {
 
   // Función para resetear las estadísticas
   const resetStats = () => {
+    console.log('Reseteando estadísticas a valores por defecto');
     setStats({
       weeklyDistance: 0,
       totalRuns: 0,
@@ -328,6 +333,7 @@ export const useRunningStats = () => {
       previousMonthDistance: 0,
       previousMonthAveragePace: "0:00 min/km"
     });
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -338,6 +344,19 @@ export const useRunningStats = () => {
   const refreshStats = () => {
     calculateStats();
   };
+
+  useEffect(() => {
+    const handleResetStats = () => {
+      console.log('Evento resetStats recibido, recalculando estadísticas...');
+      calculateStats();
+    };
+
+    window.addEventListener('resetStats', handleResetStats);
+    
+    return () => {
+      window.removeEventListener('resetStats', handleResetStats);
+    };
+  }, []);
 
   return {
     stats,
