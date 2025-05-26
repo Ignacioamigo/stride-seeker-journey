@@ -60,49 +60,69 @@ export const uploadTrainingDocument = async (file: File): Promise<boolean> => {
  */
 export const getUserProfileId = async (): Promise<string | null> => {
   try {
-    const { data: user } = await supabase.auth.getUser();
+    console.log("[getUserProfileId] Iniciando obtención de user profile ID...");
     
-    if (!user || !user.user) {
-      console.log("No authenticated user found");
+    const { data: user } = await supabase.auth.getUser();
+    console.log("[getUserProfileId] Usuario autenticado:", !!user?.user);
+    
+    if (user && user.user) {
+      // Usuario autenticado - buscar en la base de datos
+      console.log("[getUserProfileId] Buscando perfil en BD para usuario autenticado:", user.user.id);
       
-      // If no authenticated user, try to get/create a profile from localStorage
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_auth_id', user.user.id)
+        .single();
+      
+      if (userProfile) {
+        console.log("[getUserProfileId] Perfil encontrado en BD:", userProfile.id);
+        return userProfile.id;
+      } else {
+        console.log("[getUserProfileId] No se encontró perfil en BD para usuario autenticado");
+        return null;
+      }
+    } else {
+      // Usuario no autenticado - usar localStorage
+      console.log("[getUserProfileId] Usuario no autenticado, usando localStorage");
+      
       const savedUser = localStorage.getItem('runAdaptiveUser');
       if (savedUser) {
         const userProfile: UserProfile = JSON.parse(savedUser);
+        console.log("[getUserProfileId] Perfil encontrado en localStorage:", userProfile);
         
-        // Try to find existing profile or create a new one
         if (userProfile.id) {
+          console.log("[getUserProfileId] Retornando ID del localStorage:", userProfile.id);
           return userProfile.id;
         } else {
-          // Create a temporary ID for localStorage-only users
+          // Crear un ID temporal para usuarios de localStorage
           const tempId = uuidv4();
+          console.log("[getUserProfileId] Creando ID temporal:", tempId);
+          
           const updatedProfile = { ...userProfile, id: tempId };
           localStorage.setItem('runAdaptiveUser', JSON.stringify(updatedProfile));
           return tempId;
         }
       }
+      
+      console.log("[getUserProfileId] No se encontró perfil en localStorage");
       return null;
     }
-    
-    const { data: userProfile } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('user_auth_id', user.user.id)
-      .single();
-    
-    return userProfile?.id || null;
   } catch (error) {
-    console.error("Error getting user profile ID:", error);
+    console.error("[getUserProfileId] Error:", error);
     
-    // Fallback to localStorage
+    // Fallback a localStorage en caso de error
     const savedUser = localStorage.getItem('runAdaptiveUser');
     if (savedUser) {
       const userProfile: UserProfile = JSON.parse(savedUser);
       if (userProfile.id) {
+        console.log("[getUserProfileId] Fallback: usando ID de localStorage:", userProfile.id);
         return userProfile.id;
       } else {
-        // Create a temporary ID for localStorage-only users
+        // Crear un ID temporal para usuarios de localStorage
         const tempId = uuidv4();
+        console.log("[getUserProfileId] Fallback: creando ID temporal:", tempId);
+        
         const updatedProfile = { ...userProfile, id: tempId };
         localStorage.setItem('runAdaptiveUser', JSON.stringify(updatedProfile));
         return tempId;
@@ -425,7 +445,7 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 };
 
 /**
- * Saves completed workout data to the completed_workouts table with proper foreign keys
+ * Saves completed workout data to the completed_workouts table - SIMPLIFIED VERSION
  */
 export const saveCompletedWorkout = async (
   workoutId: string,
@@ -434,14 +454,44 @@ export const saveCompletedWorkout = async (
   actualDuration: string | null
 ): Promise<boolean> => {
   try {
-    console.log("[saveCompletedWorkout] Guardando datos en completed_workouts:", {
+    console.log("[saveCompletedWorkout] VERSIÓN SIMPLIFICADA - Guardando solo en localStorage");
+    console.log("[saveCompletedWorkout] Datos:", {
       workoutId,
       planId,
       actualDistance,
       actualDuration
     });
 
-    // Get user profile ID
+    // Para usuarios no autenticados, solo guardaremos en localStorage
+    // y no intentaremos usar Supabase para evitar errores de RLS
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user || !user.user) {
+      console.log("[saveCompletedWorkout] Usuario no autenticado - solo localStorage");
+      
+      // Crear un registro simple para localStorage si es necesario
+      const completedWorkoutRecord = {
+        id: uuidv4(),
+        workoutId,
+        planId,
+        actualDistance,
+        actualDuration,
+        completedAt: new Date().toISOString()
+      };
+      
+      // Guardar en localStorage para referencia futura si es necesario
+      const existingCompletedWorkouts = localStorage.getItem('completedWorkouts');
+      const completedWorkouts = existingCompletedWorkouts ? JSON.parse(existingCompletedWorkouts) : [];
+      completedWorkouts.push(completedWorkoutRecord);
+      localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
+      
+      console.log("[saveCompletedWorkout] Guardado en localStorage exitosamente");
+      return true;
+    }
+
+    // Para usuarios autenticados, intentar guardar en Supabase
+    console.log("[saveCompletedWorkout] Usuario autenticado - intentando Supabase");
+    
     const userProfileId = await getUserProfileId();
     if (!userProfileId) {
       console.error("[saveCompletedWorkout] No se pudo obtener el user_id");
@@ -450,7 +500,7 @@ export const saveCompletedWorkout = async (
 
     console.log("[saveCompletedWorkout] User profile ID obtenido:", userProfileId);
 
-    // Validate that workoutId and planId are valid UUIDs
+    // Validar UUIDs
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(workoutId)) {
       console.error("[saveCompletedWorkout] workoutId is not a valid UUID:", workoutId);
@@ -477,7 +527,7 @@ export const saveCompletedWorkout = async (
       return false;
     }
 
-    console.log("[saveCompletedWorkout] Datos guardados exitosamente:", data);
+    console.log("[saveCompletedWorkout] Datos guardados exitosamente en Supabase:", data);
     return true;
   } catch (error: any) {
     console.error("[saveCompletedWorkout] Error inesperado:", error);
@@ -502,44 +552,52 @@ export const updateWorkoutResults = async (
       actualDuration 
     });
 
-    // Primero guardar en la nueva tabla completed_workouts
+    // Intentar guardar en la tabla completed_workouts (simplificado)
     const savedToCompletedWorkouts = await saveCompletedWorkout(workoutId, planId, actualDistance, actualDuration);
     
     if (!savedToCompletedWorkouts) {
       console.warn("[updateWorkoutResults] No se pudo guardar en completed_workouts, pero continuando...");
+    } else {
+      console.log("[updateWorkoutResults] Guardado exitosamente en completed_workouts");
     }
 
-    // Actualizar en training_sessions si no estamos en modo offline
+    // Actualizar en training_sessions si no estamos en modo offline Y si hay usuario autenticado
     if (!isOfflineMode()) {
-      console.log("[updateWorkoutResults] Actualizando sesión en training_sessions:", workoutId);
+      const { data: user } = await supabase.auth.getUser();
       
-      const updateData: any = {
-        completed: true,
-        completion_date: new Date().toISOString()
-      };
-      
-      if (actualDistance !== null && actualDistance !== undefined) {
-        updateData.actual_distance = actualDistance;
+      if (user && user.user) {
+        console.log("[updateWorkoutResults] Actualizando sesión en training_sessions:", workoutId);
+        
+        const updateData: any = {
+          completed: true,
+          completion_date: new Date().toISOString()
+        };
+        
+        if (actualDistance !== null && actualDistance !== undefined) {
+          updateData.actual_distance = actualDistance;
+        }
+        
+        if (actualDuration !== null && actualDuration !== undefined && actualDuration.trim() !== '') {
+          updateData.actual_duration = actualDuration.trim();
+        }
+        
+        console.log("[updateWorkoutResults] Datos a actualizar en training_sessions:", updateData);
+        
+        const { data, error } = await supabase
+          .from('training_sessions')
+          .update(updateData)
+          .eq('id', workoutId)
+          .select();
+        
+        if (error) {
+          console.error("[updateWorkoutResults] Error actualizando training_sessions:", error);
+          // No lanzar error, continuar con localStorage
+        } else {
+          console.log("[updateWorkoutResults] Sesión actualizada en training_sessions:", data);
+        }
+      } else {
+        console.log("[updateWorkoutResults] Usuario no autenticado - omitiendo actualización en training_sessions");
       }
-      
-      if (actualDuration !== null && actualDuration !== undefined && actualDuration.trim() !== '') {
-        updateData.actual_duration = actualDuration.trim();
-      }
-      
-      console.log("[updateWorkoutResults] Datos a actualizar en training_sessions:", updateData);
-      
-      const { data, error } = await supabase
-        .from('training_sessions')
-        .update(updateData)
-        .eq('id', workoutId)
-        .select();
-      
-      if (error) {
-        console.error("[updateWorkoutResults] Error actualizando training_sessions:", error);
-        throw error;
-      }
-      
-      console.log("[updateWorkoutResults] Sesión actualizada en training_sessions:", data);
     }
 
     // Actualizar localStorage
