@@ -1,6 +1,7 @@
 
 import { BarChart2, Clock } from "lucide-react";
-import { useStats } from "@/context/StatsContext";
+import { useRunningStats } from "@/hooks/useRunningStats";
+import { useEffect } from "react";
 
 interface StatsCardProps {
   title: string;
@@ -37,7 +38,20 @@ const StatsCard: React.FC<StatsCardProps> = ({ title, value, subtext, change, po
 };
 
 const RunStats: React.FC = () => {
-  const { stats, isLoading } = useStats();
+  const { stats, isLoading, resetStats } = useRunningStats();
+
+  // Escuchar el evento de reset de estadísticas
+  useEffect(() => {
+    const handleResetStats = () => {
+      resetStats();
+    };
+
+    window.addEventListener('resetStats', handleResetStats);
+    
+    return () => {
+      window.removeEventListener('resetStats', handleResetStats);
+    };
+  }, [resetStats]);
 
   return (
     <div className="mb-8">

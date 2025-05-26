@@ -1,10 +1,10 @@
 
 import { useUser } from "@/context/UserContext";
-import { useStats } from "@/context/StatsContext";
+import { useRunningStats } from "@/hooks/useRunningStats";
 
 const WeeklyProgress: React.FC = () => {
   const { user } = useUser();
-  const { stats, isLoading } = useStats();
+  const { stats, isLoading } = useRunningStats();
   
   // Calcular progreso basado en entrenamientos completados vs planeados
   // Asumiendo un objetivo de 3 entrenamientos por semana

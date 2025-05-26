@@ -10,17 +10,20 @@ interface WorkoutCompletionFormProps {
   workout: Workout;
   planId: string;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
+  onStatsUpdate?: () => void; // Nueva prop para actualizar estadísticas
 }
 
 const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
   workout, 
   planId, 
-  onComplete
+  onComplete,
+  onStatsUpdate
 }) => {
   const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
   const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Para entrenamientos de descanso, no necesitamos recopilar datos
   const isRestDay = workout.type === 'descanso';
   
   const handleSubmit = async (event: React.FormEvent) => {
@@ -28,6 +31,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
     
     setIsSubmitting(true);
     try {
+      // Conversión de tipos para la distancia
       const distanceValue = actualDistance && actualDistance.trim() ? parseFloat(actualDistance) : null;
       const durationValue = actualDuration && actualDuration.trim() ? actualDuration.trim() : null;
       
@@ -40,18 +44,14 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       
       await onComplete(workout.id, distanceValue, durationValue);
       
-      // Disparar evento global para actualizar estadísticas
-      console.log("WorkoutCompletionForm: Disparando evento statsUpdated");
-      window.dispatchEvent(new CustomEvent('statsUpdated'));
-      
-      // Pequeño delay para asegurar que los datos se guarden antes de actualizar stats
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('statsUpdated'));
-      }, 500);
+      // Actualizar estadísticas después de completar el entrenamiento
+      if (onStatsUpdate) {
+        onStatsUpdate();
+      }
       
       toast({
         title: "¡Entrenamiento completado!",
-        description: "Los datos se han guardado correctamente y las estadísticas se actualizarán.",
+        description: "Los datos se han guardado correctamente y las estadísticas se han actualizado.",
       });
     } catch (error) {
       console.error("WorkoutCompletionForm: Error al guardar:", error);
