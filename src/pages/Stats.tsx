@@ -4,9 +4,8 @@ import { useStats } from "@/context/StatsContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
-import { StatsProvider } from "@/context/StatsContext";
 
-const StatsContent: React.FC = () => {
+const Stats: React.FC = () => {
   const { stats, isLoading } = useStats();
 
   const chartConfig = {
@@ -135,14 +134,6 @@ const StatsContent: React.FC = () => {
       
       <BottomNav />
     </div>
-  );
-};
-
-const Stats: React.FC = () => {
-  return (
-    <StatsProvider>
-      <StatsContent />
-    </StatsProvider>
   );
 };
 

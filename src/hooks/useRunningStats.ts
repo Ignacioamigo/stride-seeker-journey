@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -84,34 +83,6 @@ const getCurrentUserId = (): string | null => {
   return null;
 };
 
-// Función para obtener datos de entrenamientos desde localStorage
-const getLocalWorkouts = () => {
-  const savedPlan = localStorage.getItem('currentTrainingPlan');
-  if (!savedPlan) return [];
-  
-  try {
-    const plan = JSON.parse(savedPlan);
-    const completedWorkouts = [];
-    
-    if (plan.workouts) {
-      plan.workouts.forEach((workout: any) => {
-        if (workout.completed && workout.actualDistance && workout.actualDistance > 0) {
-          completedWorkouts.push({
-            actual_distance: workout.actualDistance,
-            actual_duration: workout.actualDuration || '',
-            completed_at: new Date().toISOString(), // Usar fecha actual como fallback
-          });
-        }
-      });
-    }
-    
-    return completedWorkouts;
-  } catch (error) {
-    console.error('Error parsing local plan:', error);
-    return [];
-  }
-};
-
 export const useRunningStats = () => {
   const [stats, setStats] = useState<RunningStats>({
     weeklyDistance: 0,
@@ -146,42 +117,50 @@ export const useRunningStats = () => {
       setIsLoading(true);
       
       const currentUserId = getCurrentUserId();
-      let workouts = [];
-
-      if (currentUserId) {
-        console.log('Calculando estadísticas para usuario:', currentUserId);
-        
-        // Intentar obtener datos de Supabase primero
-        const { data: userPlans, error: plansError } = await supabase
-          .from('training_plans')
-          .select('id')
-          .eq('user_id', currentUserId);
-
-        if (!plansError && userPlans && userPlans.length > 0) {
-          const planIds = userPlans.map(plan => plan.id);
-          console.log('IDs de planes encontrados en Supabase:', planIds);
-
-          const { data: supabaseWorkouts, error } = await supabase
-            .from('entrenamientos_realizados')
-            .select('*')
-            .in('plan_id', planIds)
-            .order('completed_at', { ascending: false });
-
-          if (!error && supabaseWorkouts) {
-            console.log('Entrenamientos encontrados en Supabase:', supabaseWorkouts.length);
-            workouts = supabaseWorkouts;
-          }
-        }
+      
+      if (!currentUserId) {
+        console.log('No se encontró ID de usuario, mostrando estadísticas vacías');
+        resetStats();
+        return;
       }
 
-      // Si no hay datos en Supabase o no hay usuario, obtener datos locales
-      if (workouts.length === 0) {
-        console.log('No se encontraron datos en Supabase, obteniendo datos locales...');
-        const localWorkouts = getLocalWorkouts();
-        console.log('Entrenamientos encontrados en localStorage:', localWorkouts.length);
-        workouts = localWorkouts;
+      console.log('Calculando estadísticas para usuario:', currentUserId);
+      
+      // Primero obtenemos los planes del usuario
+      const { data: userPlans, error: plansError } = await supabase
+        .from('training_plans')
+        .select('id')
+        .eq('user_id', currentUserId);
+
+      if (plansError) {
+        console.error('Error obteniendo planes del usuario:', plansError);
+        resetStats();
+        return;
       }
 
+      if (!userPlans || userPlans.length === 0) {
+        console.log('No se encontraron planes para el usuario');
+        resetStats();
+        return;
+      }
+
+      const planIds = userPlans.map(plan => plan.id);
+      console.log('IDs de planes encontrados:', planIds);
+
+      // Ahora obtenemos los entrenamientos realizados para esos planes
+      const { data: workouts, error } = await supabase
+        .from('entrenamientos_realizados')
+        .select('*')
+        .in('plan_id', planIds)
+        .order('completed_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching workouts:', error);
+        resetStats();
+        return;
+      }
+
+      console.log('Entrenamientos encontrados para el usuario:', workouts?.length || 0);
       calculateStatsFromData(workouts || []);
     } catch (error) {
       console.error('Error calculating stats:', error);
@@ -238,7 +217,7 @@ export const useRunningStats = () => {
     const totalDistanceAllRuns = validWorkouts.reduce((sum, w) => sum + w.actual_distance, 0);
     const averageDistancePerRun = totalRuns > 0 ? totalDistanceAllRuns / totalRuns : 0;
 
-    // Calcular tiempo total y ritmo promedio global
+    // Calcular tiempo total y ritmo promedio global - CORREGIDA
     let totalTimeMinutes = 0;
     let totalDistance = 0;
 
@@ -345,12 +324,6 @@ export const useRunningStats = () => {
         distance: Math.round(dayDistance * 10) / 10
       });
     }
-
-    console.log('Estadísticas calculadas:', {
-      weeklyDistance: Math.round(weeklyDistance * 10) / 10,
-      totalRuns,
-      monthlyDistance: Math.round(monthlyDistance * 10) / 10
-    });
 
     setStats({
       weeklyDistance: Math.round(weeklyDistance * 10) / 10,
