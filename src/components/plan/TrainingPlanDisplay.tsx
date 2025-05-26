@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { WorkoutPlan, Workout } from "@/types";
 import RunButton from "@/components/ui/RunButton";
@@ -7,7 +8,6 @@ import WorkoutCompletionForm from './WorkoutCompletionForm';
 import { updateWorkoutResults, generateNextWeekPlan } from '@/services/planService';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useStats } from '@/context/StatsContext';
 
 interface TrainingPlanDisplayProps {
   plan: WorkoutPlan;
@@ -21,8 +21,7 @@ const WorkoutCard: React.FC<{
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
   expanded: boolean;
   onToggleExpand: () => void;
-  onStatsUpdate?: () => void;
-}> = ({ workout, planId, onComplete, expanded, onToggleExpand, onStatsUpdate }) => {
+}> = ({ workout, planId, onComplete, expanded, onToggleExpand }) => {
   // No mostrar los entrenamientos de tipo "descanso"
   if (workout.type === 'descanso') {
     return null;
@@ -108,7 +107,6 @@ const WorkoutCard: React.FC<{
           workout={workout} 
           planId={planId}
           onComplete={onComplete}
-          onStatsUpdate={onStatsUpdate}
         />
       )}
     </div>
@@ -119,9 +117,6 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   const navigate = useNavigate();
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [isGeneratingNextWeek, setIsGeneratingNextWeek] = useState(false);
-  
-  // Add useStats hook to get refreshStats function
-  const { refreshStats } = useStats();
   
   // Sort workouts by date if dates are available
   const sortedWorkouts = [...plan.workouts].sort((a, b) => {
@@ -308,7 +303,6 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
               onToggleExpand={() => setExpandedWorkoutId(
                 expandedWorkoutId === workout.id ? null : workout.id
               )}
-              onStatsUpdate={refreshStats}
             />
           </div>
         ))}
