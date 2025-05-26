@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -73,6 +74,21 @@ const convertMinutesToPace = (totalMinutes: number, totalDistance: number): stri
   return `${minutes}:${seconds.toString().padStart(2, '0')} min/km`;
 };
 
+// Función para obtener el user_id del localStorage
+const getUserIdFromLocalStorage = (): string | null => {
+  try {
+    const savedUser = localStorage.getItem('runAdaptiveUser');
+    if (savedUser) {
+      const userProfile = JSON.parse(savedUser);
+      return userProfile.id || null;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting user ID from localStorage:', error);
+    return null;
+  }
+};
+
 export const useRunningStats = () => {
   const [stats, setStats] = useState<RunningStats>({
     weeklyDistance: 0,
@@ -106,13 +122,45 @@ export const useRunningStats = () => {
     try {
       setIsLoading(true);
       
-      // TEMPORAL: Para demo sin autenticación, solo mostrar estadísticas vacías
-      // TODO: Cuando se implemente autenticación, filtrar por usuario
-      console.log('Calculando estadísticas (modo demo sin autenticación)');
-      resetStats();
+      // Obtener el user_id del localStorage
+      const userId = getUserIdFromLocalStorage();
+      
+      if (!userId) {
+        console.log('No se encontró user ID, mostrando estadísticas vacías');
+        resetStats();
+        return;
+      }
+
+      console.log('Calculando estadísticas para usuario:', userId);
+
+      // Consultar entrenamientos_realizados con join a training_plans para filtrar por usuario
+      const { data: workouts, error } = await supabase
+        .from('entrenamientos_realizados')
+        .select(`
+          *,
+          training_plans!inner(user_id)
+        `)
+        .eq('training_plans.user_id', userId);
+
+      if (error) {
+        console.error('Error fetching workouts:', error);
+        resetStats();
+        return;
+      }
+
+      console.log('Entrenamientos encontrados:', workouts?.length || 0);
+
+      // Convertir los datos al formato esperado
+      const formattedWorkouts = workouts?.map(workout => ({
+        actual_distance: workout.actual_distance,
+        actual_duration: workout.actual_duration,
+        completed_at: workout.completed_at
+      })) || [];
+
+      calculateStatsFromData(formattedWorkouts);
     } catch (error) {
       console.error('Error calculating stats:', error);
-      setIsLoading(false);
+      resetStats();
     }
   };
 

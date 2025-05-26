@@ -82,7 +82,15 @@ export type Database = {
           plan_id?: string
           workout_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_entrenamientos_realizados_plan_id"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fragments: {
         Row: {
