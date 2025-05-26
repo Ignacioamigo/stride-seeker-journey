@@ -46,6 +46,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetUser = () => {
     setUser(defaultUser);
     localStorage.removeItem('runAdaptiveUser');
+    // Disparar evento personalizado para notificar que se resetean las estadísticas
+    window.dispatchEvent(new CustomEvent('resetStats'));
   };
 
   return (

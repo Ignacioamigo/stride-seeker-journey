@@ -23,12 +23,17 @@ interface RunningStats {
   previousMonthAveragePace: string;
 }
 
-// Función para convertir duración en texto a minutos
+// Función para convertir duración en texto a minutos - CORREGIDA
 const convertDurationToMinutes = (duration: string): number => {
   if (!duration) return 0;
   
   // Remover espacios y convertir a minúsculas
   const cleanDuration = duration.toLowerCase().replace(/\s+/g, '');
+  
+  // Si es solo un número (como "33", "55"), asumir que son minutos
+  if (/^\d+$/.test(cleanDuration)) {
+    return parseInt(cleanDuration);
+  }
   
   // Buscar patrones como "45min", "1h30min", "1:30:00", etc.
   let totalMinutes = 0;
@@ -161,7 +166,7 @@ export const useRunningStats = () => {
     // Total de carreras
     const totalRuns = validWorkouts.length;
 
-    // Promedio de distancia por carrera - CORREGIDO
+    // Promedio de distancia por carrera
     const totalDistanceAllRuns = validWorkouts.reduce((sum, w) => sum + w.actual_distance, 0);
     const averageDistancePerRun = totalRuns > 0 ? totalDistanceAllRuns / totalRuns : 0;
 
@@ -176,13 +181,14 @@ export const useRunningStats = () => {
         const timeInMinutes = convertDurationToMinutes(w.actual_duration);
         totalTimeMinutes += timeInMinutes;
         totalDistance += w.actual_distance;
-        console.log(`Entrenamiento: ${w.actual_distance}km en ${timeInMinutes}min (${w.actual_duration})`);
+        console.log(`Entrenamiento: ${w.actual_distance}km en ${timeInMinutes}min (duración original: "${w.actual_duration}")`);
       }
     });
 
     console.log(`Total: ${totalDistance}km en ${totalTimeMinutes}min`);
 
-    const averagePace = totalDistance > 0 ? convertMinutesToPace(totalTimeMinutes, totalDistance) : "0:00 min/km";
+    const averagePace = totalDistance > 0 && totalTimeMinutes > 0 ? 
+      convertMinutesToPace(totalTimeMinutes, totalDistance) : "0:00 min/km";
     console.log('Ritmo promedio calculado:', averagePace);
 
     // Calorías estimadas (aproximadamente 60 cal por km)
@@ -203,7 +209,8 @@ export const useRunningStats = () => {
       }
     });
 
-    const monthlyAveragePace = convertMinutesToPace(monthlyTotalTime, monthlyTotalDistance);
+    const monthlyAveragePace = monthlyTotalDistance > 0 && monthlyTotalTime > 0 ? 
+      convertMinutesToPace(monthlyTotalTime, monthlyTotalDistance) : "0:00 min/km";
 
     // Carrera más larga del mes
     const longestRun = validThisMonthWorkouts.length > 0 ? 
@@ -215,7 +222,7 @@ export const useRunningStats = () => {
       if (w.actual_duration && w.actual_distance) {
         const timeInMinutes = convertDurationToMinutes(w.actual_duration);
         const pace = timeInMinutes / w.actual_distance;
-        if (pace < bestPaceValue) {
+        if (pace < bestPaceValue && pace > 0) {
           bestPaceValue = pace;
         }
       }
@@ -237,7 +244,8 @@ export const useRunningStats = () => {
       }
     });
 
-    const previousMonthAveragePace = convertMinutesToPace(previousMonthTotalTime, previousMonthTotalDistance);
+    const previousMonthAveragePace = previousMonthTotalDistance > 0 && previousMonthTotalTime > 0 ? 
+      convertMinutesToPace(previousMonthTotalTime, previousMonthTotalDistance) : "0:00 min/km";
 
     // Variación de distancia
     const distanceVariation = previousMonthDistance > 0 ? 
@@ -246,7 +254,7 @@ export const useRunningStats = () => {
     // Variación de ritmo (positivo = más rápido)
     const currentPaceMinutes = monthlyTotalTime / monthlyTotalDistance;
     const previousPaceMinutes = previousMonthTotalTime / previousMonthTotalDistance;
-    const paceVariation = previousPaceMinutes > 0 ? 
+    const paceVariation = previousPaceMinutes > 0 && currentPaceMinutes > 0 ? 
       Math.round(((previousPaceMinutes - currentPaceMinutes) / previousPaceMinutes) * 100) : 0;
 
     // Datos semanales por día
@@ -292,6 +300,36 @@ export const useRunningStats = () => {
     setIsLoading(false);
   };
 
+  // Función para resetear las estadísticas
+  const resetStats = () => {
+    setStats({
+      weeklyDistance: 0,
+      totalRuns: 0,
+      averagePace: "0:00 min/km",
+      weeklyCalories: 0,
+      averageDistancePerRun: 0,
+      monthlyDistance: 0,
+      paceImprovement: 0,
+      weeklyData: [
+        { day: 'Lun', distance: 0 },
+        { day: 'Mar', distance: 0 },
+        { day: 'Mié', distance: 0 },
+        { day: 'Jue', distance: 0 },
+        { day: 'Vie', distance: 0 },
+        { day: 'Sáb', distance: 0 },
+        { day: 'Dom', distance: 0 }
+      ],
+      monthlyTotalTime: 0,
+      monthlyAveragePace: "0:00 min/km",
+      longestRun: 0,
+      bestPace: "0:00 min/km",
+      distanceVariation: 0,
+      paceVariation: 0,
+      previousMonthDistance: 0,
+      previousMonthAveragePace: "0:00 min/km"
+    });
+  };
+
   useEffect(() => {
     calculateStats();
   }, []);
@@ -304,6 +342,7 @@ export const useRunningStats = () => {
   return {
     stats,
     isLoading,
-    refreshStats
+    refreshStats,
+    resetStats
   };
 };
