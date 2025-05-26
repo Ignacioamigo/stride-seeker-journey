@@ -35,6 +35,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       
       console.log("WorkoutCompletionForm: Enviando datos:", {
         workoutId: workout.id,
+        planId,
         distanceValue,
         durationValue
       });
@@ -42,8 +43,8 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       await onComplete(workout.id, distanceValue, durationValue);
       
       toast({
-        title: "Entrenamiento completado",
-        description: "Los datos del entrenamiento se han guardado correctamente en Supabase.",
+        title: "¡Entrenamiento completado!",
+        description: "Los datos se han guardado correctamente en la nueva tabla de entrenamientos completados.",
       });
     } catch (error) {
       console.error("WorkoutCompletionForm: Error al guardar:", error);

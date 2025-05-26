@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile, WorkoutPlan, Workout, TrainingPlanRequest, PreviousWeekResults } from '@/types';
@@ -365,7 +366,47 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 };
 
 /**
- * Updates the results of a specific workout in Supabase
+ * Saves completed workout data to the new completed_workouts table
+ */
+export const saveCompletedWorkout = async (
+  workoutId: string,
+  planId: string,
+  actualDistance: number | null,
+  actualDuration: string | null
+): Promise<boolean> => {
+  try {
+    console.log("[saveCompletedWorkout] Guardando datos en completed_workouts:", {
+      workoutId,
+      planId,
+      actualDistance,
+      actualDuration
+    });
+
+    const { data, error } = await supabase
+      .from('completed_workouts')
+      .insert({
+        workout_id: workoutId,
+        plan_id: planId,
+        actual_distance: actualDistance,
+        actual_duration: actualDuration
+      })
+      .select();
+
+    if (error) {
+      console.error("[saveCompletedWorkout] Error guardando en completed_workouts:", error);
+      return false;
+    }
+
+    console.log("[saveCompletedWorkout] Datos guardados exitosamente:", data);
+    return true;
+  } catch (error: any) {
+    console.error("[saveCompletedWorkout] Error inesperado:", error);
+    return false;
+  }
+};
+
+/**
+ * Updates the results of a specific workout in Supabase and saves to completed_workouts table
  */
 export const updateWorkoutResults = async (
   planId: string,
@@ -381,9 +422,16 @@ export const updateWorkoutResults = async (
       actualDuration 
     });
 
-    // Primero actualizar en Supabase
+    // Primero guardar en la nueva tabla completed_workouts
+    const savedToCompletedWorkouts = await saveCompletedWorkout(workoutId, planId, actualDistance, actualDuration);
+    
+    if (!savedToCompletedWorkouts) {
+      console.warn("[updateWorkoutResults] No se pudo guardar en completed_workouts, pero continuando...");
+    }
+
+    // Actualizar en training_sessions si no estamos en modo offline
     if (!isOfflineMode()) {
-      console.log("[updateWorkoutResults] Actualizando sesión en Supabase:", workoutId);
+      console.log("[updateWorkoutResults] Actualizando sesión en training_sessions:", workoutId);
       
       const updateData: any = {
         completed: true,
@@ -398,7 +446,7 @@ export const updateWorkoutResults = async (
         updateData.actual_duration = actualDuration.trim();
       }
       
-      console.log("[updateWorkoutResults] Datos a actualizar en Supabase:", updateData);
+      console.log("[updateWorkoutResults] Datos a actualizar en training_sessions:", updateData);
       
       const { data, error } = await supabase
         .from('training_sessions')
@@ -407,14 +455,14 @@ export const updateWorkoutResults = async (
         .select();
       
       if (error) {
-        console.error("[updateWorkoutResults] Error actualizando Supabase:", error);
+        console.error("[updateWorkoutResults] Error actualizando training_sessions:", error);
         throw error;
       }
       
-      console.log("[updateWorkoutResults] Sesión actualizada en Supabase:", data);
+      console.log("[updateWorkoutResults] Sesión actualizada en training_sessions:", data);
     }
 
-    // Después actualizar localStorage
+    // Actualizar localStorage
     const plan = await loadLatestPlan();
     if (!plan) {
       console.error("[updateWorkoutResults] No se pudo cargar el plan");
@@ -503,9 +551,6 @@ export const generateNextWeekPlan = async (currentPlan: WorkoutPlan): Promise<Wo
   }
 };
 
-/**
- * Generates a personalized training plan
- */
 export const generateTrainingPlan = async (request: TrainingPlanRequest): Promise<WorkoutPlan> => {
   try {
     console.log("Starting training plan generation...");

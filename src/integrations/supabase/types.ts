@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      completed_workouts: {
+        Row: {
+          actual_distance: number | null
+          actual_duration: string | null
+          completed_at: string
+          created_at: string
+          id: string
+          plan_id: string
+          workout_id: string
+        }
+        Insert: {
+          actual_distance?: number | null
+          actual_duration?: string | null
+          completed_at?: string
+          created_at?: string
+          id?: string
+          plan_id: string
+          workout_id: string
+        }
+        Update: {
+          actual_distance?: number | null
+          actual_duration?: string | null
+          completed_at?: string
+          created_at?: string
+          id?: string
+          plan_id?: string
+          workout_id?: string
+        }
+        Relationships: []
+      }
       fragments: {
         Row: {
           content: string | null
