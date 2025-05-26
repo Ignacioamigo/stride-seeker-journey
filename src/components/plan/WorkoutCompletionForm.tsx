@@ -10,7 +10,7 @@ interface WorkoutCompletionFormProps {
   workout: Workout;
   planId: string;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
-  onStatsUpdate?: () => void; // Nueva prop para actualizar estadísticas
+  onStatsUpdate?: () => void;
 }
 
 const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
@@ -23,7 +23,6 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
   const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Para entrenamientos de descanso, no necesitamos recopilar datos
   const isRestDay = workout.type === 'descanso';
   
   const handleSubmit = async (event: React.FormEvent) => {
@@ -31,7 +30,6 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
     
     setIsSubmitting(true);
     try {
-      // Conversión de tipos para la distancia
       const distanceValue = actualDistance && actualDistance.trim() ? parseFloat(actualDistance) : null;
       const durationValue = actualDuration && actualDuration.trim() ? actualDuration.trim() : null;
       
@@ -46,8 +44,12 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       
       // Actualizar estadísticas después de completar el entrenamiento
       if (onStatsUpdate) {
+        console.log("WorkoutCompletionForm: Actualizando estadísticas...");
         onStatsUpdate();
       }
+      
+      // Disparar evento global para actualizar todas las estadísticas
+      window.dispatchEvent(new CustomEvent('statsUpdated'));
       
       toast({
         title: "¡Entrenamiento completado!",

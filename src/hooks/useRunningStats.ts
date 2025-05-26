@@ -126,16 +126,32 @@ export const useRunningStats = () => {
 
       console.log('Calculando estadísticas para usuario:', currentUserId);
       
-      // Obtener entrenamientos realizados con JOIN a training_plans para filtrar por usuario
+      // Primero obtenemos los planes del usuario
+      const { data: userPlans, error: plansError } = await supabase
+        .from('training_plans')
+        .select('id')
+        .eq('user_id', currentUserId);
+
+      if (plansError) {
+        console.error('Error obteniendo planes del usuario:', plansError);
+        resetStats();
+        return;
+      }
+
+      if (!userPlans || userPlans.length === 0) {
+        console.log('No se encontraron planes para el usuario');
+        resetStats();
+        return;
+      }
+
+      const planIds = userPlans.map(plan => plan.id);
+      console.log('IDs de planes encontrados:', planIds);
+
+      // Ahora obtenemos los entrenamientos realizados para esos planes
       const { data: workouts, error } = await supabase
         .from('entrenamientos_realizados')
-        .select(`
-          *,
-          training_plans!inner (
-            user_id
-          )
-        `)
-        .eq('training_plans.user_id', currentUserId)
+        .select('*')
+        .in('plan_id', planIds)
         .order('completed_at', { ascending: false });
 
       if (error) {
@@ -377,10 +393,17 @@ export const useRunningStats = () => {
       resetStats();
     };
 
+    const handleStatsUpdated = () => {
+      console.log('Evento statsUpdated recibido, actualizando estadísticas...');
+      calculateStats();
+    };
+
     window.addEventListener('resetStats', handleResetStats);
+    window.addEventListener('statsUpdated', handleStatsUpdated);
     
     return () => {
       window.removeEventListener('resetStats', handleResetStats);
+      window.removeEventListener('statsUpdated', handleStatsUpdated);
     };
   }, []);
 
