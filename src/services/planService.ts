@@ -381,6 +381,7 @@ export const savePlan = async (plan: WorkoutPlan): Promise<void> => {
     
   } catch (error: any) {
     console.error("Error saving plan:", error);
+    
     // Ensure we at least save to localStorage
     localStorage.setItem('savedPlan', JSON.stringify(plan));
   }
@@ -508,7 +509,7 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 };
 
 /**
- * Saves completed workout data to the completed_workouts table - VERSIÓN FINAL ARREGLADA
+ * Saves completed workout data to the completed_workouts table - VERSIÓN SIMPLIFICADA SIN USER_ID
  */
 export const saveCompletedWorkout = async (
   workoutId: string,
@@ -525,43 +526,7 @@ export const saveCompletedWorkout = async (
       actualDuration
     });
 
-    // PASO 1: Obtener el perfil de usuario desde localStorage
-    const savedUser = localStorage.getItem('runAdaptiveUser');
-    if (!savedUser) {
-      console.error("[saveCompletedWorkout] No se encontró perfil de usuario en localStorage");
-      return false;
-    }
-
-    const userProfile: UserProfile = JSON.parse(savedUser);
-    console.log("[saveCompletedWorkout] Perfil de usuario obtenido:", userProfile);
-
-    // PASO 2: Asegurar que el perfil existe en Supabase
-    const userId = await ensureUserProfileInSupabase(userProfile);
-    
-    if (!userId) {
-      console.error("[saveCompletedWorkout] No se pudo crear/verificar perfil en Supabase");
-      
-      // Fallback a localStorage solamente
-      const completedWorkoutRecord = {
-        id: uuidv4(),
-        workoutId,
-        planId,
-        actualDistance,
-        actualDuration,
-        userId: userProfile.id || 'fallback-user',
-        completedAt: new Date().toISOString()
-      };
-      
-      const existingCompletedWorkouts = localStorage.getItem('completedWorkouts');
-      const completedWorkouts = existingCompletedWorkouts ? JSON.parse(existingCompletedWorkouts) : [];
-      completedWorkouts.push(completedWorkoutRecord);
-      localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
-      
-      console.log("[saveCompletedWorkout] Guardado solo en localStorage como fallback");
-      return true;
-    }
-
-    // PASO 3: Validar que los IDs sean UUIDs válidos
+    // Validar que los IDs sean UUIDs válidos
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     
     if (!uuidRegex.test(workoutId)) {
@@ -574,10 +539,9 @@ export const saveCompletedWorkout = async (
       planId = uuidv4();
     }
 
-    // PASO 4: Intentar guardar en Supabase
+    // Intentar guardar en Supabase (SIN user_id)
     console.log("[saveCompletedWorkout] Intentando guardar en Supabase...");
     console.log("[saveCompletedWorkout] Datos finales para insertar:", {
-      user_id: userId,
       workout_id: workoutId,
       plan_id: planId,
       actual_distance: actualDistance,
@@ -587,7 +551,6 @@ export const saveCompletedWorkout = async (
     const { data, error } = await supabase
       .from('completed_workouts')
       .insert({
-        user_id: userId,
         workout_id: workoutId,
         plan_id: planId,
         actual_distance: actualDistance,
@@ -605,7 +568,6 @@ export const saveCompletedWorkout = async (
         planId,
         actualDistance,
         actualDuration,
-        userId,
         completedAt: new Date().toISOString()
       };
       
@@ -627,7 +589,6 @@ export const saveCompletedWorkout = async (
       planId,
       actualDistance,
       actualDuration,
-      userId,
       completedAt: new Date().toISOString()
     };
     
@@ -648,7 +609,6 @@ export const saveCompletedWorkout = async (
         planId,
         actualDistance,
         actualDuration,
-        userId: "fallback-user",
         completedAt: new Date().toISOString()
       };
       
@@ -683,7 +643,7 @@ export const updateWorkoutResults = async (
       actualDuration 
     });
 
-    // PASO 1: Intentar guardar en la tabla completed_workouts (ARREGLADO)
+    // PASO 1: Guardar en la tabla completed_workouts (SIMPLIFICADO)
     console.log("[updateWorkoutResults] PASO 1: Guardando en completed_workouts...");
     const savedToCompletedWorkouts = await saveCompletedWorkout(workoutId, planId, actualDistance, actualDuration);
     
