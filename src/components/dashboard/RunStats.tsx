@@ -1,5 +1,5 @@
 
-import { BarChart2 } from "lucide-react";
+import { BarChart2, Clock } from "lucide-react";
 import { useRunningStats } from "@/hooks/useRunningStats";
 
 interface StatsCardProps {
@@ -61,15 +61,16 @@ const RunStats: React.FC = () => {
         <StatsCard 
           title="Ritmo promedio" 
           value={stats.averagePace} 
-          subtext={`Promedio de ${stats.averageDistancePerRun} km por carrera`} 
+          subtext="Tiempo/distancia global" 
           change={stats.paceImprovement !== 0 ? `${Math.abs(stats.paceImprovement)}% vs. mes anterior` : undefined} 
           positive={stats.paceImprovement > 0} 
           isLoading={isLoading}
         />
         <StatsCard 
-          title="Calorías" 
-          value={stats.weeklyCalories.toLocaleString()} 
-          subtext="Esta semana" 
+          title="Tiempo total" 
+          value={`${Math.floor(stats.monthlyTotalTime / 60)}h ${stats.monthlyTotalTime % 60}min`} 
+          subtext="Entre todas las carreras" 
+          icon={<Clock className="text-runapp-purple" size={18} />}
           isLoading={isLoading}
         />
       </div>
