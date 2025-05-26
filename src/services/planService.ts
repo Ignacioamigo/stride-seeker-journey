@@ -365,7 +365,7 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 };
 
 /**
- * Updates the results of a specific workout
+ * Updates the results of a specific workout in Supabase
  */
 export const updateWorkoutResults = async (
   planId: string,
@@ -374,71 +374,57 @@ export const updateWorkoutResults = async (
   actualDuration: string | null
 ): Promise<WorkoutPlan | null> => {
   try {
-    console.log("[updateWorkoutResults] INICIO", { 
+    console.log("[updateWorkoutResults] Iniciando actualización:", { 
       planId, 
       workoutId, 
       actualDistance, 
       actualDuration 
     });
-    
-    if (!workoutId || !planId) {
-      console.error("[updateWorkoutResults] ID del entrenamiento o plan faltante");
-      return null;
-    }
 
-    // First, try to update the database if online
+    // Primero actualizar en Supabase
     if (!isOfflineMode()) {
-      try {
-        console.log("[updateWorkoutResults] Actualizando en Supabase", { workoutId });
-        
-        const updateData: any = {
-          completed: true,
-          completion_date: new Date().toISOString()
-        };
-        
-        // Only include these fields if they have values
-        if (actualDistance !== null) {
-          updateData.actual_distance = actualDistance;
-        }
-        
-        if (actualDuration !== null) {
-          updateData.actual_duration = actualDuration;
-        }
-        
-        const { error } = await supabase
-          .from('training_sessions')
-          .update(updateData)
-          .eq('id', workoutId);
-          
-        if (error) {
-          console.error("[updateWorkoutResults] Error al actualizar en Supabase", error);
-          throw error; // Propagate the error to handle it in the catch block
-        }
-        
-        console.log("[updateWorkoutResults] Actualización en Supabase OK", { workoutId });
-      } catch (dbError) {
-        console.error("[updateWorkoutResults] Error de base de datos al actualizar entrenamiento", dbError);
-        // Don't throw here, continue with localStorage update
+      console.log("[updateWorkoutResults] Actualizando sesión en Supabase:", workoutId);
+      
+      const updateData: any = {
+        completed: true,
+        completion_date: new Date().toISOString()
+      };
+      
+      if (actualDistance !== null && actualDistance !== undefined) {
+        updateData.actual_distance = actualDistance;
       }
-    } else {
-      console.log("[updateWorkoutResults] Modo sin conexión - omitiendo actualización de base de datos");
+      
+      if (actualDuration !== null && actualDuration !== undefined && actualDuration.trim() !== '') {
+        updateData.actual_duration = actualDuration.trim();
+      }
+      
+      console.log("[updateWorkoutResults] Datos a actualizar en Supabase:", updateData);
+      
+      const { data, error } = await supabase
+        .from('training_sessions')
+        .update(updateData)
+        .eq('id', workoutId)
+        .select();
+      
+      if (error) {
+        console.error("[updateWorkoutResults] Error actualizando Supabase:", error);
+        throw error;
+      }
+      
+      console.log("[updateWorkoutResults] Sesión actualizada en Supabase:", data);
     }
 
-    // Then load and update the plan
+    // Después actualizar localStorage
     const plan = await loadLatestPlan();
     if (!plan) {
-      console.error("[updateWorkoutResults] Plan no encontrado");
-      return null;
-    }
-    
-    if (plan.id !== planId) {
-      console.error("[updateWorkoutResults] ID de plan no coincide", { planId, loadedPlanId: plan?.id });
+      console.error("[updateWorkoutResults] No se pudo cargar el plan");
       return null;
     }
 
-    // Update the workout in the plan
+    // Actualizar el workout en el plan
     const updatedWorkouts = plan.workouts.map(workout => {
       if (workout.id === workoutId) {
+        console.log("[updateWorkoutResults] Actualizando workout en plan:", workout.id);
         return {
           ...workout,
           completed: true,
@@ -451,22 +437,17 @@ export const updateWorkoutResults = async (
 
     const updatedPlan: WorkoutPlan = {
       ...plan,
-      workouts: updatedWorkouts,
-      ragActive: plan.ragActive // mantener el estado RAG
+      workouts: updatedWorkouts
     };
 
-    // Update localStorage
-    try {
-      localStorage.setItem('savedPlan', JSON.stringify(updatedPlan));
-      console.log("[updateWorkoutResults] Plan actualizado en localStorage", { planId });
-    } catch (lsError) {
-      console.error("[updateWorkoutResults] Error al actualizar localStorage", lsError);
-    }
+    // Guardar plan actualizado en localStorage
+    localStorage.setItem('savedPlan', JSON.stringify(updatedPlan));
+    console.log("[updateWorkoutResults] Plan actualizado en localStorage");
 
     return updatedPlan;
   } catch (error: any) {
-    console.error("[updateWorkoutResults] Error general", error);
-    return null;
+    console.error("[updateWorkoutResults] Error:", error);
+    throw error;
   }
 };
 

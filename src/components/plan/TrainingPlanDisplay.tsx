@@ -6,7 +6,7 @@ import { Calendar, Loader2, WifiOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import WorkoutCompletionForm from './WorkoutCompletionForm';
 import { updateWorkoutResults, generateNextWeekPlan } from '@/services/planService';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface TrainingPlanDisplayProps {
@@ -150,14 +150,13 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
     actualDuration: string | null
   ) => {
     try {
-      console.log("TrainingPlanDisplay: calling updateWorkoutResults with:", {
+      console.log("TrainingPlanDisplay: Iniciando actualización de workout:", {
         planId: plan.id,
         workoutId,
         actualDistance,
         actualDuration
       });
       
-      // Usar el servicio para actualizar el entrenamiento
       const updatedPlan = await updateWorkoutResults(
         plan.id,
         workoutId,
@@ -166,22 +165,25 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
       );
       
       if (updatedPlan) {
-        console.log("TrainingPlanDisplay: Plan updated successfully:", updatedPlan);
+        console.log("TrainingPlanDisplay: Plan actualizado exitosamente");
         onPlanUpdate(updatedPlan);
-      } else {
-        console.error("TrainingPlanDisplay: updateWorkoutResults returned null");
+        
+        // Colapsar el formulario después de completar
+        setExpandedWorkoutId(null);
+        
         toast({
-          title: "Error",
-          description: "No se pudo actualizar el entrenamiento. No se recibieron datos actualizados.",
-          variant: "destructive",
+          title: "Entrenamiento guardado",
+          description: "Los datos se han actualizado correctamente en Supabase.",
         });
+      } else {
+        throw new Error("No se recibió plan actualizado");
       }
     } catch (error) {
       console.error("TrainingPlanDisplay: Error al completar entrenamiento:", error);
       
       toast({
-        title: "Error al guardar datos",
-        description: "No se pudo actualizar el entrenamiento. Intenta de nuevo.",
+        title: "Error al guardar",
+        description: "No se pudieron actualizar los datos en Supabase. Inténtalo de nuevo.",
         variant: "destructive",
       });
     }

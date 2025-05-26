@@ -4,7 +4,7 @@ import { Workout } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 interface WorkoutCompletionFormProps {
   workout: Workout;
@@ -30,10 +30,10 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
     setIsSubmitting(true);
     try {
       // Conversión de tipos para la distancia
-      const distanceValue = actualDistance ? parseFloat(actualDistance) : null;
-      const durationValue = actualDuration.trim() || null;
+      const distanceValue = actualDistance && actualDistance.trim() ? parseFloat(actualDistance) : null;
+      const durationValue = actualDuration && actualDuration.trim() ? actualDuration.trim() : null;
       
-      console.log("Submitting workout completion:", {
+      console.log("WorkoutCompletionForm: Enviando datos:", {
         workoutId: workout.id,
         distanceValue,
         durationValue
@@ -43,10 +43,10 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       
       toast({
         title: "Entrenamiento completado",
-        description: "Los datos del entrenamiento se han guardado correctamente.",
+        description: "Los datos del entrenamiento se han guardado correctamente en Supabase.",
       });
     } catch (error) {
-      console.error("Error al guardar resultados:", error);
+      console.error("WorkoutCompletionForm: Error al guardar:", error);
       
       toast({
         title: "Error",
