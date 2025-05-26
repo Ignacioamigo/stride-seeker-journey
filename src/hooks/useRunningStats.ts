@@ -73,6 +73,16 @@ const convertMinutesToPace = (totalMinutes: number, totalDistance: number): stri
   return `${minutes}:${seconds.toString().padStart(2, '0')} min/km`;
 };
 
+// Función para obtener el ID del usuario actual
+const getCurrentUserId = (): string | null => {
+  const savedUser = localStorage.getItem('runAdaptiveUser');
+  if (savedUser) {
+    const userProfile = JSON.parse(savedUser);
+    return userProfile.id || null;
+  }
+  return null;
+};
+
 export const useRunningStats = () => {
   const [stats, setStats] = useState<RunningStats>({
     weeklyDistance: 0,
@@ -106,13 +116,39 @@ export const useRunningStats = () => {
     try {
       setIsLoading(true);
       
-      // TEMPORAL: Para demo sin autenticación, solo mostrar estadísticas vacías
-      // TODO: Cuando se implemente autenticación, filtrar por usuario
-      console.log('Calculando estadísticas (modo demo sin autenticación)');
-      resetStats();
+      const currentUserId = getCurrentUserId();
+      
+      if (!currentUserId) {
+        console.log('No se encontró ID de usuario, mostrando estadísticas vacías');
+        resetStats();
+        return;
+      }
+
+      console.log('Calculando estadísticas para usuario:', currentUserId);
+      
+      // Obtener entrenamientos realizados con JOIN a training_plans para filtrar por usuario
+      const { data: workouts, error } = await supabase
+        .from('entrenamientos_realizados')
+        .select(`
+          *,
+          training_plans!inner (
+            user_id
+          )
+        `)
+        .eq('training_plans.user_id', currentUserId)
+        .order('completed_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching workouts:', error);
+        resetStats();
+        return;
+      }
+
+      console.log('Entrenamientos encontrados para el usuario:', workouts?.length || 0);
+      calculateStatsFromData(workouts || []);
     } catch (error) {
       console.error('Error calculating stats:', error);
-      setIsLoading(false);
+      resetStats();
     }
   };
 

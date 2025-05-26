@@ -45,11 +45,49 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetUser = async () => {
-    // TEMPORAL: Para demo/desarrollo, solo resetear datos locales
-    // TODO: Implementar autenticación y eliminar solo datos del usuario actual
-    console.warn('Reiniciando onboarding - Solo datos locales (sin autenticación implementada)');
+    try {
+      const currentUserId = user.id;
+      
+      if (currentUserId) {
+        console.log('Eliminando entrenamientos del usuario:', currentUserId);
+        
+        // Eliminar entrenamientos realizados del usuario actual usando JOIN
+        const { error: entrenamientosError } = await supabase
+          .from('entrenamientos_realizados')
+          .delete()
+          .in('plan_id', 
+            supabase
+              .from('training_plans')
+              .select('id')
+              .eq('user_id', currentUserId)
+          );
+
+        if (entrenamientosError) {
+          console.error('Error eliminando entrenamientos realizados:', entrenamientosError);
+        }
+
+        // Eliminar entrenamientos completados del usuario actual usando JOIN
+        const { error: completedError } = await supabase
+          .from('completed_workouts')
+          .delete()
+          .in('plan_id', 
+            supabase
+              .from('training_plans')
+              .select('id')
+              .eq('user_id', currentUserId)
+          );
+
+        if (completedError) {
+          console.error('Error eliminando entrenamientos completados:', completedError);
+        }
+
+        console.log('Entrenamientos del usuario eliminados correctamente');
+      }
+    } catch (error) {
+      console.error('Error al eliminar entrenamientos del usuario:', error);
+    }
     
-    // Resetear solo el usuario local
+    // Resetear el usuario local
     setUser(defaultUser);
     localStorage.removeItem('runAdaptiveUser');
     
