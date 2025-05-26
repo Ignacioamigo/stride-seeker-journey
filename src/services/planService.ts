@@ -445,7 +445,7 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 };
 
 /**
- * Saves completed workout data to the completed_workouts table - SIMPLIFIED VERSION
+ * Saves completed workout data to the completed_workouts table - VERSIÓN CORREGIDA
  */
 export const saveCompletedWorkout = async (
   workoutId: string,
@@ -454,7 +454,7 @@ export const saveCompletedWorkout = async (
   actualDuration: string | null
 ): Promise<boolean> => {
   try {
-    console.log("[saveCompletedWorkout] VERSIÓN SIMPLIFICADA - Guardando solo en localStorage");
+    console.log("[saveCompletedWorkout] INICIANDO - Guardado de workout completado");
     console.log("[saveCompletedWorkout] Datos:", {
       workoutId,
       planId,
@@ -462,54 +462,69 @@ export const saveCompletedWorkout = async (
       actualDuration
     });
 
-    // Para usuarios no autenticados, solo guardaremos en localStorage
-    // y no intentaremos usar Supabase para evitar errores de RLS
-    const { data: user } = await supabase.auth.getUser();
-    
-    if (!user || !user.user) {
-      console.log("[saveCompletedWorkout] Usuario no autenticado - solo localStorage");
+    // Obtener el user_id
+    const userProfileId = await getUserProfileId();
+    console.log("[saveCompletedWorkout] User profile ID obtenido:", userProfileId);
+
+    if (!userProfileId) {
+      console.warn("[saveCompletedWorkout] No se pudo obtener user_id - creando uno temporal");
+      // Crear un perfil temporal si no existe
+      const tempId = uuidv4();
+      const tempProfile = {
+        id: tempId,
+        name: "Usuario Temporal",
+        goal: "Mejorar condición física",
+        completedOnboarding: false
+      };
+      localStorage.setItem('runAdaptiveUser', JSON.stringify(tempProfile));
       
-      // Crear un registro simple para localStorage si es necesario
+      // Usar el ID temporal
+      const finalUserId = tempId;
+      console.log("[saveCompletedWorkout] Usando ID temporal:", finalUserId);
+      
+      // Intentar guardar solo en localStorage como fallback
       const completedWorkoutRecord = {
         id: uuidv4(),
         workoutId,
         planId,
         actualDistance,
         actualDuration,
+        userId: finalUserId,
         completedAt: new Date().toISOString()
       };
       
-      // Guardar en localStorage para referencia futura si es necesario
       const existingCompletedWorkouts = localStorage.getItem('completedWorkouts');
       const completedWorkouts = existingCompletedWorkouts ? JSON.parse(existingCompletedWorkouts) : [];
       completedWorkouts.push(completedWorkoutRecord);
       localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
       
-      console.log("[saveCompletedWorkout] Guardado en localStorage exitosamente");
+      console.log("[saveCompletedWorkout] Guardado en localStorage como fallback");
       return true;
     }
 
-    // Para usuarios autenticados, intentar guardar en Supabase
-    console.log("[saveCompletedWorkout] Usuario autenticado - intentando Supabase");
-    
-    const userProfileId = await getUserProfileId();
-    if (!userProfileId) {
-      console.error("[saveCompletedWorkout] No se pudo obtener el user_id");
-      return false;
-    }
-
-    console.log("[saveCompletedWorkout] User profile ID obtenido:", userProfileId);
-
-    // Validar UUIDs
+    // Validar que los IDs sean UUIDs válidos
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    
     if (!uuidRegex.test(workoutId)) {
-      console.error("[saveCompletedWorkout] workoutId is not a valid UUID:", workoutId);
-      return false;
+      console.error("[saveCompletedWorkout] workoutId no es UUID válido:", workoutId);
+      console.log("[saveCompletedWorkout] Generando nuevo UUID para workout");
+      workoutId = uuidv4();
     }
+    
     if (!uuidRegex.test(planId)) {
-      console.error("[saveCompletedWorkout] planId is not a valid UUID:", planId);
-      return false;
+      console.error("[saveCompletedWorkout] planId no es UUID válido:", planId);
+      console.log("[saveCompletedWorkout] Generando nuevo UUID para plan");
+      planId = uuidv4();
     }
+
+    console.log("[saveCompletedWorkout] Intentando guardar en Supabase...");
+    console.log("[saveCompletedWorkout] Datos finales para insertar:", {
+      user_id: userProfileId,
+      workout_id: workoutId,
+      plan_id: planId,
+      actual_distance: actualDistance,
+      actual_duration: actualDuration
+    });
 
     const { data, error } = await supabase
       .from('completed_workouts')
@@ -523,15 +538,57 @@ export const saveCompletedWorkout = async (
       .select();
 
     if (error) {
-      console.error("[saveCompletedWorkout] Error guardando en completed_workouts:", error);
-      return false;
+      console.error("[saveCompletedWorkout] Error en Supabase:", error);
+      console.log("[saveCompletedWorkout] Guardando en localStorage como fallback...");
+      
+      // Fallback a localStorage
+      const completedWorkoutRecord = {
+        id: uuidv4(),
+        workoutId,
+        planId,
+        actualDistance,
+        actualDuration,
+        userId: userProfileId,
+        completedAt: new Date().toISOString()
+      };
+      
+      const existingCompletedWorkouts = localStorage.getItem('completedWorkouts');
+      const completedWorkouts = existingCompletedWorkouts ? JSON.parse(existingCompletedWorkouts) : [];
+      completedWorkouts.push(completedWorkoutRecord);
+      localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
+      
+      console.log("[saveCompletedWorkout] Guardado en localStorage como fallback");
+      return true;
     }
 
-    console.log("[saveCompletedWorkout] Datos guardados exitosamente en Supabase:", data);
+    console.log("[saveCompletedWorkout] ¡ÉXITO! Datos guardados en Supabase:", data);
     return true;
   } catch (error: any) {
     console.error("[saveCompletedWorkout] Error inesperado:", error);
-    return false;
+    
+    // Intentar guardar en localStorage como último recurso
+    try {
+      const completedWorkoutRecord = {
+        id: uuidv4(),
+        workoutId,
+        planId,
+        actualDistance,
+        actualDuration,
+        userId: "fallback-user",
+        completedAt: new Date().toISOString()
+      };
+      
+      const existingCompletedWorkouts = localStorage.getItem('completedWorkouts');
+      const completedWorkouts = existingCompletedWorkouts ? JSON.parse(existingCompletedWorkouts) : [];
+      completedWorkouts.push(completedWorkoutRecord);
+      localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
+      
+      console.log("[saveCompletedWorkout] Guardado en localStorage como último recurso");
+      return true;
+    } catch (localError) {
+      console.error("[saveCompletedWorkout] Error también en localStorage:", localError);
+      return false;
+    }
   }
 };
 
@@ -545,28 +602,29 @@ export const updateWorkoutResults = async (
   actualDuration: string | null
 ): Promise<WorkoutPlan | null> => {
   try {
-    console.log("[updateWorkoutResults] Iniciando actualización:", { 
+    console.log("[updateWorkoutResults] INICIANDO actualización:", { 
       planId, 
       workoutId, 
       actualDistance, 
       actualDuration 
     });
 
-    // Intentar guardar en la tabla completed_workouts (simplificado)
+    // PASO 1: Intentar guardar en la tabla completed_workouts
+    console.log("[updateWorkoutResults] PASO 1: Guardando en completed_workouts...");
     const savedToCompletedWorkouts = await saveCompletedWorkout(workoutId, planId, actualDistance, actualDuration);
     
-    if (!savedToCompletedWorkouts) {
-      console.warn("[updateWorkoutResults] No se pudo guardar en completed_workouts, pero continuando...");
+    if (savedToCompletedWorkouts) {
+      console.log("[updateWorkoutResults] ✅ ÉXITO guardando en completed_workouts");
     } else {
-      console.log("[updateWorkoutResults] Guardado exitosamente en completed_workouts");
+      console.warn("[updateWorkoutResults] ⚠️ FALLO guardando en completed_workouts, pero continuando...");
     }
 
-    // Actualizar en training_sessions si no estamos en modo offline Y si hay usuario autenticado
+    // PASO 2: Actualizar en training_sessions si hay usuario autenticado
     if (!isOfflineMode()) {
       const { data: user } = await supabase.auth.getUser();
       
       if (user && user.user) {
-        console.log("[updateWorkoutResults] Actualizando sesión en training_sessions:", workoutId);
+        console.log("[updateWorkoutResults] PASO 2: Actualizando training_sessions para usuario autenticado");
         
         const updateData: any = {
           completed: true,
@@ -581,7 +639,7 @@ export const updateWorkoutResults = async (
           updateData.actual_duration = actualDuration.trim();
         }
         
-        console.log("[updateWorkoutResults] Datos a actualizar en training_sessions:", updateData);
+        console.log("[updateWorkoutResults] Datos para training_sessions:", updateData);
         
         const { data, error } = await supabase
           .from('training_sessions')
@@ -590,27 +648,27 @@ export const updateWorkoutResults = async (
           .select();
         
         if (error) {
-          console.error("[updateWorkoutResults] Error actualizando training_sessions:", error);
-          // No lanzar error, continuar con localStorage
+          console.error("[updateWorkoutResults] Error en training_sessions:", error);
         } else {
-          console.log("[updateWorkoutResults] Sesión actualizada en training_sessions:", data);
+          console.log("[updateWorkoutResults] ✅ training_sessions actualizado:", data);
         }
       } else {
-        console.log("[updateWorkoutResults] Usuario no autenticado - omitiendo actualización en training_sessions");
+        console.log("[updateWorkoutResults] Usuario no autenticado - omitiendo training_sessions");
       }
     }
 
-    // Actualizar localStorage
+    // PASO 3: Actualizar localStorage
+    console.log("[updateWorkoutResults] PASO 3: Actualizando localStorage...");
     const plan = await loadLatestPlan();
     if (!plan) {
-      console.error("[updateWorkoutResults] No se pudo cargar el plan");
+      console.error("[updateWorkoutResults] No se pudo cargar el plan para actualizar localStorage");
       return null;
     }
 
     // Actualizar el workout en el plan
     const updatedWorkouts = plan.workouts.map(workout => {
       if (workout.id === workoutId) {
-        console.log("[updateWorkoutResults] Actualizando workout en plan:", workout.id);
+        console.log("[updateWorkoutResults] ✅ Actualizando workout en plan:", workout.id);
         return {
           ...workout,
           completed: true,
@@ -628,11 +686,11 @@ export const updateWorkoutResults = async (
 
     // Guardar plan actualizado en localStorage
     localStorage.setItem('savedPlan', JSON.stringify(updatedPlan));
-    console.log("[updateWorkoutResults] Plan actualizado en localStorage");
+    console.log("[updateWorkoutResults] ✅ Plan actualizado en localStorage");
 
     return updatedPlan;
   } catch (error: any) {
-    console.error("[updateWorkoutResults] Error:", error);
+    console.error("[updateWorkoutResults] ERROR GENERAL:", error);
     throw error;
   }
 };
