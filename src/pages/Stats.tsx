@@ -1,12 +1,12 @@
 
 import BottomNav from "@/components/layout/BottomNav";
-import { useRunningStats } from "@/hooks/useRunningStats";
+import { useStats } from "@/context/StatsContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 
 const Stats: React.FC = () => {
-  const { stats, isLoading } = useRunningStats();
+  const { stats, isLoading } = useStats();
 
   const chartConfig = {
     distance: {

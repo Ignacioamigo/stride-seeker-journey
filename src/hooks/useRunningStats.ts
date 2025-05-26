@@ -384,28 +384,9 @@ export const useRunningStats = () => {
   }, []);
 
   const refreshStats = () => {
+    console.log('useRunningStats: refreshStats llamado');
     calculateStats();
   };
-
-  useEffect(() => {
-    const handleResetStats = () => {
-      console.log('Evento resetStats recibido, reseteando estadísticas...');
-      resetStats();
-    };
-
-    const handleStatsUpdated = () => {
-      console.log('Evento statsUpdated recibido, actualizando estadísticas...');
-      calculateStats();
-    };
-
-    window.addEventListener('resetStats', handleResetStats);
-    window.addEventListener('statsUpdated', handleStatsUpdated);
-    
-    return () => {
-      window.removeEventListener('resetStats', handleResetStats);
-      window.removeEventListener('statsUpdated', handleStatsUpdated);
-    };
-  }, []);
 
   return {
     stats,
