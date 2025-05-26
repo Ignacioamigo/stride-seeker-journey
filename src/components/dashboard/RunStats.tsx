@@ -61,15 +61,15 @@ const RunStats: React.FC = () => {
         <StatsCard 
           title="Ritmo promedio" 
           value={stats.averagePace} 
-          subtext="Tiempo/distancia global" 
+          subtext="Tiempo/km global" 
           change={stats.paceImprovement !== 0 ? `${Math.abs(stats.paceImprovement)}% vs. mes anterior` : undefined} 
           positive={stats.paceImprovement > 0} 
           isLoading={isLoading}
         />
         <StatsCard 
-          title="Tiempo total" 
-          value={`${Math.floor(stats.monthlyTotalTime / 60)}h ${stats.monthlyTotalTime % 60}min`} 
-          subtext="Entre todas las carreras" 
+          title="Promedio distancia" 
+          value={`${stats.averageDistancePerRun} km`} 
+          subtext="Por carrera" 
           icon={<Clock className="text-runapp-purple" size={18} />}
           isLoading={isLoading}
         />

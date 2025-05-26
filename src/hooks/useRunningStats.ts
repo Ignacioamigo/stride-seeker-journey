@@ -161,10 +161,11 @@ export const useRunningStats = () => {
     // Total de carreras
     const totalRuns = validWorkouts.length;
 
-    // Promedio de distancia por carrera
-    const averageDistancePerRun = totalRuns > 0 ? weeklyDistance / validThisWeekWorkouts.length : 0;
+    // Promedio de distancia por carrera - CORREGIDO
+    const totalDistanceAllRuns = validWorkouts.reduce((sum, w) => sum + w.actual_distance, 0);
+    const averageDistancePerRun = totalRuns > 0 ? totalDistanceAllRuns / totalRuns : 0;
 
-    // Calcular tiempo total y ritmo promedio
+    // Calcular tiempo total y ritmo promedio global - CORREGIDO
     let totalTimeMinutes = 0;
     let totalDistance = 0;
 
@@ -176,7 +177,7 @@ export const useRunningStats = () => {
       }
     });
 
-    const averagePace = convertMinutesToPace(totalTimeMinutes, totalDistance);
+    const averagePace = totalDistance > 0 ? convertMinutesToPace(totalTimeMinutes, totalDistance) : "0:00 min/km";
 
     // Calorías estimadas (aproximadamente 60 cal por km)
     const weeklyCalories = Math.round(weeklyDistance * 60);
@@ -234,13 +235,13 @@ export const useRunningStats = () => {
 
     // Variación de distancia
     const distanceVariation = previousMonthDistance > 0 ? 
-      ((monthlyDistance - previousMonthDistance) / previousMonthDistance) * 100 : 0;
+      Math.round(((monthlyDistance - previousMonthDistance) / previousMonthDistance) * 100) : 0;
 
     // Variación de ritmo (positivo = más rápido)
     const currentPaceMinutes = monthlyTotalTime / monthlyTotalDistance;
     const previousPaceMinutes = previousMonthTotalTime / previousMonthTotalDistance;
     const paceVariation = previousPaceMinutes > 0 ? 
-      ((previousPaceMinutes - currentPaceMinutes) / previousPaceMinutes) * 100 : 0;
+      Math.round(((previousPaceMinutes - currentPaceMinutes) / previousPaceMinutes) * 100) : 0;
 
     // Datos semanales por día
     const weeklyData = [];
@@ -270,14 +271,14 @@ export const useRunningStats = () => {
       weeklyCalories,
       averageDistancePerRun: Math.round(averageDistancePerRun * 10) / 10,
       monthlyDistance: Math.round(monthlyDistance * 10) / 10,
-      paceImprovement: Math.round(paceVariation),
+      paceImprovement: paceVariation,
       weeklyData,
       monthlyTotalTime: Math.round(monthlyTotalTime),
       monthlyAveragePace,
       longestRun: Math.round(longestRun * 10) / 10,
       bestPace,
-      distanceVariation: Math.round(distanceVariation),
-      paceVariation: Math.round(paceVariation),
+      distanceVariation,
+      paceVariation,
       previousMonthDistance: Math.round(previousMonthDistance * 10) / 10,
       previousMonthAveragePace
     });
