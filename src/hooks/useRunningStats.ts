@@ -106,19 +106,10 @@ export const useRunningStats = () => {
     try {
       setIsLoading(true);
       
-      // Obtener todos los entrenamientos realizados
-      const { data: workouts, error } = await supabase
-        .from('entrenamientos_realizados')
-        .select('*')
-        .order('completed_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching workouts:', error);
-        setIsLoading(false);
-        return;
-      }
-
-      calculateStatsFromData(workouts || []);
+      // TEMPORAL: Para demo sin autenticación, solo mostrar estadísticas vacías
+      // TODO: Cuando se implemente autenticación, filtrar por usuario
+      console.log('Calculando estadísticas (modo demo sin autenticación)');
+      resetStats();
     } catch (error) {
       console.error('Error calculating stats:', error);
       setIsLoading(false);
@@ -340,15 +331,14 @@ export const useRunningStats = () => {
     calculateStats();
   }, []);
 
-  // Función para refrescar las estadísticas
   const refreshStats = () => {
     calculateStats();
   };
 
   useEffect(() => {
     const handleResetStats = () => {
-      console.log('Evento resetStats recibido, recalculando estadísticas...');
-      calculateStats();
+      console.log('Evento resetStats recibido, reseteando estadísticas...');
+      resetStats();
     };
 
     window.addEventListener('resetStats', handleResetStats);

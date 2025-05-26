@@ -45,33 +45,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetUser = async () => {
-    try {
-      // Eliminar todos los entrenamientos realizados de la base de datos
-      const { error: entrenamientosError } = await supabase
-        .from('entrenamientos_realizados')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Eliminar todos los registros
-
-      if (entrenamientosError) {
-        console.error('Error eliminando entrenamientos realizados:', entrenamientosError);
-      }
-
-      // Eliminar todos los entrenamientos completados de la base de datos
-      const { error: completedError } = await supabase
-        .from('completed_workouts')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Eliminar todos los registros
-
-      if (completedError) {
-        console.error('Error eliminando entrenamientos completados:', completedError);
-      }
-
-      console.log('Entrenamientos eliminados de la base de datos');
-    } catch (error) {
-      console.error('Error al eliminar entrenamientos:', error);
-    }
-
-    // Resetear el usuario local
+    // TEMPORAL: Para demo/desarrollo, solo resetear datos locales
+    // TODO: Implementar autenticación y eliminar solo datos del usuario actual
+    console.warn('Reiniciando onboarding - Solo datos locales (sin autenticación implementada)');
+    
+    // Resetear solo el usuario local
     setUser(defaultUser);
     localStorage.removeItem('runAdaptiveUser');
     
