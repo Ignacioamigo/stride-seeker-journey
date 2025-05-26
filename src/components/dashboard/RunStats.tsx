@@ -1,5 +1,6 @@
 
 import { BarChart2 } from "lucide-react";
+import { useRunningStats } from "@/hooks/useRunningStats";
 
 interface StatsCardProps {
   title: string;
@@ -8,15 +9,18 @@ interface StatsCardProps {
   change?: string;
   positive?: boolean;
   icon?: React.ReactNode;
+  isLoading?: boolean;
 }
 
-const StatsCard: React.FC<StatsCardProps> = ({ title, value, subtext, change, positive, icon }) => {
+const StatsCard: React.FC<StatsCardProps> = ({ title, value, subtext, change, positive, icon, isLoading }) => {
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm">
       <div className="flex justify-between items-start">
         <div>
           <h3 className="text-sm text-runapp-gray mb-1">{title}</h3>
-          <p className="text-2xl font-bold text-runapp-navy">{value}</p>
+          <p className="text-2xl font-bold text-runapp-navy">
+            {isLoading ? "..." : value}
+          </p>
           <p className="text-xs text-runapp-gray">{subtext}</p>
           {change && (
             <p className={`text-xs mt-1 ${positive ? 'text-green-500' : 'text-red-500'} flex items-center`}>
@@ -33,6 +37,8 @@ const StatsCard: React.FC<StatsCardProps> = ({ title, value, subtext, change, po
 };
 
 const RunStats: React.FC = () => {
+  const { stats, isLoading } = useRunningStats();
+
   return (
     <div className="mb-8">
       <h2 className="text-xl font-bold text-runapp-navy mb-4">Estadísticas</h2>
@@ -40,27 +46,31 @@ const RunStats: React.FC = () => {
       <div className="grid grid-cols-2 gap-4">
         <StatsCard 
           title="Distancia Semanal" 
-          value="18.5 km" 
+          value={`${stats.weeklyDistance} km`} 
           subtext="Esta semana" 
-          change="12% vs. semana anterior" 
-          positive={true} 
+          change={stats.weeklyDistance > 0 ? "Activo" : "Sin actividad"} 
+          positive={stats.weeklyDistance > 0} 
+          isLoading={isLoading}
         />
         <StatsCard 
           title="Total de carreras" 
-          value="12" 
-          subtext="Este mes" 
+          value={stats.totalRuns} 
+          subtext="Completadas" 
+          isLoading={isLoading}
         />
         <StatsCard 
           title="Ritmo promedio" 
-          value="5:20 min/km" 
-          subtext="Últimas 5 carreras" 
-          change="5% vs. semana anterior" 
-          positive={true} 
+          value={stats.averagePace} 
+          subtext={`Promedio de ${stats.averageDistancePerRun} km por carrera`} 
+          change={stats.paceImprovement !== 0 ? `${Math.abs(stats.paceImprovement)}% vs. mes anterior` : undefined} 
+          positive={stats.paceImprovement > 0} 
+          isLoading={isLoading}
         />
         <StatsCard 
           title="Calorías" 
-          value="2,480" 
+          value={stats.weeklyCalories.toLocaleString()} 
           subtext="Esta semana" 
+          isLoading={isLoading}
         />
       </div>
     </div>

@@ -1,17 +1,9 @@
 
 import BottomNav from "@/components/layout/BottomNav";
-import { BarChart } from "recharts";
+import { useRunningStats } from "@/hooks/useRunningStats";
 
 const Stats: React.FC = () => {
-  const weeklyData = [
-    { day: 'Lun', distance: 3.2 },
-    { day: 'Mar', distance: 0 },
-    { day: 'Mié', distance: 5.7 },
-    { day: 'Jue', distance: 2.1 },
-    { day: 'Vie', distance: 0 },
-    { day: 'Sáb', distance: 7.4 },
-    { day: 'Dom', distance: 0 },
-  ];
+  const { stats, isLoading } = useRunningStats();
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -24,14 +16,13 @@ const Stats: React.FC = () => {
           <h2 className="text-lg font-medium text-runapp-navy mb-2">Distancia esta semana</h2>
           
           <div className="h-40 w-full">
-            {/* Recharts would go here in full implementation */}
             <div className="h-full w-full flex items-end justify-between">
-              {weeklyData.map((day) => (
+              {stats.weeklyData.map((day) => (
                 <div key={day.day} className="flex flex-col items-center w-1/7">
                   <div 
                     className="w-5/6 bg-runapp-light-purple rounded-sm" 
                     style={{ 
-                      height: `${(day.distance / Math.max(...weeklyData.map(d => d.distance))) * 70}%`,
+                      height: `${stats.weeklyData.length > 0 ? (day.distance / Math.max(...stats.weeklyData.map(d => d.distance))) * 70 : 0}%`,
                       minHeight: day.distance > 0 ? '10%' : '0%'
                     }}
                   ></div>
@@ -41,26 +32,45 @@ const Stats: React.FC = () => {
             </div>
           </div>
           
-          <p className="text-sm text-runapp-gray mt-2">Total: 18.4 km • Promedio: 3.07 km por carrera</p>
+          <p className="text-sm text-runapp-gray mt-2">
+            {isLoading ? "Cargando..." : `Total: ${stats.weeklyDistance} km • Promedio: ${stats.averageDistancePerRun} km por carrera`}
+          </p>
         </div>
         
         <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
           <h2 className="text-lg font-medium text-runapp-navy mb-2">Progreso mensual</h2>
-          {/* Placeholder for the monthly progress chart */}
           <div className="h-40 bg-gray-100 rounded flex items-center justify-center">
-            <p className="text-runapp-gray">Gráfico de progreso mensual</p>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-runapp-navy">
+                {isLoading ? "..." : `${stats.monthlyDistance} km`}
+              </p>
+              <p className="text-runapp-gray">Distancia este mes</p>
+            </div>
           </div>
         </div>
         
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <h2 className="text-lg font-medium text-runapp-navy mb-2">Mejora de ritmo</h2>
-          {/* Placeholder for the pace improvement chart */}
           <div className="h-40 bg-gray-100 rounded flex items-center justify-center">
-            <p className="text-runapp-gray">Gráfico de mejora de ritmo</p>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-runapp-navy">
+                {isLoading ? "..." : stats.averagePace}
+              </p>
+              <p className="text-runapp-gray">Ritmo promedio actual</p>
+            </div>
           </div>
-          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-            ¡Estás mejorando! Tu ritmo ha disminuido un 16% en el último mes.
-          </div>
+          {stats.paceImprovement !== 0 && (
+            <div className={`mt-3 p-3 border rounded-lg text-sm ${
+              stats.paceImprovement > 0 
+                ? 'bg-green-50 border-green-200 text-green-700' 
+                : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+            }`}>
+              {stats.paceImprovement > 0 
+                ? `¡Estás mejorando! Tu rendimiento ha aumentado un ${stats.paceImprovement}% este mes.`
+                : `Mantén el ritmo. Pequeños cambios en el entrenamiento pueden mejorar tu rendimiento.`
+              }
+            </div>
+          )}
         </div>
       </div>
       

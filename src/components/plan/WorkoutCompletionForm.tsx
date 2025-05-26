@@ -10,12 +10,14 @@ interface WorkoutCompletionFormProps {
   workout: Workout;
   planId: string;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
+  onStatsUpdate?: () => void; // Nueva prop para actualizar estadísticas
 }
 
 const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
   workout, 
   planId, 
-  onComplete
+  onComplete,
+  onStatsUpdate
 }) => {
   const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
   const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
@@ -42,9 +44,14 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       
       await onComplete(workout.id, distanceValue, durationValue);
       
+      // Actualizar estadísticas después de completar el entrenamiento
+      if (onStatsUpdate) {
+        onStatsUpdate();
+      }
+      
       toast({
         title: "¡Entrenamiento completado!",
-        description: "Los datos se han guardado correctamente en la tabla entrenamientos_realizados.",
+        description: "Los datos se han guardado correctamente y las estadísticas se han actualizado.",
       });
     } catch (error) {
       console.error("WorkoutCompletionForm: Error al guardar:", error);
