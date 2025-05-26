@@ -169,15 +169,21 @@ export const useRunningStats = () => {
     let totalTimeMinutes = 0;
     let totalDistance = 0;
 
+    console.log('Calculando ritmo promedio para', validWorkouts.length, 'entrenamientos');
+
     validWorkouts.forEach(w => {
       if (w.actual_duration && w.actual_distance) {
         const timeInMinutes = convertDurationToMinutes(w.actual_duration);
         totalTimeMinutes += timeInMinutes;
         totalDistance += w.actual_distance;
+        console.log(`Entrenamiento: ${w.actual_distance}km en ${timeInMinutes}min (${w.actual_duration})`);
       }
     });
 
+    console.log(`Total: ${totalDistance}km en ${totalTimeMinutes}min`);
+
     const averagePace = totalDistance > 0 ? convertMinutesToPace(totalTimeMinutes, totalDistance) : "0:00 min/km";
+    console.log('Ritmo promedio calculado:', averagePace);
 
     // Calorías estimadas (aproximadamente 60 cal por km)
     const weeklyCalories = Math.round(weeklyDistance * 60);
