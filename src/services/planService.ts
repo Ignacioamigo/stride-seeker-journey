@@ -56,6 +56,63 @@ export const uploadTrainingDocument = async (file: File): Promise<boolean> => {
 };
 
 /**
+ * Gets the user profile ID from the database or creates one if it doesn't exist
+ */
+export const getUserProfileId = async (): Promise<string | null> => {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user || !user.user) {
+      console.log("No authenticated user found");
+      
+      // If no authenticated user, try to get/create a profile from localStorage
+      const savedUser = localStorage.getItem('runAdaptiveUser');
+      if (savedUser) {
+        const userProfile: UserProfile = JSON.parse(savedUser);
+        
+        // Try to find existing profile or create a new one
+        if (userProfile.id) {
+          return userProfile.id;
+        } else {
+          // Create a temporary ID for localStorage-only users
+          const tempId = uuidv4();
+          const updatedProfile = { ...userProfile, id: tempId };
+          localStorage.setItem('runAdaptiveUser', JSON.stringify(updatedProfile));
+          return tempId;
+        }
+      }
+      return null;
+    }
+    
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_auth_id', user.user.id)
+      .single();
+    
+    return userProfile?.id || null;
+  } catch (error) {
+    console.error("Error getting user profile ID:", error);
+    
+    // Fallback to localStorage
+    const savedUser = localStorage.getItem('runAdaptiveUser');
+    if (savedUser) {
+      const userProfile: UserProfile = JSON.parse(savedUser);
+      if (userProfile.id) {
+        return userProfile.id;
+      } else {
+        // Create a temporary ID for localStorage-only users
+        const tempId = uuidv4();
+        const updatedProfile = { ...userProfile, id: tempId };
+        localStorage.setItem('runAdaptiveUser', JSON.stringify(updatedProfile));
+        return tempId;
+      }
+    }
+    return null;
+  }
+};
+
+/**
  * Creates or updates a user profile in the database
  */
 export const saveUserProfile = async (userProfile: UserProfile): Promise<UserProfile | null> => {
@@ -65,8 +122,9 @@ export const saveUserProfile = async (userProfile: UserProfile): Promise<UserPro
     if (!user || !user.user) {
       console.error("No authenticated user found");
       // Just save to localStorage if not authenticated
-      localStorage.setItem('runAdaptiveUser', JSON.stringify(userProfile));
-      return userProfile;
+      const profileWithId = userProfile.id ? userProfile : { ...userProfile, id: uuidv4() };
+      localStorage.setItem('runAdaptiveUser', JSON.stringify(profileWithId));
+      return profileWithId;
     }
     
     // Check if profile exists
@@ -127,42 +185,19 @@ export const saveUserProfile = async (userProfile: UserProfile): Promise<UserPro
     }
     
     // Save to localStorage too for offline access
-    localStorage.setItem('runAdaptiveUser', JSON.stringify(userProfile));
-    
-    return {
+    const profileWithId = {
       ...userProfile,
       id: profile.id
     };
+    localStorage.setItem('runAdaptiveUser', JSON.stringify(profileWithId));
+    
+    return profileWithId;
   } catch (error: any) {
     console.error("Error saving user profile:", error);
     // If DB saving fails, at least save to localStorage
-    localStorage.setItem('runAdaptiveUser', JSON.stringify(userProfile));
-    return userProfile;
-  }
-};
-
-/**
- * Gets the user profile ID from the database
- */
-const getUserProfileId = async (): Promise<string | null> => {
-  try {
-    const { data: user } = await supabase.auth.getUser();
-    
-    if (!user || !user.user) {
-      console.log("No authenticated user found");
-      return null;
-    }
-    
-    const { data: userProfile } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('user_auth_id', user.user.id)
-      .single();
-    
-    return userProfile?.id || null;
-  } catch (error) {
-    console.error("Error getting user profile ID:", error);
-    return null;
+    const profileWithId = userProfile.id ? userProfile : { ...userProfile, id: uuidv4() };
+    localStorage.setItem('runAdaptiveUser', JSON.stringify(profileWithId));
+    return profileWithId;
   }
 };
 
@@ -390,7 +425,7 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 };
 
 /**
- * Saves completed workout data to the new completed_workouts table with proper foreign keys
+ * Saves completed workout data to the completed_workouts table with proper foreign keys
  */
 export const saveCompletedWorkout = async (
   workoutId: string,
@@ -410,6 +445,19 @@ export const saveCompletedWorkout = async (
     const userProfileId = await getUserProfileId();
     if (!userProfileId) {
       console.error("[saveCompletedWorkout] No se pudo obtener el user_id");
+      return false;
+    }
+
+    console.log("[saveCompletedWorkout] User profile ID obtenido:", userProfileId);
+
+    // Validate that workoutId and planId are valid UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(workoutId)) {
+      console.error("[saveCompletedWorkout] workoutId is not a valid UUID:", workoutId);
+      return false;
+    }
+    if (!uuidRegex.test(planId)) {
+      console.error("[saveCompletedWorkout] planId is not a valid UUID:", planId);
       return false;
     }
 
