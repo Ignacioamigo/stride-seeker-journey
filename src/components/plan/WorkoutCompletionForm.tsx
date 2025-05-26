@@ -10,14 +10,12 @@ interface WorkoutCompletionFormProps {
   workout: Workout;
   planId: string;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
-  onStatsUpdate?: () => void;
 }
 
 const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
   workout, 
   planId, 
-  onComplete,
-  onStatsUpdate
+  onComplete
 }) => {
   const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
   const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
@@ -42,18 +40,18 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       
       await onComplete(workout.id, distanceValue, durationValue);
       
-      // Actualizar estadísticas después de completar el entrenamiento
-      if (onStatsUpdate) {
-        console.log("WorkoutCompletionForm: Actualizando estadísticas...");
-        onStatsUpdate();
-      }
-      
-      // Disparar evento global para actualizar todas las estadísticas
+      // Disparar evento global para actualizar estadísticas
+      console.log("WorkoutCompletionForm: Disparando evento statsUpdated");
       window.dispatchEvent(new CustomEvent('statsUpdated'));
+      
+      // Pequeño delay para asegurar que los datos se guarden antes de actualizar stats
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('statsUpdated'));
+      }, 500);
       
       toast({
         title: "¡Entrenamiento completado!",
-        description: "Los datos se han guardado correctamente y las estadísticas se han actualizado.",
+        description: "Los datos se han guardado correctamente y las estadísticas se actualizarán.",
       });
     } catch (error) {
       console.error("WorkoutCompletionForm: Error al guardar:", error);

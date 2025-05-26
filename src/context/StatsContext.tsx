@@ -14,7 +14,6 @@ const StatsContext = createContext<StatsContextType | undefined>(undefined);
 export const StatsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { stats, isLoading, refreshStats, resetStats } = useRunningStats();
 
-  // Escuchar eventos globales para actualizar estadísticas
   useEffect(() => {
     const handleStatsUpdated = () => {
       console.log('StatsContext: Evento statsUpdated recibido, actualizando...');
