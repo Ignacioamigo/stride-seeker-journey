@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile, WorkoutPlan, Workout, TrainingPlanRequest, PreviousWeekResults } from '@/types';
@@ -139,6 +138,31 @@ export const saveUserProfile = async (userProfile: UserProfile): Promise<UserPro
     // If DB saving fails, at least save to localStorage
     localStorage.setItem('runAdaptiveUser', JSON.stringify(userProfile));
     return userProfile;
+  }
+};
+
+/**
+ * Gets the user profile ID from the database
+ */
+const getUserProfileId = async (): Promise<string | null> => {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user || !user.user) {
+      console.log("No authenticated user found");
+      return null;
+    }
+    
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_auth_id', user.user.id)
+      .single();
+    
+    return userProfile?.id || null;
+  } catch (error) {
+    console.error("Error getting user profile ID:", error);
+    return null;
   }
 };
 
@@ -366,7 +390,7 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 };
 
 /**
- * Saves completed workout data to the new completed_workouts table
+ * Saves completed workout data to the new completed_workouts table with proper foreign keys
  */
 export const saveCompletedWorkout = async (
   workoutId: string,
@@ -382,9 +406,17 @@ export const saveCompletedWorkout = async (
       actualDuration
     });
 
+    // Get user profile ID
+    const userProfileId = await getUserProfileId();
+    if (!userProfileId) {
+      console.error("[saveCompletedWorkout] No se pudo obtener el user_id");
+      return false;
+    }
+
     const { data, error } = await supabase
       .from('completed_workouts')
       .insert({
+        user_id: userProfileId,
         workout_id: workoutId,
         plan_id: planId,
         actual_distance: actualDistance,

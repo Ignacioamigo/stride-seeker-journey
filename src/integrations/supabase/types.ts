@@ -17,6 +17,7 @@ export type Database = {
           created_at: string
           id: string
           plan_id: string
+          user_id: string
           workout_id: string
         }
         Insert: {
@@ -26,6 +27,7 @@ export type Database = {
           created_at?: string
           id?: string
           plan_id: string
+          user_id: string
           workout_id: string
         }
         Update: {
@@ -35,9 +37,32 @@ export type Database = {
           created_at?: string
           id?: string
           plan_id?: string
+          user_id?: string
           workout_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_completed_workouts_plan_id"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_completed_workouts_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_completed_workouts_workout_id"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fragments: {
         Row: {
