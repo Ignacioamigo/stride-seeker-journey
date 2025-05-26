@@ -44,7 +44,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       
       toast({
         title: "¡Entrenamiento completado!",
-        description: "Los datos se han guardado correctamente en la nueva tabla de entrenamientos completados.",
+        description: "Los datos se han guardado correctamente en la tabla entrenamientos_realizados.",
       });
     } catch (error) {
       console.error("WorkoutCompletionForm: Error al guardar:", error);
