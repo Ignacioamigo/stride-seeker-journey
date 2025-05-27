@@ -2,30 +2,74 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Obtiene el ID del perfil de usuario desde la tabla user_profiles
+ * Obtiene el ID del usuario desde localStorage y busca el perfil correspondiente
  */
 const getCurrentUserProfileId = async (): Promise<string | null> => {
   try {
-    // Primero verificar si hay un usuario autenticado
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error("[getCurrentUserProfileId] No hay usuario autenticado");
+    // Obtener el usuario desde localStorage
+    const savedUser = localStorage.getItem('runAdaptiveUser');
+    if (!savedUser) {
+      console.error("[getCurrentUserProfileId] No hay usuario en localStorage");
       return null;
     }
 
-    // Buscar el perfil del usuario en la tabla user_profiles
-    const { data: profile, error } = await supabase
+    const userProfile = JSON.parse(savedUser);
+    console.log("[getCurrentUserProfileId] Usuario desde localStorage:", userProfile);
+
+    // Si ya tenemos un ID de perfil en localStorage, usarlo
+    if (userProfile.id) {
+      return userProfile.id;
+    }
+
+    // Si no tenemos ID de perfil, buscar o crear el perfil en user_profiles
+    const { data: existingProfile, error: searchError } = await supabase
       .from('user_profiles')
       .select('id')
-      .eq('user_auth_id', user.id)
+      .eq('name', userProfile.name)
+      .eq('goal', userProfile.goal)
       .single();
 
-    if (error) {
-      console.error("[getCurrentUserProfileId] Error obteniendo perfil:", error);
+    if (existingProfile && !searchError) {
+      console.log("[getCurrentUserProfileId] Perfil encontrado:", existingProfile.id);
+      
+      // Actualizar localStorage con el ID del perfil
+      const updatedUser = { ...userProfile, id: existingProfile.id };
+      localStorage.setItem('runAdaptiveUser', JSON.stringify(updatedUser));
+      
+      return existingProfile.id;
+    }
+
+    // Si no existe, crear un nuevo perfil
+    const { data: newProfile, error: createError } = await supabase
+      .from('user_profiles')
+      .insert({
+        name: userProfile.name,
+        age: userProfile.age,
+        gender: userProfile.gender,
+        height: userProfile.height,
+        weight: userProfile.weight,
+        experience_level: userProfile.experienceLevel,
+        goal: userProfile.goal,
+        max_distance: userProfile.maxDistance,
+        pace: userProfile.pace,
+        weekly_workouts: userProfile.weeklyWorkouts,
+        injuries: userProfile.injuries
+      })
+      .select('id')
+      .single();
+
+    if (createError) {
+      console.error("[getCurrentUserProfileId] Error creando perfil:", createError);
       return null;
     }
 
-    return profile?.id || null;
+    console.log("[getCurrentUserProfileId] Nuevo perfil creado:", newProfile.id);
+    
+    // Actualizar localStorage con el ID del nuevo perfil
+    const updatedUser = { ...userProfile, id: newProfile.id };
+    localStorage.setItem('runAdaptiveUser', JSON.stringify(updatedUser));
+    
+    return newProfile.id;
   } catch (error) {
     console.error("[getCurrentUserProfileId] Error inesperado:", error);
     return null;
