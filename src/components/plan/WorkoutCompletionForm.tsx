@@ -10,7 +10,7 @@ interface WorkoutCompletionFormProps {
   workout: Workout;
   planId: string;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
-  onStatsUpdate?: () => void; // Nueva prop para actualizar estadísticas
+  onStatsUpdate?: () => void;
 }
 
 const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
@@ -41,6 +41,17 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         distanceValue,
         durationValue
       });
+
+      // Verificar que tenemos IDs válidos
+      if (!workout.id || !planId) {
+        console.error("WorkoutCompletionForm: IDs faltantes", { workoutId: workout.id, planId });
+        toast({
+          title: "Error",
+          description: "Faltan datos del entrenamiento. Por favor, recarga la página e inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       await onComplete(workout.id, distanceValue, durationValue);
       

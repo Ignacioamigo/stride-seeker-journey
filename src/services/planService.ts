@@ -519,27 +519,60 @@ export const saveCompletedWorkout = async (
 ): Promise<boolean> => {
   try {
     console.log("[saveCompletedWorkout] INICIANDO - Guardado de workout completado en entrenamientos_realizados");
-    console.log("[saveCompletedWorkout] Datos:", {
+    console.log("[saveCompletedWorkout] Datos recibidos:", {
       workoutId,
       planId,
       actualDistance,
       actualDuration
     });
 
-    // Validar que los IDs sean UUIDs válidos
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    
-    if (!uuidRegex.test(workoutId)) {
-      console.log("[saveCompletedWorkout] workoutId no es UUID válido, generando nuevo UUID");
-      workoutId = uuidv4();
-    }
-    
-    if (!uuidRegex.test(planId)) {
-      console.log("[saveCompletedWorkout] planId no es UUID válido, generando nuevo UUID");
-      planId = uuidv4();
+    // PASO 1: Verificar que el plan_id existe en training_plans
+    console.log("[saveCompletedWorkout] Verificando que plan_id existe en training_plans...");
+    const { data: planExists, error: planError } = await supabase
+      .from('training_plans')
+      .select('id')
+      .eq('id', planId)
+      .maybeSingle();
+
+    if (planError) {
+      console.error("[saveCompletedWorkout] Error verificando plan:", planError);
+      return false;
     }
 
-    // Intentar guardar en Supabase usando la nueva tabla entrenamientos_realizados
+    if (!planExists) {
+      console.error("[saveCompletedWorkout] Plan no encontrado en training_plans:", planId);
+      
+      // Buscar el plan más reciente del usuario como fallback
+      const userId = getUserIdFromLocalStorage();
+      if (userId) {
+        console.log("[saveCompletedWorkout] Buscando plan más reciente del usuario...");
+        const { data: latestPlan, error: latestPlanError } = await supabase
+          .from('training_plans')
+          .select('id')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestPlanError) {
+          console.error("[saveCompletedWorkout] Error buscando plan más reciente:", latestPlanError);
+          return false;
+        }
+
+        if (latestPlan) {
+          console.log("[saveCompletedWorkout] Usando plan más reciente:", latestPlan.id);
+          planId = latestPlan.id;
+        } else {
+          console.error("[saveCompletedWorkout] No se encontró ningún plan del usuario");
+          return false;
+        }
+      } else {
+        console.error("[saveCompletedWorkout] No se pudo obtener userId del localStorage");
+        return false;
+      }
+    }
+
+    // PASO 2: Intentar guardar en Supabase usando la tabla entrenamientos_realizados
     console.log("[saveCompletedWorkout] Intentando guardar en entrenamientos_realizados...");
     console.log("[saveCompletedWorkout] Datos finales para insertar:", {
       workout_id: workoutId,
@@ -623,6 +656,21 @@ export const saveCompletedWorkout = async (
       console.error("[saveCompletedWorkout] Error también en localStorage:", localError);
       return false;
     }
+  }
+};
+
+// Función auxiliar para obtener userId de localStorage
+const getUserIdFromLocalStorage = (): string | null => {
+  try {
+    const savedUser = localStorage.getItem('runAdaptiveUser');
+    if (savedUser) {
+      const userProfile = JSON.parse(savedUser);
+      return userProfile.id || null;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting user ID from localStorage:', error);
+    return null;
   }
 };
 
