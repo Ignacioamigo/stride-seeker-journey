@@ -19,7 +19,7 @@ export const saveCompletedWorkout = async (
       duracion
     });
     
-    // Asegurar que tenemos una sesión activa (anónima si es necesario)
+    // Asegurar que tenemos una sesión activa y perfil de usuario
     await ensureSession();
     
     // Convertir duración a formato interval de PostgreSQL si existe
@@ -49,6 +49,7 @@ export const saveCompletedWorkout = async (
       distancia_recorrida: distanciaRecorrida,
       duracion: duracionInterval,
       fecha_completado: new Date().toISOString().split('T')[0]
+      // No incluimos user_id porque se usa el default auth.uid()
     };
 
     console.log("[saveCompletedWorkout] Datos para Supabase:", workoutData);

@@ -13,9 +13,70 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 export const ensureSession = async (): Promise<void> => {
+  console.log("[ensureSession] Verificando sesión...");
+  
   const { data: { session } } = await supabase.auth.getSession();
   
   if (!session) {
-    await supabase.auth.signInAnonymously();
+    console.log("[ensureSession] No hay sesión, creando sesión anónima...");
+    const { data, error } = await supabase.auth.signInAnonymously();
+    
+    if (error) {
+      console.error("[ensureSession] Error al crear sesión anónima:", error);
+      throw error;
+    }
+    
+    console.log("[ensureSession] Sesión anónima creada:", data.user?.id);
+  } else {
+    console.log("[ensureSession] Sesión existente:", session.user?.id);
+  }
+  
+  // Asegurar que el perfil de usuario existe
+  await ensureUserProfile();
+};
+
+const ensureUserProfile = async (): Promise<void> => {
+  try {
+    console.log("[ensureUserProfile] Verificando perfil de usuario...");
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.error("[ensureUserProfile] No hay usuario autenticado");
+      return;
+    }
+    
+    // Verificar si el perfil ya existe
+    const { data: existingProfile, error: selectError } = await supabase
+      .from('user_profile')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+    
+    if (selectError && selectError.code !== 'PGRST116') {
+      console.error("[ensureUserProfile] Error al verificar perfil:", selectError);
+      return;
+    }
+    
+    if (!existingProfile) {
+      console.log("[ensureUserProfile] Creando perfil de usuario...");
+      
+      // Crear el perfil de usuario
+      const { error: insertError } = await supabase
+        .from('user_profile')
+        .insert({
+          id: user.id
+        });
+      
+      if (insertError) {
+        console.error("[ensureUserProfile] Error al crear perfil:", insertError);
+      } else {
+        console.log("[ensureUserProfile] Perfil creado exitosamente");
+      }
+    } else {
+      console.log("[ensureUserProfile] Perfil ya existe");
+    }
+  } catch (error) {
+    console.error("[ensureUserProfile] Error inesperado:", error);
   }
 };
