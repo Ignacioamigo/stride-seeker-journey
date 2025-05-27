@@ -21,11 +21,26 @@ interface RunningStats {
   previousMonthAveragePace: string;
 }
 
-// Función para convertir duración en texto a minutos
-const convertDurationToMinutes = (duration: string): number => {
-  if (!duration) return 0;
+// Función para convertir duración interval a minutos
+const convertIntervalToMinutes = (interval: string): number => {
+  if (!interval) return 0;
   
-  const cleanDuration = duration.toLowerCase().replace(/\s+/g, '');
+  // Si ya es un número, devolverlo
+  if (!isNaN(Number(interval))) {
+    return Number(interval);
+  }
+  
+  // Manejar formato PostgreSQL interval (HH:MM:SS)
+  const timeMatch = interval.match(/(\d+):(\d+):(\d+)/);
+  if (timeMatch) {
+    const hours = parseInt(timeMatch[1]);
+    const minutes = parseInt(timeMatch[2]);
+    const seconds = parseInt(timeMatch[3]);
+    return hours * 60 + minutes + seconds / 60;
+  }
+  
+  // Manejar formato texto como "30min", "1h30min"
+  const cleanDuration = interval.toLowerCase().replace(/\s+/g, '');
   
   if (/^\d+$/.test(cleanDuration)) {
     return parseInt(cleanDuration);
@@ -43,12 +58,12 @@ const convertDurationToMinutes = (duration: string): number => {
     totalMinutes += parseInt(minutesMatch[1]);
   }
   
-  const timeMatch = cleanDuration.match(/(\d+):(\d+)(?::(\d+))?/);
-  if (timeMatch && !hoursMatch && !minutesMatch) {
-    if (timeMatch[3]) {
-      totalMinutes += parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
+  const timeMatch2 = cleanDuration.match(/(\d+):(\d+)(?::(\d+))?/);
+  if (timeMatch2 && !hoursMatch && !minutesMatch) {
+    if (timeMatch2[3]) {
+      totalMinutes += parseInt(timeMatch2[1]) * 60 + parseInt(timeMatch2[2]);
     } else {
-      totalMinutes += parseInt(timeMatch[1]);
+      totalMinutes += parseInt(timeMatch2[1]);
     }
   }
   
@@ -99,7 +114,7 @@ export const useRunningStats = () => {
     try {
       setIsLoading(true);
       
-      console.log('Calculando estadísticas desde entre_completado...');
+      console.log('Calculando estadísticas desde entrenamientos_completados...');
       
       // Obtener entrenamientos de la nueva tabla
       const workouts = await getCompletedWorkouts();
@@ -171,7 +186,7 @@ export const useRunningStats = () => {
 
     validWorkouts.forEach(w => {
       if (w.duracion && w.distancia_recorrida) {
-        const timeInMinutes = convertDurationToMinutes(w.duracion);
+        const timeInMinutes = convertIntervalToMinutes(w.duracion);
         totalTimeMinutes += timeInMinutes;
         totalDistance += w.distancia_recorrida;
       }
@@ -192,7 +207,7 @@ export const useRunningStats = () => {
 
     validThisMonthWorkouts.forEach(w => {
       if (w.duracion && w.distancia_recorrida) {
-        const timeInMinutes = convertDurationToMinutes(w.duracion);
+        const timeInMinutes = convertIntervalToMinutes(w.duracion);
         monthlyTotalTime += timeInMinutes;
         monthlyTotalDistance += w.distancia_recorrida;
       }
@@ -209,7 +224,7 @@ export const useRunningStats = () => {
     let bestPaceValue = Infinity;
     validThisMonthWorkouts.forEach(w => {
       if (w.duracion && w.distancia_recorrida) {
-        const timeInMinutes = convertDurationToMinutes(w.duracion);
+        const timeInMinutes = convertIntervalToMinutes(w.duracion);
         const pace = timeInMinutes / w.distancia_recorrida;
         if (pace < bestPaceValue && pace > 0) {
           bestPaceValue = pace;
@@ -227,7 +242,7 @@ export const useRunningStats = () => {
 
     validLastMonthWorkouts.forEach(w => {
       if (w.duracion && w.distancia_recorrida) {
-        const timeInMinutes = convertDurationToMinutes(w.duracion);
+        const timeInMinutes = convertIntervalToMinutes(w.duracion);
         previousMonthTotalTime += timeInMinutes;
         previousMonthTotalDistance += w.distancia_recorrida;
       }

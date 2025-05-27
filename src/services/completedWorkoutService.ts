@@ -2,97 +2,44 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Obtiene el ID del usuario desde localStorage y busca el perfil correspondiente
+ * Obtiene el ID del usuario autenticado o desde localStorage
  */
-const getCurrentUserProfileId = async (): Promise<string | null> => {
+const getCurrentUserId = async (): Promise<string | null> => {
   try {
-    console.log("[getCurrentUserProfileId] Iniciando proceso...");
+    console.log("[getCurrentUserId] Iniciando proceso...");
     
-    // Obtener el usuario desde localStorage
+    // Primero intentar obtener usuario autenticado
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      console.log("[getCurrentUserId] Usuario autenticado encontrado:", user.id);
+      return user.id;
+    }
+
+    // Si no hay usuario autenticado, buscar en localStorage
     const savedUser = localStorage.getItem('runAdaptiveUser');
     if (!savedUser) {
-      console.error("[getCurrentUserProfileId] No hay usuario en localStorage");
+      console.error("[getCurrentUserId] No hay usuario en localStorage");
       return null;
     }
 
     const userProfile = JSON.parse(savedUser);
-    console.log("[getCurrentUserProfileId] Usuario desde localStorage:", userProfile);
+    console.log("[getCurrentUserId] Usuario desde localStorage:", userProfile);
 
-    // Si ya tenemos un ID de perfil en localStorage, usarlo directamente
     if (userProfile.id) {
-      console.log("[getCurrentUserProfileId] Usando ID existente:", userProfile.id);
+      console.log("[getCurrentUserId] Usando ID de localStorage:", userProfile.id);
       return userProfile.id;
     }
 
-    console.log("[getCurrentUserProfileId] No hay ID, buscando o creando perfil...");
-
-    // Si no tenemos ID de perfil, buscar el perfil en user_profiles
-    const { data: existingProfile, error: searchError } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('name', userProfile.name)
-      .eq('goal', userProfile.goal)
-      .maybeSingle(); // Cambiar a maybeSingle para evitar errores si no existe
-
-    if (searchError) {
-      console.error("[getCurrentUserProfileId] Error buscando perfil:", searchError);
-    }
-
-    if (existingProfile) {
-      console.log("[getCurrentUserProfileId] Perfil encontrado:", existingProfile.id);
-      
-      // Actualizar localStorage con el ID del perfil
-      const updatedUser = { ...userProfile, id: existingProfile.id };
-      localStorage.setItem('runAdaptiveUser', JSON.stringify(updatedUser));
-      
-      return existingProfile.id;
-    }
-
-    console.log("[getCurrentUserProfileId] Perfil no encontrado, creando nuevo...");
-
-    // Si no existe, crear un nuevo perfil
-    const profileData = {
-      name: userProfile.name,
-      age: userProfile.age || null,
-      gender: userProfile.gender || null,
-      height: userProfile.height || null,
-      weight: userProfile.weight || null,
-      experience_level: userProfile.experienceLevel || null,
-      goal: userProfile.goal,
-      max_distance: userProfile.maxDistance || null,
-      pace: userProfile.pace || null,
-      weekly_workouts: userProfile.weeklyWorkouts || null,
-      injuries: userProfile.injuries || null
-    };
-
-    console.log("[getCurrentUserProfileId] Datos para crear perfil:", profileData);
-
-    const { data: newProfile, error: createError } = await supabase
-      .from('user_profiles')
-      .insert(profileData)
-      .select('id')
-      .single();
-
-    if (createError) {
-      console.error("[getCurrentUserProfileId] Error creando perfil:", createError);
-      return null;
-    }
-
-    console.log("[getCurrentUserProfileId] Nuevo perfil creado:", newProfile.id);
-    
-    // Actualizar localStorage con el ID del nuevo perfil
-    const updatedUser = { ...userProfile, id: newProfile.id };
-    localStorage.setItem('runAdaptiveUser', JSON.stringify(updatedUser));
-    
-    return newProfile.id;
+    console.error("[getCurrentUserId] No se encontró ID de usuario");
+    return null;
   } catch (error) {
-    console.error("[getCurrentUserProfileId] Error inesperado:", error);
+    console.error("[getCurrentUserId] Error inesperado:", error);
     return null;
   }
 };
 
 /**
- * Guarda un entrenamiento completado en la nueva tabla entre_completado
+ * Guarda un entrenamiento completado en la nueva tabla entrenamientos_completados
  */
 export const saveCompletedWorkout = async (
   workoutTitle: string,
@@ -109,28 +56,54 @@ export const saveCompletedWorkout = async (
       duracion
     });
     
-    const userProfileId = await getCurrentUserProfileId();
-    console.log("[saveCompletedWorkout] User Profile ID obtenido:", userProfileId);
+    const userId = await getCurrentUserId();
+    console.log("[saveCompletedWorkout] User ID obtenido:", userId);
     
-    if (!userProfileId) {
-      console.error("[saveCompletedWorkout] No se encontró ID de perfil de usuario");
+    if (!userId) {
+      console.error("[saveCompletedWorkout] No se encontró ID de usuario");
       return false;
     }
 
+    // Convertir duración a formato interval de PostgreSQL si existe
+    let duracionInterval = null;
+    if (duracion && duracion.trim()) {
+      // Convertir formato "30min" o "1h30min" a "HH:MM:SS"
+      const cleanDuration = duracion.toLowerCase().replace(/\s+/g, '');
+      
+      if (/^\d+min$/.test(cleanDuration)) {
+        // Formato "30min"
+        const minutes = parseInt(cleanDuration.replace('min', ''));
+        duracionInterval = `00:${minutes.toString().padStart(2, '0')}:00`;
+      } else if (/^\d+h\d*min$/.test(cleanDuration)) {
+        // Formato "1h30min"
+        const hoursMatch = cleanDuration.match(/(\d+)h/);
+        const minutesMatch = cleanDuration.match(/(\d+)min/);
+        const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
+        const minutes = minutesMatch ? parseInt(minutesMatch[1]) : 0;
+        duracionInterval = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+      } else if (/^\d+:\d+$/.test(cleanDuration)) {
+        // Formato "30:45" (minutos:segundos)
+        duracionInterval = `00:${cleanDuration}`;
+      } else {
+        // Formato libre, intentar usar como está
+        duracionInterval = duracion;
+      }
+    }
+
     const workoutData = {
-      user_id: userProfileId,
+      user_id: userId,
       workout_title: workoutTitle,
       workout_type: workoutType,
       distancia_recorrida: distanciaRecorrida,
-      duracion: duracion,
+      duracion: duracionInterval,
       fecha_completado: new Date().toISOString().split('T')[0] // Formato YYYY-MM-DD
     };
 
     console.log("[saveCompletedWorkout] Datos finales a insertar:", workoutData);
-    console.log("[saveCompletedWorkout] Realizando inserción en Supabase...");
+    console.log("[saveCompletedWorkout] Realizando inserción en entrenamientos_completados...");
 
     const { data, error } = await supabase
-      .from('entre_completado')
+      .from('entrenamientos_completados')
       .insert(workoutData)
       .select();
 
@@ -139,7 +112,7 @@ export const saveCompletedWorkout = async (
     console.log("- Error:", error);
 
     if (error) {
-      console.error("[saveCompletedWorkout] ❌ Error insertando en entre_completado:", error);
+      console.error("[saveCompletedWorkout] ❌ Error insertando en entrenamientos_completados:", error);
       console.error("[saveCompletedWorkout] Error code:", error.code);
       console.error("[saveCompletedWorkout] Error message:", error.message);
       console.error("[saveCompletedWorkout] Error details:", error.details);
@@ -163,16 +136,16 @@ export const saveCompletedWorkout = async (
  */
 export const getCompletedWorkouts = async () => {
   try {
-    const userProfileId = await getCurrentUserProfileId();
-    if (!userProfileId) {
-      console.error("[getCompletedWorkouts] No se encontró ID de perfil de usuario");
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      console.error("[getCompletedWorkouts] No se encontró ID de usuario");
       return [];
     }
 
     const { data, error } = await supabase
-      .from('entre_completado')
+      .from('entrenamientos_completados')
       .select('*')
-      .eq('user_id', userProfileId)
+      .eq('user_id', userId)
       .order('fecha_completado', { ascending: false });
 
     if (error) {
