@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { UserProfile } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { resetSession } from '@/services/authService';
 
 interface UserContextProps {
   user: UserProfile;
@@ -87,8 +88,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('No se encontraron planes para el usuario');
         }
       }
+
+      // Usar la nueva función resetSession para crear una nueva sesión
+      const newUserId = await resetSession();
+      console.log('Nueva sesión creada con user_id:', newUserId);
+      
     } catch (error) {
-      console.error('Error al eliminar entrenamientos del usuario:', error);
+      console.error('Error al resetear sesión:', error);
     }
     
     // Resetear el usuario local
