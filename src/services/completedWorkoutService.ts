@@ -39,7 +39,7 @@ const getCurrentUserId = async (): Promise<string | null> => {
 };
 
 /**
- * Guarda un entrenamiento completado en la nueva tabla entrenamientos_completados
+ * Guarda un entrenamiento completado - solo en localStorage para usuarios no autenticados
  */
 export const saveCompletedWorkout = async (
   workoutTitle: string,
@@ -64,69 +64,100 @@ export const saveCompletedWorkout = async (
       return false;
     }
 
-    // Convertir duración a formato interval de PostgreSQL si existe
-    let duracionInterval = null;
-    if (duracion && duracion.trim()) {
-      // Convertir formato "30min" o "1h30min" a "HH:MM:SS"
-      const cleanDuration = duracion.toLowerCase().replace(/\s+/g, '');
+    // Verificar si hay usuario autenticado
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      // Usuario autenticado - intentar guardar en Supabase
+      console.log("[saveCompletedWorkout] Usuario autenticado, guardando en Supabase...");
       
-      if (/^\d+min$/.test(cleanDuration)) {
-        // Formato "30min"
-        const minutes = parseInt(cleanDuration.replace('min', ''));
-        duracionInterval = `00:${minutes.toString().padStart(2, '0')}:00`;
-      } else if (/^\d+h\d*min$/.test(cleanDuration)) {
-        // Formato "1h30min"
-        const hoursMatch = cleanDuration.match(/(\d+)h/);
-        const minutesMatch = cleanDuration.match(/(\d+)min/);
-        const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
-        const minutes = minutesMatch ? parseInt(minutesMatch[1]) : 0;
-        duracionInterval = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
-      } else if (/^\d+:\d+$/.test(cleanDuration)) {
-        // Formato "30:45" (minutos:segundos)
-        duracionInterval = `00:${cleanDuration}`;
+      // Convertir duración a formato interval de PostgreSQL si existe
+      let duracionInterval = null;
+      if (duracion && duracion.trim()) {
+        const cleanDuration = duracion.toLowerCase().replace(/\s+/g, '');
+        
+        if (/^\d+min$/.test(cleanDuration)) {
+          const minutes = parseInt(cleanDuration.replace('min', ''));
+          duracionInterval = `00:${minutes.toString().padStart(2, '0')}:00`;
+        } else if (/^\d+h\d*min$/.test(cleanDuration)) {
+          const hoursMatch = cleanDuration.match(/(\d+)h/);
+          const minutesMatch = cleanDuration.match(/(\d+)min/);
+          const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
+          const minutes = minutesMatch ? parseInt(minutesMatch[1]) : 0;
+          duracionInterval = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+        } else if (/^\d+:\d+$/.test(cleanDuration)) {
+          duracionInterval = `00:${cleanDuration}`;
+        } else {
+          duracionInterval = duracion;
+        }
+      }
+
+      const workoutData = {
+        workout_title: workoutTitle,
+        workout_type: workoutType,
+        distancia_recorrida: distanciaRecorrida,
+        duracion: duracionInterval,
+        fecha_completado: new Date().toISOString().split('T')[0]
+      };
+
+      console.log("[saveCompletedWorkout] Datos para Supabase:", workoutData);
+
+      const { data, error } = await supabase
+        .from('entrenamientos_completados')
+        .insert(workoutData)
+        .select();
+
+      if (error) {
+        console.error("[saveCompletedWorkout] Error en Supabase:", error);
+        // Fallback a localStorage si falla Supabase
       } else {
-        // Formato libre, intentar usar como está
-        duracionInterval = duracion;
+        console.log("[saveCompletedWorkout] ✅ Guardado exitoso en Supabase:", data);
+        
+        // También guardar en localStorage para sincronización
+        const localWorkout = {
+          id: data[0]?.id || Date.now().toString(),
+          userId,
+          workoutTitle,
+          workoutType,
+          distanciaRecorrida,
+          duracion,
+          fechaCompletado: new Date().toISOString().split('T')[0],
+          createdAt: new Date().toISOString()
+        };
+        
+        const existingWorkouts = localStorage.getItem('completedWorkouts');
+        const workouts = existingWorkouts ? JSON.parse(existingWorkouts) : [];
+        workouts.push(localWorkout);
+        localStorage.setItem('completedWorkouts', JSON.stringify(workouts));
+        
+        return true;
       }
     }
 
-    const workoutData = {
-      user_id: userId,
-      workout_title: workoutTitle,
-      workout_type: workoutType,
-      distancia_recorrida: distanciaRecorrida,
-      duracion: duracionInterval,
-      fecha_completado: new Date().toISOString().split('T')[0] // Formato YYYY-MM-DD
+    // Usuario no autenticado o error en Supabase - guardar en localStorage
+    console.log("[saveCompletedWorkout] Guardando en localStorage...");
+    
+    const localWorkout = {
+      id: Date.now().toString(),
+      userId,
+      workoutTitle,
+      workoutType,
+      distanciaRecorrida,
+      duracion,
+      fechaCompletado: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString()
     };
-
-    console.log("[saveCompletedWorkout] Datos finales a insertar:", workoutData);
-    console.log("[saveCompletedWorkout] Realizando inserción en entrenamientos_completados...");
-
-    const { data, error } = await supabase
-      .from('entrenamientos_completados')
-      .insert(workoutData)
-      .select();
-
-    console.log("[saveCompletedWorkout] Respuesta de Supabase:");
-    console.log("- Data:", data);
-    console.log("- Error:", error);
-
-    if (error) {
-      console.error("[saveCompletedWorkout] ❌ Error insertando en entrenamientos_completados:", error);
-      console.error("[saveCompletedWorkout] Error code:", error.code);
-      console.error("[saveCompletedWorkout] Error message:", error.message);
-      console.error("[saveCompletedWorkout] Error details:", error.details);
-      console.error("[saveCompletedWorkout] Error hint:", error.hint);
-      return false;
-    }
-
-    console.log("[saveCompletedWorkout] ✅ Entrenamiento guardado exitosamente:", data);
+    
+    const existingWorkouts = localStorage.getItem('completedWorkouts');
+    const workouts = existingWorkouts ? JSON.parse(existingWorkouts) : [];
+    workouts.push(localWorkout);
+    localStorage.setItem('completedWorkouts', JSON.stringify(workouts));
+    
+    console.log("[saveCompletedWorkout] ✅ Guardado exitoso en localStorage");
     return true;
+    
   } catch (error: any) {
-    console.error("[saveCompletedWorkout] ❌ Error inesperado completo:", error);
-    console.error("[saveCompletedWorkout] Error name:", error.name);
-    console.error("[saveCompletedWorkout] Error message:", error.message);
-    console.error("[saveCompletedWorkout] Error stack:", error.stack);
+    console.error("[saveCompletedWorkout] ❌ Error inesperado:", error);
     return false;
   }
 };
@@ -142,18 +173,32 @@ export const getCompletedWorkouts = async () => {
       return [];
     }
 
-    const { data, error } = await supabase
-      .from('entrenamientos_completados')
-      .select('*')
-      .eq('user_id', userId)
-      .order('fecha_completado', { ascending: false });
+    // Verificar si hay usuario autenticado
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      // Usuario autenticado - intentar cargar desde Supabase
+      const { data, error } = await supabase
+        .from('entrenamientos_completados')
+        .select('*')
+        .order('fecha_completado', { ascending: false });
 
-    if (error) {
-      console.error("[getCompletedWorkouts] Error obteniendo entrenamientos:", error);
-      return [];
+      if (!error && data) {
+        console.log("[getCompletedWorkouts] Datos cargados desde Supabase:", data.length);
+        return data;
+      } else {
+        console.error("[getCompletedWorkouts] Error en Supabase:", error);
+      }
     }
 
-    return data || [];
+    // Fallback a localStorage
+    const existingWorkouts = localStorage.getItem('completedWorkouts');
+    const workouts = existingWorkouts ? JSON.parse(existingWorkouts) : [];
+    const userWorkouts = workouts.filter((w: any) => w.userId === userId);
+    
+    console.log("[getCompletedWorkouts] Datos cargados desde localStorage:", userWorkouts.length);
+    return userWorkouts;
+    
   } catch (error: any) {
     console.error("[getCompletedWorkouts] Error inesperado:", error);
     return [];
