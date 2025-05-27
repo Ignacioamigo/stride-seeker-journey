@@ -2,15 +2,34 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Obtiene el ID del usuario desde localStorage
+ * Obtiene el ID del perfil de usuario desde la tabla user_profiles
  */
-const getCurrentUserId = (): string | null => {
-  const savedUser = localStorage.getItem('runAdaptiveUser');
-  if (savedUser) {
-    const userProfile = JSON.parse(savedUser);
-    return userProfile.id || null;
+const getCurrentUserProfileId = async (): Promise<string | null> => {
+  try {
+    // Primero verificar si hay un usuario autenticado
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("[getCurrentUserProfileId] No hay usuario autenticado");
+      return null;
+    }
+
+    // Buscar el perfil del usuario en la tabla user_profiles
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_auth_id', user.id)
+      .single();
+
+    if (error) {
+      console.error("[getCurrentUserProfileId] Error obteniendo perfil:", error);
+      return null;
+    }
+
+    return profile?.id || null;
+  } catch (error) {
+    console.error("[getCurrentUserProfileId] Error inesperado:", error);
+    return null;
   }
-  return null;
 };
 
 /**
@@ -25,14 +44,14 @@ export const saveCompletedWorkout = async (
   try {
     console.log("[saveCompletedWorkout] Guardando entrenamiento completado en entre_completado");
     
-    const userId = getCurrentUserId();
-    if (!userId) {
-      console.error("[saveCompletedWorkout] No se encontró ID de usuario");
+    const userProfileId = await getCurrentUserProfileId();
+    if (!userProfileId) {
+      console.error("[saveCompletedWorkout] No se encontró ID de perfil de usuario");
       return false;
     }
 
     const workoutData = {
-      user_id: userId,
+      user_id: userProfileId,
       workout_title: workoutTitle,
       workout_type: workoutType,
       distancia_recorrida: distanciaRecorrida,
@@ -65,16 +84,16 @@ export const saveCompletedWorkout = async (
  */
 export const getCompletedWorkouts = async () => {
   try {
-    const userId = getCurrentUserId();
-    if (!userId) {
-      console.error("[getCompletedWorkouts] No se encontró ID de usuario");
+    const userProfileId = await getCurrentUserProfileId();
+    if (!userProfileId) {
+      console.error("[getCompletedWorkouts] No se encontró ID de perfil de usuario");
       return [];
     }
 
     const { data, error } = await supabase
       .from('entre_completado')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', userProfileId)
       .order('fecha_completado', { ascending: false });
 
     if (error) {
