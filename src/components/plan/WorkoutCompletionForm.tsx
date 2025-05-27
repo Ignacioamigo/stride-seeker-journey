@@ -27,17 +27,23 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
+    console.log("=== INICIANDO SUBMIT DEL FORMULARIO ===");
+    
     setIsSubmitting(true);
     try {
       const distanceValue = actualDistance && actualDistance.trim() ? parseFloat(actualDistance) : null;
       const durationValue = actualDuration && actualDuration.trim() ? actualDuration.trim() : null;
       
-      console.log("WorkoutCompletionForm: Enviando datos:", {
+      console.log("WorkoutCompletionForm: Datos del formulario:", {
         workoutId: workout.id,
+        workoutTitle: workout.title,
+        workoutType: workout.type,
         planId,
         distanceValue,
         durationValue
       });
+      
+      console.log("WorkoutCompletionForm: Llamando a saveCompletedWorkout...");
       
       // Guardar en la nueva tabla entre_completado
       const savedToNewTable = await saveCompletedWorkout(
@@ -47,8 +53,10 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         durationValue
       );
 
+      console.log("WorkoutCompletionForm: Resultado de saveCompletedWorkout:", savedToNewTable);
+
       if (savedToNewTable) {
-        console.log("WorkoutCompletionForm: ✅ Guardado en entre_completado exitosamente");
+        console.log("WorkoutCompletionForm: ✅ Guardado exitoso, actualizando estado local...");
         
         // Actualizar el estado local del workout
         await onComplete(workout.id, distanceValue, durationValue);
@@ -58,17 +66,18 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         
         toast({
           title: "¡Entrenamiento completado!",
-          description: "Los datos se han guardado correctamente en Supabase.",
+          description: "Los datos se han guardado correctamente.",
         });
       } else {
-        throw new Error("No se pudieron guardar los datos en Supabase");
+        console.error("WorkoutCompletionForm: ❌ saveCompletedWorkout devolvió false");
+        throw new Error("No se pudieron guardar los datos en la base de datos");
       }
     } catch (error) {
-      console.error("WorkoutCompletionForm: Error al guardar:", error);
+      console.error("WorkoutCompletionForm: ❌ Error en handleSubmit:", error);
       
       toast({
-        title: "Error",
-        description: "No se pudieron guardar los datos del entrenamiento. Inténtalo de nuevo.",
+        title: "Error al guardar",
+        description: "No se pudieron guardar los datos del entrenamiento. Revisa la consola para más detalles.",
         variant: "destructive",
       });
     } finally {

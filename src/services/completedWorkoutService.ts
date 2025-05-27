@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
  */
 const getCurrentUserProfileId = async (): Promise<string | null> => {
   try {
+    console.log("[getCurrentUserProfileId] Iniciando proceso...");
+    
     // Obtener el usuario desde localStorage
     const savedUser = localStorage.getItem('runAdaptiveUser');
     if (!savedUser) {
@@ -16,20 +18,27 @@ const getCurrentUserProfileId = async (): Promise<string | null> => {
     const userProfile = JSON.parse(savedUser);
     console.log("[getCurrentUserProfileId] Usuario desde localStorage:", userProfile);
 
-    // Si ya tenemos un ID de perfil en localStorage, usarlo
+    // Si ya tenemos un ID de perfil en localStorage, usarlo directamente
     if (userProfile.id) {
+      console.log("[getCurrentUserProfileId] Usando ID existente:", userProfile.id);
       return userProfile.id;
     }
 
-    // Si no tenemos ID de perfil, buscar o crear el perfil en user_profiles
+    console.log("[getCurrentUserProfileId] No hay ID, buscando o creando perfil...");
+
+    // Si no tenemos ID de perfil, buscar el perfil en user_profiles
     const { data: existingProfile, error: searchError } = await supabase
       .from('user_profiles')
       .select('id')
       .eq('name', userProfile.name)
       .eq('goal', userProfile.goal)
-      .single();
+      .maybeSingle(); // Cambiar a maybeSingle para evitar errores si no existe
 
-    if (existingProfile && !searchError) {
+    if (searchError) {
+      console.error("[getCurrentUserProfileId] Error buscando perfil:", searchError);
+    }
+
+    if (existingProfile) {
       console.log("[getCurrentUserProfileId] Perfil encontrado:", existingProfile.id);
       
       // Actualizar localStorage con el ID del perfil
@@ -39,22 +48,28 @@ const getCurrentUserProfileId = async (): Promise<string | null> => {
       return existingProfile.id;
     }
 
+    console.log("[getCurrentUserProfileId] Perfil no encontrado, creando nuevo...");
+
     // Si no existe, crear un nuevo perfil
+    const profileData = {
+      name: userProfile.name,
+      age: userProfile.age || null,
+      gender: userProfile.gender || null,
+      height: userProfile.height || null,
+      weight: userProfile.weight || null,
+      experience_level: userProfile.experienceLevel || null,
+      goal: userProfile.goal,
+      max_distance: userProfile.maxDistance || null,
+      pace: userProfile.pace || null,
+      weekly_workouts: userProfile.weeklyWorkouts || null,
+      injuries: userProfile.injuries || null
+    };
+
+    console.log("[getCurrentUserProfileId] Datos para crear perfil:", profileData);
+
     const { data: newProfile, error: createError } = await supabase
       .from('user_profiles')
-      .insert({
-        name: userProfile.name,
-        age: userProfile.age,
-        gender: userProfile.gender,
-        height: userProfile.height,
-        weight: userProfile.weight,
-        experience_level: userProfile.experienceLevel,
-        goal: userProfile.goal,
-        max_distance: userProfile.maxDistance,
-        pace: userProfile.pace,
-        weekly_workouts: userProfile.weeklyWorkouts,
-        injuries: userProfile.injuries
-      })
+      .insert(profileData)
       .select('id')
       .single();
 
@@ -86,9 +101,17 @@ export const saveCompletedWorkout = async (
   duracion: string | null
 ): Promise<boolean> => {
   try {
-    console.log("[saveCompletedWorkout] Guardando entrenamiento completado en entre_completado");
+    console.log("[saveCompletedWorkout] === INICIANDO GUARDADO ===");
+    console.log("[saveCompletedWorkout] Parámetros recibidos:", {
+      workoutTitle,
+      workoutType,
+      distanciaRecorrida,
+      duracion
+    });
     
     const userProfileId = await getCurrentUserProfileId();
+    console.log("[saveCompletedWorkout] User Profile ID obtenido:", userProfileId);
+    
     if (!userProfileId) {
       console.error("[saveCompletedWorkout] No se encontró ID de perfil de usuario");
       return false;
@@ -103,22 +126,34 @@ export const saveCompletedWorkout = async (
       fecha_completado: new Date().toISOString().split('T')[0] // Formato YYYY-MM-DD
     };
 
-    console.log("[saveCompletedWorkout] Datos a insertar:", workoutData);
+    console.log("[saveCompletedWorkout] Datos finales a insertar:", workoutData);
+    console.log("[saveCompletedWorkout] Realizando inserción en Supabase...");
 
     const { data, error } = await supabase
       .from('entre_completado')
       .insert(workoutData)
       .select();
 
+    console.log("[saveCompletedWorkout] Respuesta de Supabase:");
+    console.log("- Data:", data);
+    console.log("- Error:", error);
+
     if (error) {
-      console.error("[saveCompletedWorkout] Error insertando en entre_completado:", error);
+      console.error("[saveCompletedWorkout] ❌ Error insertando en entre_completado:", error);
+      console.error("[saveCompletedWorkout] Error code:", error.code);
+      console.error("[saveCompletedWorkout] Error message:", error.message);
+      console.error("[saveCompletedWorkout] Error details:", error.details);
+      console.error("[saveCompletedWorkout] Error hint:", error.hint);
       return false;
     }
 
     console.log("[saveCompletedWorkout] ✅ Entrenamiento guardado exitosamente:", data);
     return true;
   } catch (error: any) {
-    console.error("[saveCompletedWorkout] Error inesperado:", error);
+    console.error("[saveCompletedWorkout] ❌ Error inesperado completo:", error);
+    console.error("[saveCompletedWorkout] Error name:", error.name);
+    console.error("[saveCompletedWorkout] Error message:", error.message);
+    console.error("[saveCompletedWorkout] Error stack:", error.stack);
     return false;
   }
 };
