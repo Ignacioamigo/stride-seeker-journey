@@ -51,7 +51,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentUserId) {
         console.log('Eliminando entrenamientos del usuario:', currentUserId);
         
-        // Eliminar de la nueva tabla entrenamientos_completados
+        // Eliminar de la tabla entrenamientos_completados
         const { error: completedError } = await supabase
           .from('entrenamientos_completados')
           .delete()
@@ -80,16 +80,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (entrenamientosError) {
             console.error('Error eliminando entrenamientos realizados:', entrenamientosError);
-          }
-
-          // Eliminar entrenamientos completados del usuario actual (tabla anterior)
-          const { error: oldCompletedError } = await supabase
-            .from('completed_workouts')
-            .delete()
-            .in('plan_id', planIds);
-
-          if (oldCompletedError) {
-            console.error('Error eliminando entrenamientos completados (tabla anterior):', oldCompletedError);
           }
 
           console.log('Entrenamientos del usuario eliminados correctamente');
