@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Workout } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -59,6 +58,9 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       if (onStatsUpdate) {
         onStatsUpdate();
       }
+      
+      // Disparar evento global para que otros componentes se actualicen
+      window.dispatchEvent(new CustomEvent('statsUpdated'));
       
       toast({
         title: "¡Entrenamiento completado!",

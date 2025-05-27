@@ -389,10 +389,17 @@ export const useRunningStats = () => {
       resetStats();
     };
 
+    const handleStatsUpdated = () => {
+      console.log('Evento statsUpdated recibido, recalculando estadísticas...');
+      calculateStats();
+    };
+
     window.addEventListener('resetStats', handleResetStats);
+    window.addEventListener('statsUpdated', handleStatsUpdated);
     
     return () => {
       window.removeEventListener('resetStats', handleResetStats);
+      window.removeEventListener('statsUpdated', handleStatsUpdated);
     };
   }, []);
 
