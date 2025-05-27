@@ -61,7 +61,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error eliminando entrenamientos completados:', completedError);
         }
 
-        // Primero obtener los IDs de los planes del usuario
+        // Obtener los IDs de los planes del usuario
         const { data: userPlans, error: plansError } = await supabase
           .from('training_plans')
           .select('id')
@@ -72,14 +72,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else if (userPlans && userPlans.length > 0) {
           const planIds = userPlans.map(plan => plan.id);
           
-          // Eliminar entrenamientos realizados del usuario actual
-          const { error: entrenamientosError } = await supabase
-            .from('entrenamientos_realizados')
+          // Eliminar sesiones de entrenamiento del usuario actual
+          const { error: sessionsError } = await supabase
+            .from('training_sessions')
             .delete()
             .in('plan_id', planIds);
 
-          if (entrenamientosError) {
-            console.error('Error eliminando entrenamientos realizados:', entrenamientosError);
+          if (sessionsError) {
+            console.error('Error eliminando sesiones de entrenamiento:', sessionsError);
           }
 
           console.log('Entrenamientos del usuario eliminados correctamente');
