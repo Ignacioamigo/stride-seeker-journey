@@ -89,6 +89,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_entrenamientos_user_profile"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profile"
+            referencedColumns: ["id"]
+          },
         ]
       }
       entrenamientos_realizados: {
@@ -258,6 +265,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_profile: {
+        Row: {
+          created_at: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
       }
       user_profiles: {
         Row: {

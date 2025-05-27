@@ -1,25 +1,21 @@
 
 import { supabase, ensureSession } from './authService';
 
-/**
- * Guarda un entrenamiento completado usando autenticación anónima automática
- */
-export const saveCompletedWorkout = async (
+export const saveWorkout = async (
   workoutTitle: string,
   workoutType: string,
   distanciaRecorrida: number | null,
   duracion: string | null
 ): Promise<boolean> => {
   try {
-    console.log("[saveCompletedWorkout] === INICIANDO GUARDADO ===");
-    console.log("[saveCompletedWorkout] Parámetros recibidos:", {
+    console.log("[saveWorkout] === INICIANDO GUARDADO ===");
+    console.log("[saveWorkout] Parámetros:", {
       workoutTitle,
       workoutType,
       distanciaRecorrida,
       duracion
     });
     
-    // Asegurar que tenemos una sesión activa (anónima si es necesario)
     await ensureSession();
     
     // Convertir duración a formato interval de PostgreSQL si existe
@@ -51,7 +47,7 @@ export const saveCompletedWorkout = async (
       fecha_completado: new Date().toISOString().split('T')[0]
     };
 
-    console.log("[saveCompletedWorkout] Datos para Supabase:", workoutData);
+    console.log("[saveWorkout] Datos para Supabase:", workoutData);
 
     const { data, error } = await supabase
       .from('entrenamientos_completados')
@@ -59,7 +55,7 @@ export const saveCompletedWorkout = async (
       .select();
 
     if (error) {
-      console.error("[saveCompletedWorkout] Error en Supabase:", error);
+      console.error("[saveWorkout] Error en Supabase:", error);
       
       // Fallback a localStorage
       const localWorkout = {
@@ -77,15 +73,15 @@ export const saveCompletedWorkout = async (
       workouts.push(localWorkout);
       localStorage.setItem('completedWorkouts', JSON.stringify(workouts));
       
-      console.log("[saveCompletedWorkout] Guardado en localStorage como fallback");
+      console.log("[saveWorkout] Guardado en localStorage como fallback");
       return true;
     }
 
-    console.log("[saveCompletedWorkout] ✅ Guardado exitoso en Supabase:", data);
+    console.log("[saveWorkout] ✅ Guardado exitoso en Supabase:", data);
     return true;
     
   } catch (error: any) {
-    console.error("[saveCompletedWorkout] ❌ Error inesperado:", error);
+    console.error("[saveWorkout] ❌ Error inesperado:", error);
     
     // Fallback a localStorage en caso de error
     try {
@@ -104,49 +100,11 @@ export const saveCompletedWorkout = async (
       workouts.push(localWorkout);
       localStorage.setItem('completedWorkouts', JSON.stringify(workouts));
       
-      console.log("[saveCompletedWorkout] Guardado en localStorage como último recurso");
+      console.log("[saveWorkout] Guardado en localStorage como último recurso");
       return true;
     } catch (localError) {
-      console.error("[saveCompletedWorkout] Error también en localStorage:", localError);
+      console.error("[saveWorkout] Error también en localStorage:", localError);
       return false;
     }
-  }
-};
-
-/**
- * Obtiene todos los entrenamientos completados del usuario actual
- */
-export const getCompletedWorkouts = async () => {
-  try {
-    // Asegurar que tenemos una sesión activa
-    await ensureSession();
-
-    // Cargar desde Supabase
-    const { data, error } = await supabase
-      .from('entrenamientos_completados')
-      .select('*')
-      .order('fecha_completado', { ascending: false });
-
-    if (!error && data) {
-      console.log("[getCompletedWorkouts] Datos cargados desde Supabase:", data.length);
-      return data;
-    } else {
-      console.error("[getCompletedWorkouts] Error en Supabase:", error);
-    }
-
-    // Fallback a localStorage
-    const existingWorkouts = localStorage.getItem('completedWorkouts');
-    const workouts = existingWorkouts ? JSON.parse(existingWorkouts) : [];
-    
-    console.log("[getCompletedWorkouts] Datos cargados desde localStorage:", workouts.length);
-    return workouts;
-    
-  } catch (error: any) {
-    console.error("[getCompletedWorkouts] Error inesperado:", error);
-    
-    // Último recurso: localStorage
-    const existingWorkouts = localStorage.getItem('completedWorkouts');
-    const workouts = existingWorkouts ? JSON.parse(existingWorkouts) : [];
-    return workouts;
   }
 };
