@@ -9,47 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      entre_completado: {
-        Row: {
-          created_at: string
-          distancia_recorrida: number | null
-          duracion: string | null
-          fecha_completado: string
-          id: string
-          user_id: string
-          workout_title: string
-          workout_type: string
-        }
-        Insert: {
-          created_at?: string
-          distancia_recorrida?: number | null
-          duracion?: string | null
-          fecha_completado?: string
-          id?: string
-          user_id: string
-          workout_title: string
-          workout_type: string
-        }
-        Update: {
-          created_at?: string
-          distancia_recorrida?: number | null
-          duracion?: string | null
-          fecha_completado?: string
-          id?: string
-          user_id?: string
-          workout_title?: string
-          workout_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "entre_completado_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       entrenamientos_completados: {
         Row: {
           created_at: string
@@ -83,55 +42,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "entrenamientos_completados_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "fk_entrenamientos_user_profile"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profile"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      entrenamientos_realizados: {
-        Row: {
-          actual_distance: number | null
-          actual_duration: string | null
-          completed_at: string
-          created_at: string
-          id: string
-          plan_id: string
-          workout_id: string
-        }
-        Insert: {
-          actual_distance?: number | null
-          actual_duration?: string | null
-          completed_at?: string
-          created_at?: string
-          id?: string
-          plan_id: string
-          workout_id: string
-        }
-        Update: {
-          actual_distance?: number | null
-          actual_duration?: string | null
-          completed_at?: string
-          created_at?: string
-          id?: string
-          plan_id?: string
-          workout_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_entrenamientos_realizados_plan_id"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "training_plans"
             referencedColumns: ["id"]
           },
         ]
