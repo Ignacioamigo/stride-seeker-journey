@@ -54,6 +54,47 @@ export type Database = {
           },
         ]
       }
+      entre_completado: {
+        Row: {
+          created_at: string
+          distancia_recorrida: number | null
+          duracion: string | null
+          fecha_completado: string
+          id: string
+          user_id: string
+          workout_title: string
+          workout_type: string
+        }
+        Insert: {
+          created_at?: string
+          distancia_recorrida?: number | null
+          duracion?: string | null
+          fecha_completado?: string
+          id?: string
+          user_id: string
+          workout_title: string
+          workout_type: string
+        }
+        Update: {
+          created_at?: string
+          distancia_recorrida?: number | null
+          duracion?: string | null
+          fecha_completado?: string
+          id?: string
+          user_id?: string
+          workout_title?: string
+          workout_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entre_completado_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entrenamientos_realizados: {
         Row: {
           actual_distance: number | null
@@ -82,7 +123,15 @@ export type Database = {
           plan_id?: string
           workout_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_entrenamientos_realizados_plan_id"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fragments: {
         Row: {
@@ -276,6 +325,10 @@ export type Database = {
       binary_quantize: {
         Args: { "": string } | { "": unknown }
         Returns: unknown
+      }
+      get_current_user_profile_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       halfvec_avg: {
         Args: { "": number[] }

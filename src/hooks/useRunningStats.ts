@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getCompletedWorkouts } from '@/services/completedWorkoutService';
 
 interface RunningStats {
   weeklyDistance: number;
@@ -20,41 +21,33 @@ interface RunningStats {
   previousMonthAveragePace: string;
 }
 
-// Función para convertir duración en texto a minutos - CORREGIDA
+// Función para convertir duración en texto a minutos
 const convertDurationToMinutes = (duration: string): number => {
   if (!duration) return 0;
   
-  // Remover espacios y convertir a minúsculas
   const cleanDuration = duration.toLowerCase().replace(/\s+/g, '');
   
-  // Si es solo un número (como "33", "55"), asumir que son minutos
   if (/^\d+$/.test(cleanDuration)) {
     return parseInt(cleanDuration);
   }
   
-  // Buscar patrones como "45min", "1h30min", "1:30:00", etc.
   let totalMinutes = 0;
   
-  // Patrón para horas: "1h", "2h"
   const hoursMatch = cleanDuration.match(/(\d+)h/);
   if (hoursMatch) {
     totalMinutes += parseInt(hoursMatch[1]) * 60;
   }
   
-  // Patrón para minutos: "45min", "30min"
   const minutesMatch = cleanDuration.match(/(\d+)min/);
   if (minutesMatch) {
     totalMinutes += parseInt(minutesMatch[1]);
   }
   
-  // Patrón para formato "HH:MM:SS" o "MM:SS"
   const timeMatch = cleanDuration.match(/(\d+):(\d+)(?::(\d+))?/);
   if (timeMatch && !hoursMatch && !minutesMatch) {
     if (timeMatch[3]) {
-      // Formato HH:MM:SS
       totalMinutes += parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
     } else {
-      // Formato MM:SS
       totalMinutes += parseInt(timeMatch[1]);
     }
   }
@@ -71,16 +64,6 @@ const convertMinutesToPace = (totalMinutes: number, totalDistance: number): stri
   const seconds = Math.round((paceMinutes - minutes) * 60);
   
   return `${minutes}:${seconds.toString().padStart(2, '0')} min/km`;
-};
-
-// Función para obtener el ID del usuario actual
-const getCurrentUserId = (): string | null => {
-  const savedUser = localStorage.getItem('runAdaptiveUser');
-  if (savedUser) {
-    const userProfile = JSON.parse(savedUser);
-    return userProfile.id || null;
-  }
-  return null;
 };
 
 export const useRunningStats = () => {
@@ -116,52 +99,19 @@ export const useRunningStats = () => {
     try {
       setIsLoading(true);
       
-      const currentUserId = getCurrentUserId();
+      console.log('Calculando estadísticas desde entre_completado...');
       
-      if (!currentUserId) {
-        console.log('No se encontró ID de usuario, mostrando estadísticas vacías');
-        resetStats();
-        return;
-      }
-
-      console.log('Calculando estadísticas para usuario:', currentUserId);
+      // Obtener entrenamientos de la nueva tabla
+      const workouts = await getCompletedWorkouts();
       
-      // Primero obtenemos los planes del usuario
-      const { data: userPlans, error: plansError } = await supabase
-        .from('training_plans')
-        .select('id')
-        .eq('user_id', currentUserId);
-
-      if (plansError) {
-        console.error('Error obteniendo planes del usuario:', plansError);
+      if (!workouts || workouts.length === 0) {
+        console.log('No hay entrenamientos, reseteando estadísticas');
         resetStats();
         return;
       }
 
-      if (!userPlans || userPlans.length === 0) {
-        console.log('No se encontraron planes para el usuario');
-        resetStats();
-        return;
-      }
-
-      const planIds = userPlans.map(plan => plan.id);
-      console.log('IDs de planes encontrados:', planIds);
-
-      // Ahora obtenemos los entrenamientos realizados para esos planes
-      const { data: workouts, error } = await supabase
-        .from('entrenamientos_realizados')
-        .select('*')
-        .in('plan_id', planIds)
-        .order('completed_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching workouts:', error);
-        resetStats();
-        return;
-      }
-
-      console.log('Entrenamientos encontrados para el usuario:', workouts?.length || 0);
-      calculateStatsFromData(workouts || []);
+      console.log('Entrenamientos encontrados:', workouts.length);
+      calculateStatsFromData(workouts);
     } catch (error) {
       console.error('Error calculating stats:', error);
       resetStats();
@@ -169,9 +119,7 @@ export const useRunningStats = () => {
   };
 
   const calculateStatsFromData = (workouts: any[]) => {
-    // Si no hay entrenamientos, resetear todas las estadísticas
     if (!workouts || workouts.length === 0) {
-      console.log('No hay entrenamientos, reseteando estadísticas');
       resetStats();
       return;
     }
@@ -185,74 +133,68 @@ export const useRunningStats = () => {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    // Filtrar entrenamientos por períodos
+    // Filtrar entrenamientos por períodos usando fecha_completado
     const thisWeekWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.completed_at);
+      const workoutDate = new Date(w.fecha_completado);
       return workoutDate >= startOfWeek;
     });
 
     const thisMonthWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.completed_at);
+      const workoutDate = new Date(w.fecha_completado);
       return workoutDate >= startOfMonth;
     });
 
     const lastMonthWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.completed_at);
+      const workoutDate = new Date(w.fecha_completado);
       return workoutDate >= startOfLastMonth && workoutDate <= endOfLastMonth;
     });
 
     // Solo considerar entrenamientos con distancia real
-    const validWorkouts = workouts.filter(w => w.actual_distance && w.actual_distance > 0);
-    const validThisWeekWorkouts = thisWeekWorkouts.filter(w => w.actual_distance && w.actual_distance > 0);
-    const validThisMonthWorkouts = thisMonthWorkouts.filter(w => w.actual_distance && w.actual_distance > 0);
-    const validLastMonthWorkouts = lastMonthWorkouts.filter(w => w.actual_distance && w.actual_distance > 0);
+    const validWorkouts = workouts.filter(w => w.distancia_recorrida && w.distancia_recorrida > 0);
+    const validThisWeekWorkouts = thisWeekWorkouts.filter(w => w.distancia_recorrida && w.distancia_recorrida > 0);
+    const validThisMonthWorkouts = thisMonthWorkouts.filter(w => w.distancia_recorrida && w.distancia_recorrida > 0);
+    const validLastMonthWorkouts = lastMonthWorkouts.filter(w => w.distancia_recorrida && w.distancia_recorrida > 0);
 
     // Calcular distancia semanal
-    const weeklyDistance = validThisWeekWorkouts.reduce((sum, w) => sum + w.actual_distance, 0);
+    const weeklyDistance = validThisWeekWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
 
     // Total de carreras
     const totalRuns = validWorkouts.length;
 
     // Promedio de distancia por carrera
-    const totalDistanceAllRuns = validWorkouts.reduce((sum, w) => sum + w.actual_distance, 0);
+    const totalDistanceAllRuns = validWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
     const averageDistancePerRun = totalRuns > 0 ? totalDistanceAllRuns / totalRuns : 0;
 
-    // Calcular tiempo total y ritmo promedio global - CORREGIDA
+    // Calcular tiempo total y ritmo promedio global
     let totalTimeMinutes = 0;
     let totalDistance = 0;
 
-    console.log('Calculando ritmo promedio para', validWorkouts.length, 'entrenamientos');
-
     validWorkouts.forEach(w => {
-      if (w.actual_duration && w.actual_distance) {
-        const timeInMinutes = convertDurationToMinutes(w.actual_duration);
+      if (w.duracion && w.distancia_recorrida) {
+        const timeInMinutes = convertDurationToMinutes(w.duracion);
         totalTimeMinutes += timeInMinutes;
-        totalDistance += w.actual_distance;
-        console.log(`Entrenamiento: ${w.actual_distance}km en ${timeInMinutes}min (duración original: "${w.actual_duration}")`);
+        totalDistance += w.distancia_recorrida;
       }
     });
 
-    console.log(`Total: ${totalDistance}km en ${totalTimeMinutes}min`);
-
     const averagePace = totalDistance > 0 && totalTimeMinutes > 0 ? 
       convertMinutesToPace(totalTimeMinutes, totalDistance) : "0:00 min/km";
-    console.log('Ritmo promedio calculado:', averagePace);
 
-    // Calorías estimadas (aproximadamente 60 cal por km)
+    // Calorías estimadas
     const weeklyCalories = Math.round(weeklyDistance * 60);
 
     // Distancia mensual
-    const monthlyDistance = validThisMonthWorkouts.reduce((sum, w) => sum + w.actual_distance, 0);
+    const monthlyDistance = validThisMonthWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
 
     // Tiempo total mensual
     let monthlyTotalTime = 0;
     let monthlyTotalDistance = 0;
 
     validThisMonthWorkouts.forEach(w => {
-      if (w.actual_duration && w.actual_distance) {
-        const timeInMinutes = convertDurationToMinutes(w.actual_duration);
+      if (w.duracion && w.distancia_recorrida) {
+        const timeInMinutes = convertDurationToMinutes(w.duracion);
         monthlyTotalTime += timeInMinutes;
-        monthlyTotalDistance += w.actual_distance;
+        monthlyTotalDistance += w.distancia_recorrida;
       }
     });
 
@@ -261,14 +203,14 @@ export const useRunningStats = () => {
 
     // Carrera más larga del mes
     const longestRun = validThisMonthWorkouts.length > 0 ? 
-      Math.max(...validThisMonthWorkouts.map(w => w.actual_distance)) : 0;
+      Math.max(...validThisMonthWorkouts.map(w => w.distancia_recorrida)) : 0;
 
-    // Mejor ritmo del mes (menor tiempo por km)
+    // Mejor ritmo del mes
     let bestPaceValue = Infinity;
     validThisMonthWorkouts.forEach(w => {
-      if (w.actual_duration && w.actual_distance) {
-        const timeInMinutes = convertDurationToMinutes(w.actual_duration);
-        const pace = timeInMinutes / w.actual_distance;
+      if (w.duracion && w.distancia_recorrida) {
+        const timeInMinutes = convertDurationToMinutes(w.duracion);
+        const pace = timeInMinutes / w.distancia_recorrida;
         if (pace < bestPaceValue && pace > 0) {
           bestPaceValue = pace;
         }
@@ -277,17 +219,17 @@ export const useRunningStats = () => {
 
     const bestPace = bestPaceValue === Infinity ? "0:00 min/km" : convertMinutesToPace(bestPaceValue, 1);
 
-    // Calcular variaciones porcentuales
-    const previousMonthDistance = validLastMonthWorkouts.reduce((sum, w) => sum + w.actual_distance, 0);
+    // Calcular variaciones del mes anterior
+    const previousMonthDistance = validLastMonthWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
     
     let previousMonthTotalTime = 0;
     let previousMonthTotalDistance = 0;
 
     validLastMonthWorkouts.forEach(w => {
-      if (w.actual_duration && w.actual_distance) {
-        const timeInMinutes = convertDurationToMinutes(w.actual_duration);
+      if (w.duracion && w.distancia_recorrida) {
+        const timeInMinutes = convertDurationToMinutes(w.duracion);
         previousMonthTotalTime += timeInMinutes;
-        previousMonthTotalDistance += w.actual_distance;
+        previousMonthTotalDistance += w.distancia_recorrida;
       }
     });
 
@@ -298,7 +240,7 @@ export const useRunningStats = () => {
     const distanceVariation = previousMonthDistance > 0 ? 
       Math.round(((monthlyDistance - previousMonthDistance) / previousMonthDistance) * 100) : 0;
 
-    // Variación de ritmo (positivo = más rápido)
+    // Variación de ritmo
     const currentPaceMinutes = monthlyTotalTime / monthlyTotalDistance;
     const previousPaceMinutes = previousMonthTotalTime / previousMonthTotalDistance;
     const paceVariation = previousPaceMinutes > 0 && currentPaceMinutes > 0 ? 
@@ -313,11 +255,11 @@ export const useRunningStats = () => {
       dayDate.setDate(startOfWeek.getDate() + i);
       
       const dayWorkouts = validThisWeekWorkouts.filter(w => {
-        const workoutDate = new Date(w.completed_at);
+        const workoutDate = new Date(w.fecha_completado);
         return workoutDate.toDateString() === dayDate.toDateString();
       });
       
-      const dayDistance = dayWorkouts.reduce((sum, w) => sum + w.actual_distance, 0);
+      const dayDistance = dayWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
       
       weeklyData.push({
         day: daysOfWeek[i],
@@ -347,7 +289,6 @@ export const useRunningStats = () => {
     setIsLoading(false);
   };
 
-  // Función para resetear las estadísticas
   const resetStats = () => {
     console.log('Reseteando estadísticas a valores por defecto');
     setStats({

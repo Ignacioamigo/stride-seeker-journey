@@ -5,7 +5,7 @@ import RunButton from "@/components/ui/RunButton";
 import { Calendar, Loader2, WifiOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import WorkoutCompletionForm from './WorkoutCompletionForm';
-import { updateWorkoutResults, generateNextWeekPlan } from '@/services/planService';
+import { generateNextWeekPlan } from '@/services/planService';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -150,40 +150,42 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
     actualDuration: string | null
   ) => {
     try {
-      console.log("TrainingPlanDisplay: Iniciando actualización de workout:", {
-        planId: plan.id,
-        workoutId,
-        actualDistance,
-        actualDuration
+      console.log("TrainingPlanDisplay: Marcando workout como completado en localStorage");
+      
+      // Actualizar el plan en localStorage
+      const updatedWorkouts = plan.workouts.map(workout => {
+        if (workout.id === workoutId) {
+          return {
+            ...workout,
+            completed: true,
+            actualDistance,
+            actualDuration
+          };
+        }
+        return workout;
       });
+
+      const updatedPlan: WorkoutPlan = {
+        ...plan,
+        workouts: updatedWorkouts
+      };
+
+      // Guardar en localStorage
+      localStorage.setItem('savedPlan', JSON.stringify(updatedPlan));
       
-      const updatedPlan = await updateWorkoutResults(
-        plan.id,
-        workoutId,
-        actualDistance,
-        actualDuration
-      );
+      // Actualizar el estado
+      onPlanUpdate(updatedPlan);
       
-      if (updatedPlan) {
-        console.log("TrainingPlanDisplay: Plan actualizado exitosamente");
-        onPlanUpdate(updatedPlan);
-        
-        // Colapsar el formulario después de completar
-        setExpandedWorkoutId(null);
-        
-        toast({
-          title: "Entrenamiento guardado",
-          description: "Los datos se han actualizado correctamente en Supabase.",
-        });
-      } else {
-        throw new Error("No se recibió plan actualizado");
-      }
+      // Colapsar el formulario
+      setExpandedWorkoutId(null);
+      
+      console.log("TrainingPlanDisplay: Plan actualizado exitosamente");
     } catch (error) {
-      console.error("TrainingPlanDisplay: Error al completar entrenamiento:", error);
+      console.error("TrainingPlanDisplay: Error al actualizar plan:", error);
       
       toast({
-        title: "Error al guardar",
-        description: "No se pudieron actualizar los datos en Supabase. Inténtalo de nuevo.",
+        title: "Error",
+        description: "Hubo un problema al actualizar el plan local.",
         variant: "destructive",
       });
     }

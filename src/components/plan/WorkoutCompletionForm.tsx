@@ -5,19 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { saveCompletedWorkout } from "@/services/completedWorkoutService";
 
 interface WorkoutCompletionFormProps {
   workout: Workout;
   planId: string;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
-  onStatsUpdate?: () => void;
 }
 
 const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
   workout, 
   planId, 
-  onComplete,
-  onStatsUpdate
+  onComplete
 }) => {
   const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
   const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
@@ -40,21 +39,30 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         durationValue
       });
       
-      await onComplete(workout.id, distanceValue, durationValue);
-      
-      // Actualizar estadísticas después de completar el entrenamiento
-      if (onStatsUpdate) {
-        console.log("WorkoutCompletionForm: Actualizando estadísticas...");
-        onStatsUpdate();
+      // Guardar en la nueva tabla entre_completado
+      const savedToNewTable = await saveCompletedWorkout(
+        workout.title,
+        workout.type,
+        distanceValue,
+        durationValue
+      );
+
+      if (savedToNewTable) {
+        console.log("WorkoutCompletionForm: ✅ Guardado en entre_completado exitosamente");
+        
+        // Actualizar el estado local del workout
+        await onComplete(workout.id, distanceValue, durationValue);
+        
+        // Disparar evento global para actualizar estadísticas
+        window.dispatchEvent(new CustomEvent('statsUpdated'));
+        
+        toast({
+          title: "¡Entrenamiento completado!",
+          description: "Los datos se han guardado correctamente en Supabase.",
+        });
+      } else {
+        throw new Error("No se pudieron guardar los datos en Supabase");
       }
-      
-      // Disparar evento global para actualizar todas las estadísticas
-      window.dispatchEvent(new CustomEvent('statsUpdated'));
-      
-      toast({
-        title: "¡Entrenamiento completado!",
-        description: "Los datos se han guardado correctamente y las estadísticas se han actualizado.",
-      });
     } catch (error) {
       console.error("WorkoutCompletionForm: Error al guardar:", error);
       
