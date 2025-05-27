@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Workout } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,6 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
   const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Para entrenamientos de descanso, no necesitamos recopilar datos
   const isRestDay = workout.type === 'descanso';
   
   const handleSubmit = async (event: React.FormEvent) => {
@@ -30,7 +30,6 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
     
     setIsSubmitting(true);
     try {
-      // Conversión de tipos para la distancia
       const distanceValue = actualDistance && actualDistance.trim() ? parseFloat(actualDistance) : null;
       const durationValue = actualDuration && actualDuration.trim() ? actualDuration.trim() : null;
       
@@ -40,26 +39,16 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         distanceValue,
         durationValue
       });
-
-      // Verificar que tenemos IDs válidos
-      if (!workout.id || !planId) {
-        console.error("WorkoutCompletionForm: IDs faltantes", { workoutId: workout.id, planId });
-        toast({
-          title: "Error",
-          description: "Faltan datos del entrenamiento. Por favor, recarga la página e inténtalo de nuevo.",
-          variant: "destructive",
-        });
-        return;
-      }
       
       await onComplete(workout.id, distanceValue, durationValue);
       
       // Actualizar estadísticas después de completar el entrenamiento
       if (onStatsUpdate) {
+        console.log("WorkoutCompletionForm: Actualizando estadísticas...");
         onStatsUpdate();
       }
       
-      // Disparar evento global para que otros componentes se actualicen
+      // Disparar evento global para actualizar todas las estadísticas
       window.dispatchEvent(new CustomEvent('statsUpdated'));
       
       toast({

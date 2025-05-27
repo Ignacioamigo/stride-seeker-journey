@@ -82,15 +82,7 @@ export type Database = {
           plan_id?: string
           workout_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_entrenamientos_realizados_plan_id"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "training_plans"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       fragments: {
         Row: {
@@ -284,10 +276,6 @@ export type Database = {
       binary_quantize: {
         Args: { "": string } | { "": unknown }
         Returns: unknown
-      }
-      get_current_user_profile_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
       }
       halfvec_avg: {
         Args: { "": number[] }

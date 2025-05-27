@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -74,19 +73,14 @@ const convertMinutesToPace = (totalMinutes: number, totalDistance: number): stri
   return `${minutes}:${seconds.toString().padStart(2, '0')} min/km`;
 };
 
-// Función para obtener el user_id del localStorage
-const getUserIdFromLocalStorage = (): string | null => {
-  try {
-    const savedUser = localStorage.getItem('runAdaptiveUser');
-    if (savedUser) {
-      const userProfile = JSON.parse(savedUser);
-      return userProfile.id || null;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error getting user ID from localStorage:', error);
-    return null;
+// Función para obtener el ID del usuario actual
+const getCurrentUserId = (): string | null => {
+  const savedUser = localStorage.getItem('runAdaptiveUser');
+  if (savedUser) {
+    const userProfile = JSON.parse(savedUser);
+    return userProfile.id || null;
   }
+  return null;
 };
 
 export const useRunningStats = () => {
@@ -122,25 +116,43 @@ export const useRunningStats = () => {
     try {
       setIsLoading(true);
       
-      // Obtener el user_id del localStorage
-      const userId = getUserIdFromLocalStorage();
+      const currentUserId = getCurrentUserId();
       
-      if (!userId) {
-        console.log('No se encontró user ID, mostrando estadísticas vacías');
+      if (!currentUserId) {
+        console.log('No se encontró ID de usuario, mostrando estadísticas vacías');
         resetStats();
         return;
       }
 
-      console.log('Calculando estadísticas para usuario:', userId);
+      console.log('Calculando estadísticas para usuario:', currentUserId);
+      
+      // Primero obtenemos los planes del usuario
+      const { data: userPlans, error: plansError } = await supabase
+        .from('training_plans')
+        .select('id')
+        .eq('user_id', currentUserId);
 
-      // Consultar entrenamientos_realizados con join a training_plans para filtrar por usuario
+      if (plansError) {
+        console.error('Error obteniendo planes del usuario:', plansError);
+        resetStats();
+        return;
+      }
+
+      if (!userPlans || userPlans.length === 0) {
+        console.log('No se encontraron planes para el usuario');
+        resetStats();
+        return;
+      }
+
+      const planIds = userPlans.map(plan => plan.id);
+      console.log('IDs de planes encontrados:', planIds);
+
+      // Ahora obtenemos los entrenamientos realizados para esos planes
       const { data: workouts, error } = await supabase
         .from('entrenamientos_realizados')
-        .select(`
-          *,
-          training_plans!inner(user_id)
-        `)
-        .eq('training_plans.user_id', userId);
+        .select('*')
+        .in('plan_id', planIds)
+        .order('completed_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching workouts:', error);
@@ -148,16 +160,8 @@ export const useRunningStats = () => {
         return;
       }
 
-      console.log('Entrenamientos encontrados:', workouts?.length || 0);
-
-      // Convertir los datos al formato esperado
-      const formattedWorkouts = workouts?.map(workout => ({
-        actual_distance: workout.actual_distance,
-        actual_duration: workout.actual_duration,
-        completed_at: workout.completed_at
-      })) || [];
-
-      calculateStatsFromData(formattedWorkouts);
+      console.log('Entrenamientos encontrados para el usuario:', workouts?.length || 0);
+      calculateStatsFromData(workouts || []);
     } catch (error) {
       console.error('Error calculating stats:', error);
       resetStats();
@@ -380,28 +384,9 @@ export const useRunningStats = () => {
   }, []);
 
   const refreshStats = () => {
+    console.log('useRunningStats: refreshStats llamado');
     calculateStats();
   };
-
-  useEffect(() => {
-    const handleResetStats = () => {
-      console.log('Evento resetStats recibido, reseteando estadísticas...');
-      resetStats();
-    };
-
-    const handleStatsUpdated = () => {
-      console.log('Evento statsUpdated recibido, recalculando estadísticas...');
-      calculateStats();
-    };
-
-    window.addEventListener('resetStats', handleResetStats);
-    window.addEventListener('statsUpdated', handleStatsUpdated);
-    
-    return () => {
-      window.removeEventListener('resetStats', handleResetStats);
-      window.removeEventListener('statsUpdated', handleStatsUpdated);
-    };
-  }, []);
 
   return {
     stats,
