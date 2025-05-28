@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { getCompletedWorkouts } from '@/services/completedWorkoutService';
 
@@ -331,8 +332,8 @@ export const useRunningStats = () => {
     const paceVariation = previousPaceMinutes > 0 && currentPaceMinutes > 0 ? 
       Math.round(((previousPaceMinutes - currentPaceMinutes) / previousPaceMinutes) * 100) : 0;
 
-    // NUEVA LÓGICA: Datos semanales por día - CORREGIDA
-    console.log('=== GENERANDO DATOS SEMANALES POR DÍA ===');
+    // NUEVA LÓGICA: Datos semanales por día - CORREGIDA Y MEJORADA
+    console.log('=== GENERANDO DATOS SEMANALES POR DÍA (ACTUALIZACIÓN) ===');
     const weeklyData = [];
     const daysOfWeek = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     
@@ -344,8 +345,10 @@ export const useRunningStats = () => {
       workoutsByDay.set(i, 0);
     }
     
+    console.log(`Procesando ${validThisWeekWorkouts.length} entrenamientos válidos de esta semana:`);
+    
     // Agrupar entrenamientos de esta semana por día
-    validThisWeekWorkouts.forEach(w => {
+    validThisWeekWorkouts.forEach((w, index) => {
       const workoutDate = new Date(w.fecha_completado);
       let dayIndex = workoutDate.getDay(); // 0 = domingo, 1 = lunes, etc.
       
@@ -355,15 +358,15 @@ export const useRunningStats = () => {
       const currentDistance = workoutsByDay.get(dayIndex) || 0;
       workoutsByDay.set(dayIndex, currentDistance + w.distancia_recorrida);
       
-      console.log(`Entrenamiento: ${w.workout_title}`);
+      console.log(`[${index + 1}] Entrenamiento: ${w.workout_title}`);
       console.log(`  - Fecha: ${workoutDate.toLocaleDateString()}`);
-      console.log(`  - Día de semana JS: ${workoutDate.getDay()}`);
-      console.log(`  - Índice corregido: ${dayIndex} (${daysOfWeek[dayIndex]})`);
+      console.log(`  - Día JS: ${workoutDate.getDay()} -> Índice: ${dayIndex} (${daysOfWeek[dayIndex]})`);
       console.log(`  - Distancia: ${w.distancia_recorrida}km`);
-      console.log(`  - Total día: ${workoutsByDay.get(dayIndex)}km`);
+      console.log(`  - Acumulado día: ${workoutsByDay.get(dayIndex)}km`);
     });
     
     // Crear el array final con los datos
+    console.log('DATOS FINALES DEL GRÁFICO SEMANAL:');
     for (let i = 0; i < 7; i++) {
       const dayDistance = workoutsByDay.get(i);
       weeklyData.push({
@@ -373,6 +376,13 @@ export const useRunningStats = () => {
       
       console.log(`${daysOfWeek[i]}: ${dayDistance}km`);
     }
+
+    // Verificar coherencia total
+    const totalFromDays = weeklyData.reduce((sum, day) => sum + day.distance, 0);
+    console.log(`=== VERIFICACIÓN DE COHERENCIA ===`);
+    console.log(`Total desde weeklyDistance: ${weeklyDistance}km`);
+    console.log(`Total desde weeklyData: ${totalFromDays}km`);
+    console.log(`Diferencia: ${Math.abs(weeklyDistance - totalFromDays)}km`);
 
     console.log('=== RESULTADOS FINALES ===');
     console.log(`Ritmo promedio global: ${averagePace}`);
@@ -439,7 +449,7 @@ export const useRunningStats = () => {
   }, []);
 
   const refreshStats = () => {
-    console.log('useRunningStats: refreshStats llamado');
+    console.log('useRunningStats: refreshStats llamado - recalculando datos del gráfico');
     calculateStats();
   };
 

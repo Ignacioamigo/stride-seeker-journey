@@ -21,16 +21,24 @@ export const StatsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       refreshStats();
     };
 
+    const handleWorkoutCompleted = () => {
+      console.log('StatsContext: Evento workoutCompleted recibido, actualizando gráfico...');
+      refreshStats();
+    };
+
     const handleResetStats = () => {
       console.log('StatsContext: Evento resetStats recibido, reseteando...');
       resetStats();
     };
 
+    // Escuchar múltiples eventos
     window.addEventListener('statsUpdated', handleStatsUpdated);
+    window.addEventListener('workoutCompleted', handleWorkoutCompleted);
     window.addEventListener('resetStats', handleResetStats);
     
     return () => {
       window.removeEventListener('statsUpdated', handleStatsUpdated);
+      window.removeEventListener('workoutCompleted', handleWorkoutCompleted);
       window.removeEventListener('resetStats', handleResetStats);
     };
   }, [refreshStats, resetStats]);
