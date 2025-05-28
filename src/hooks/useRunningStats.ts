@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { getCompletedWorkouts } from '@/services/completedWorkoutService';
 import { calculateWeeklyData } from './utils/weeklyStatsCalculator';
@@ -312,83 +313,23 @@ export const useRunningStats = () => {
     const paceVariation = previousPaceMinutes > 0 && currentPaceMinutes > 0 ? 
       Math.round(((previousPaceMinutes - currentPaceMinutes) / previousPaceMinutes) * 100) : 0;
 
-    // NUEVA LÓGICA: Datos semanales por día - CORREGIDA Y MEJORADA
-    console.log('=== GENERANDO DATOS SEMANALES POR DÍA (ACTUALIZACIÓN) ===');
-    const weeklyData = [];
-    const daysOfWeek = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    
-    // Crear un mapa para agrupar entrenamientos por día de la semana
-    const workoutsByDay = new Map();
-    
-    // Inicializar todos los días con 0
-    for (let i = 0; i < 7; i++) {
-      workoutsByDay.set(i, 0);
-    }
-    
-    console.log(`Procesando ${validThisWeekWorkouts.length} entrenamientos válidos de esta semana:`);
-    
-    // Agrupar entrenamientos de esta semana por día
-    validThisWeekWorkouts.forEach((w, index) => {
-      const workoutDate = new Date(w.fecha_completado);
-      let dayIndex = workoutDate.getDay(); // 0 = domingo, 1 = lunes, etc.
-      
-      // Convertir domingo (0) a índice 6 para que lunes sea 0
-      dayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
-      
-      const currentDistance = workoutsByDay.get(dayIndex) || 0;
-      workoutsByDay.set(dayIndex, currentDistance + w.distancia_recorrida);
-      
-      console.log(`[${index + 1}] Entrenamiento: ${w.workout_title}`);
-      console.log(`  - Fecha: ${workoutDate.toLocaleDateString()}`);
-      console.log(`  - Día JS: ${workoutDate.getDay()} -> Índice: ${dayIndex} (${daysOfWeek[dayIndex]})`);
-      console.log(`  - Distancia: ${w.distancia_recorrida}km`);
-      console.log(`  - Acumulado día: ${workoutsByDay.get(dayIndex)}km`);
-    });
-    
-    // Crear el array final con los datos
-    console.log('DATOS FINALES DEL GRÁFICO SEMANAL:');
-    for (let i = 0; i < 7; i++) {
-      const dayDistance = workoutsByDay.get(i);
-      weeklyData.push({
-        day: daysOfWeek[i],
-        distance: Math.round(dayDistance * 10) / 10
-      });
-      
-      console.log(`${daysOfWeek[i]}: ${dayDistance}km`);
-    }
-
-    // Verificar coherencia total
-    const totalFromDays = weeklyData.reduce((sum, day) => sum + day.distance, 0);
-    console.log(`=== VERIFICACIÓN DE COHERENCIA ===`);
-    console.log(`Total desde weeklyDistance: ${weeklyDistance}km`);
-    console.log(`Total desde weeklyData: ${totalFromDays}km`);
-    console.log(`Diferencia: ${Math.abs(weeklyDistance - totalFromDays)}km`);
-
-    console.log('=== RESULTADOS FINALES (DATOS SEMANALES CORREGIDOS) ===');
-    console.log('Datos semanales:', weeklyData);
-    console.log(`Distancia semanal total: ${weeklyDistance}km`);
-
     setStats({
       weeklyDistance,
       totalRuns,
-      averagePace: totalDistance > 0 && totalTimeMinutes > 0 ? 
-        convertMinutesToPace(totalTimeMinutes, totalDistance) : "0:00 min/km",
+      averagePace,
       weeklyCalories,
       averageDistancePerRun: Math.round(averageDistancePerRun * 10) / 10,
       monthlyDistance: Math.round(monthlyDistance * 10) / 10,
-      paceImprovement: 0, // Usar cálculo existente
+      paceImprovement: 0,
       weeklyData,
       monthlyTotalTime: Math.round(monthlyTotalTime),
-      monthlyAveragePace: monthlyTotalDistance > 0 && monthlyTotalTime > 0 ? 
-        convertMinutesToPace(monthlyTotalTime, monthlyTotalDistance) : "0:00 min/km",
-      longestRun: validThisMonthWorkouts.length > 0 ? 
-        Math.max(...validThisMonthWorkouts.map(w => w.distancia_recorrida)) : 0,
-      bestPace: bestPaceValue === Infinity ? "0:00 min/km" : 
-        convertMinutesToPace(bestPaceValue, 1),
-      distanceVariation: 0, // Usar cálculo existente
-      paceVariation: 0, // Usar cálculo existente
-      previousMonthDistance: 0, // Usar cálculo existente
-      previousMonthAveragePace: "0:00 min/km" // Usar cálculo existente
+      monthlyAveragePace,
+      longestRun,
+      bestPace,
+      distanceVariation,
+      paceVariation,
+      previousMonthDistance,
+      previousMonthAveragePace
     });
 
     setIsLoading(false);
