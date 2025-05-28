@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { getCompletedWorkouts } from '@/services/completedWorkoutService';
 
@@ -142,7 +141,7 @@ export const useRunningStats = () => {
     try {
       setIsLoading(true);
       
-      console.log('Calculando estadísticas desde entrenamientos_completados...');
+      console.log('=== CALCULANDO ESTADÍSTICAS DESDE ENTRENAMIENTOS_COMPLETADOS ===');
       
       // Obtener entrenamientos de la nueva tabla
       const workouts = await getCompletedWorkouts();
@@ -175,6 +174,10 @@ export const useRunningStats = () => {
     startOfWeek.setDate(now.getDate() - daysToSubtract);
     startOfWeek.setHours(0, 0, 0, 0);
 
+    console.log(`=== CÁLCULO DE SEMANA ACTUAL ===`);
+    console.log(`Hoy es: ${now.toLocaleDateString()} (día ${dayOfWeek})`);
+    console.log(`Inicio de semana (lunes): ${startOfWeek.toLocaleDateString()}`);
+
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -182,8 +185,12 @@ export const useRunningStats = () => {
     // Filtrar entrenamientos por períodos usando fecha_completado
     const thisWeekWorkouts = workouts.filter(w => {
       const workoutDate = new Date(w.fecha_completado);
-      return workoutDate >= startOfWeek;
+      const isThisWeek = workoutDate >= startOfWeek;
+      console.log(`Entrenamiento ${w.workout_title}: ${workoutDate.toLocaleDateString()} - ¿Esta semana? ${isThisWeek}`);
+      return isThisWeek;
     });
+
+    console.log(`Entrenamientos de esta semana: ${thisWeekWorkouts.length}`);
 
     const thisMonthWorkouts = workouts.filter(w => {
       const workoutDate = new Date(w.fecha_completado);
@@ -324,25 +331,47 @@ export const useRunningStats = () => {
     const paceVariation = previousPaceMinutes > 0 && currentPaceMinutes > 0 ? 
       Math.round(((previousPaceMinutes - currentPaceMinutes) / previousPaceMinutes) * 100) : 0;
 
-    // Datos semanales por día
+    // NUEVA LÓGICA: Datos semanales por día - CORREGIDA
+    console.log('=== GENERANDO DATOS SEMANALES POR DÍA ===');
     const weeklyData = [];
     const daysOfWeek = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     
+    // Crear un mapa para agrupar entrenamientos por día de la semana
+    const workoutsByDay = new Map();
+    
+    // Inicializar todos los días con 0
     for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(startOfWeek);
-      dayDate.setDate(startOfWeek.getDate() + i);
+      workoutsByDay.set(i, 0);
+    }
+    
+    // Agrupar entrenamientos de esta semana por día
+    validThisWeekWorkouts.forEach(w => {
+      const workoutDate = new Date(w.fecha_completado);
+      let dayIndex = workoutDate.getDay(); // 0 = domingo, 1 = lunes, etc.
       
-      const dayWorkouts = validThisWeekWorkouts.filter(w => {
-        const workoutDate = new Date(w.fecha_completado);
-        return workoutDate.toDateString() === dayDate.toDateString();
-      });
+      // Convertir domingo (0) a índice 6 para que lunes sea 0
+      dayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
       
-      const dayDistance = dayWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
+      const currentDistance = workoutsByDay.get(dayIndex) || 0;
+      workoutsByDay.set(dayIndex, currentDistance + w.distancia_recorrida);
       
+      console.log(`Entrenamiento: ${w.workout_title}`);
+      console.log(`  - Fecha: ${workoutDate.toLocaleDateString()}`);
+      console.log(`  - Día de semana JS: ${workoutDate.getDay()}`);
+      console.log(`  - Índice corregido: ${dayIndex} (${daysOfWeek[dayIndex]})`);
+      console.log(`  - Distancia: ${w.distancia_recorrida}km`);
+      console.log(`  - Total día: ${workoutsByDay.get(dayIndex)}km`);
+    });
+    
+    // Crear el array final con los datos
+    for (let i = 0; i < 7; i++) {
+      const dayDistance = workoutsByDay.get(i);
       weeklyData.push({
         day: daysOfWeek[i],
         distance: Math.round(dayDistance * 10) / 10
       });
+      
+      console.log(`${daysOfWeek[i]}: ${dayDistance}km`);
     }
 
     console.log('=== RESULTADOS FINALES ===');
@@ -350,6 +379,7 @@ export const useRunningStats = () => {
     console.log(`Ritmo promedio mensual: ${monthlyAveragePace}`);
     console.log(`Mejor ritmo: ${bestPace}`);
     console.log(`Variación de ritmo: ${paceVariation}%`);
+    console.log('Datos semanales:', weeklyData);
 
     setStats({
       weeklyDistance: Math.round(weeklyDistance * 10) / 10,

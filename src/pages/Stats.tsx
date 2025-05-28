@@ -22,23 +22,23 @@ const Stats: React.FC = () => {
       </div>
       
       <div className="container max-w-md mx-auto p-4">
-        {/* Gráfico de distancia semanal */}
+        {/* Gráfico de distancia semanal - DISEÑO MEJORADO */}
         <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
-          <h2 className="text-lg font-medium text-runapp-navy mb-2">Distancia esta semana</h2>
+          <h2 className="text-lg font-medium text-runapp-navy mb-4">Distancia esta semana</h2>
           
-          <div className="h-32 w-full">
+          <div className="h-48 w-full mb-4">
             <ChartContainer config={chartConfig}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
                   data={stats.weeklyData}
-                  margin={{ top: 5, right: 5, left: 5, bottom: 20 }}
+                  margin={{ top: 10, right: 10, left: 10, bottom: 40 }}
                 >
                   <XAxis 
                     dataKey="day" 
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 12, fill: '#6B7280' }}
-                    height={20}
+                    height={30}
                   />
                   <YAxis 
                     hide 
@@ -49,16 +49,18 @@ const Stats: React.FC = () => {
                     dataKey="distance" 
                     fill="var(--color-distance)"
                     radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
+                    maxBarSize={35}
                   />
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>
           </div>
           
-          <p className="text-sm text-runapp-gray mt-2">
-            {isLoading ? "Cargando..." : `Total: ${stats.weeklyDistance} km • Promedio: ${stats.averageDistancePerRun} km por carrera`}
-          </p>
+          <div className="pt-2 border-t border-gray-100">
+            <p className="text-sm text-runapp-gray">
+              {isLoading ? "Cargando..." : `Total: ${stats.weeklyDistance} km • Promedio: ${stats.averageDistancePerRun} km por carrera`}
+            </p>
+          </div>
         </div>
         
         {/* Progreso mensual */}
