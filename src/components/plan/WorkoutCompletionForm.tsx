@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Workout } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
   const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
   const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { refreshStats } = useStats();
+  const { forceUpdate, updateCounter } = useStats();
   
   const isRestDay = workout.type === 'descanso';
   
@@ -29,6 +30,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
     event.preventDefault();
     
     console.log("=== INICIANDO SUBMIT DEL FORMULARIO ===");
+    console.log("Counter antes del submit:", updateCounter);
     
     setIsSubmitting(true);
     try {
@@ -58,14 +60,15 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         // Actualizar el estado local del workout
         await onComplete(workout.id, distanceValue, durationValue);
         
-        // ESTRATEGIA SIMPLIFICADA: Solo un refresh con delay
-        console.log("🔄 Actualizando estadísticas...");
+        // FORZAR ACTUALIZACIÓN COMPLETA
+        console.log("🔄 FORZANDO ACTUALIZACIÓN CON FORCE UPDATE");
         
         setTimeout(() => {
-          console.log("🔄 Ejecutando refresh de estadísticas");
-          refreshStats();
+          console.log("🔄 Ejecutando forceUpdate");
+          forceUpdate();
           window.dispatchEvent(new CustomEvent('statsUpdated'));
-        }, 500);
+          window.dispatchEvent(new CustomEvent('workoutCompleted'));
+        }, 300);
         
         toast({
           title: "¡Entrenamiento completado!",

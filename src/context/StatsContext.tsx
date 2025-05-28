@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useState } from 'react';
 import { useRunningStats } from '@/hooks/useRunningStats';
 
 interface StatsContextType {
@@ -7,15 +7,31 @@ interface StatsContextType {
   stats: any;
   isLoading: boolean;
   resetStats: () => void;
+  updateCounter: number;
+  forceUpdate: () => void;
 }
 
 const StatsContext = createContext<StatsContextType | undefined>(undefined);
 
 export const StatsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { stats, isLoading, refreshStats, resetStats } = useRunningStats();
+  const [updateCounter, setUpdateCounter] = useState(0);
+  const { stats, isLoading, refreshStats, resetStats } = useRunningStats(updateCounter);
+
+  const forceUpdate = () => {
+    console.log('StatsContext: FORZANDO ACTUALIZACIÓN con counter:', updateCounter + 1);
+    setUpdateCounter(prev => prev + 1);
+    refreshStats();
+  };
 
   return (
-    <StatsContext.Provider value={{ refreshStats, stats, isLoading, resetStats }}>
+    <StatsContext.Provider value={{ 
+      refreshStats, 
+      stats, 
+      isLoading, 
+      resetStats, 
+      updateCounter,
+      forceUpdate 
+    }}>
       {children}
     </StatsContext.Provider>
   );

@@ -1,4 +1,3 @@
-
 import BottomNav from "@/components/layout/BottomNav";
 import { useStats } from "@/context/StatsContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,8 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { useEffect, useState } from "react";
 
 const Stats: React.FC = () => {
-  const { stats, isLoading, refreshStats } = useStats();
-  const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
+  const { stats, isLoading, updateCounter, forceUpdate } = useStats();
   const [chartKey, setChartKey] = useState<number>(0);
 
   const chartConfig = {
@@ -18,38 +16,43 @@ const Stats: React.FC = () => {
     },
   };
 
-  // Escuchar eventos de entrenamientos completados ULTRA MEJORADO
+  // Efecto principal que reacciona al updateCounter
   useEffect(() => {
-    console.log('=== STATS PAGE: Configurando listeners (ULTRA MEJORADO) ===');
+    console.log('=== STATS PAGE: Update counter cambió ===', updateCounter);
+    console.log('Stats page: Datos actuales del gráfico:', JSON.stringify(stats.weeklyData, null, 2));
+    console.log('Stats page: Distancia semanal total:', stats.weeklyDistance);
     
-    const forceCompleteUpdate = () => {
-      const timestamp = Date.now();
-      console.log('Stats: FORZANDO ACTUALIZACIÓN COMPLETA ULTRA...', timestamp);
-      setLastUpdate(timestamp);
-      setChartKey(prev => prev + 1);
-      
-      // Múltiples actualizaciones para asegurar que se ejecute
-      refreshStats();
-      
+    // Forzar re-render del gráfico
+    setChartKey(prev => prev + 1);
+    
+    // Verificar coherencia de datos
+    const totalFromChart = stats.weeklyData.reduce((sum, day) => sum + day.distance, 0);
+    console.log('Stats page: Total calculado desde gráfico:', totalFromChart);
+    console.log('Stats page: Total desde stats:', stats.weeklyDistance);
+    
+    if (Math.abs(totalFromChart - stats.weeklyDistance) > 0.1) {
+      console.warn('⚠️ STATS PAGE: INCONSISTENCIA DETECTADA');
       setTimeout(() => {
-        refreshStats();
-        console.log('Stats: Actualización adicional 150ms');
-      }, 150);
-      
-      setTimeout(() => {
-        refreshStats();
-        console.log('Stats: Actualización adicional 300ms');
-      }, 300);
-    };
+        console.log('🔄 Stats page: Forzando actualización por inconsistencia...');
+        forceUpdate();
+      }, 500);
+    } else {
+      console.log('✅ STATS PAGE: Los datos son coherentes');
+    }
+  }, [updateCounter, stats.weeklyData, stats.weeklyDistance, forceUpdate]);
 
+  // Escuchar eventos de entrenamientos completados
+  useEffect(() => {
+    console.log('=== STATS PAGE: Configurando listeners ===');
+    
     const handleStatsUpdated = () => {
-      console.log('Stats: Evento statsUpdated - FORZANDO ACTUALIZACIÓN ULTRA...');
-      forceCompleteUpdate();
+      console.log('Stats page: Evento statsUpdated recibido - forzando actualización');
+      forceUpdate();
     };
 
     const handleWorkoutCompleted = () => {
-      console.log('Stats: Evento workoutCompleted - FORZANDO ACTUALIZACIÓN ULTRA...');
-      forceCompleteUpdate();
+      console.log('Stats page: Evento workoutCompleted recibido - forzando actualización');
+      forceUpdate();
     };
 
     window.addEventListener('statsUpdated', handleStatsUpdated);
@@ -59,65 +62,24 @@ const Stats: React.FC = () => {
       window.removeEventListener('statsUpdated', handleStatsUpdated);
       window.removeEventListener('workoutCompleted', handleWorkoutCompleted);
     };
-  }, [refreshStats]);
-
-  // Log detallado de los datos del gráfico con más información
-  useEffect(() => {
-    console.log('=== STATS GRÁFICO: ANÁLISIS ULTRA DETALLADO ===');
-    console.log('Timestamp última actualización:', lastUpdate);
-    console.log('Chart key (re-render):', chartKey);
-    console.log('isLoading:', isLoading);
-    console.log('Datos del gráfico semanal:', JSON.stringify(stats.weeklyData, null, 2));
-    console.log('Distancia semanal total:', stats.weeklyDistance);
-    
-    // Verificar cada día individualmente
-    stats.weeklyData.forEach((day, index) => {
-      console.log(`DÍA ${index + 1} - ${day.day}: ${day.distance}km`);
-    });
-    
-    // Verificar coherencia
-    const totalFromChart = stats.weeklyData.reduce((sum, day) => sum + day.distance, 0);
-    console.log('Total calculado desde gráfico:', totalFromChart);
-    console.log('Total desde stats.weeklyDistance:', stats.weeklyDistance);
-    
-    if (Math.abs(totalFromChart - stats.weeklyDistance) > 0.1) {
-      console.warn('⚠️ INCONSISTENCIA DETECTADA en los datos del gráfico');
-      // Forzar una actualización adicional si hay inconsistencia
-      setTimeout(() => {
-        console.log('🔄 Forzando actualización por inconsistencia...');
-        refreshStats();
-      }, 500);
-    } else {
-      console.log('✅ COHERENCIA: Los datos del gráfico son correctos');
-    }
-  }, [stats.weeklyData, stats.weeklyDistance, lastUpdate, chartKey, refreshStats]);
-
-  // Actualización automática cada 2 segundos si está cargando
-  useEffect(() => {
-    if (isLoading) {
-      const interval = setInterval(() => {
-        console.log('🔄 Auto-refresh durante carga...');
-        refreshStats();
-      }, 2000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [isLoading, refreshStats]);
+  }, [forceUpdate]);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="bg-runapp-purple text-white p-4">
         <h1 className="text-xl font-bold">Estadísticas</h1>
-        <p className="text-xs opacity-75">Última actualización: {new Date(lastUpdate).toLocaleTimeString()}</p>
+        <p className="text-xs opacity-75">
+          Update counter: {updateCounter} • Chart key: {chartKey}
+        </p>
       </div>
       
       <div className="container max-w-md mx-auto p-4">
-        {/* Gráfico de distancia semanal - ULTRA CORREGIDO */}
+        {/* Gráfico de distancia semanal */}
         <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
           <h2 className="text-lg font-medium text-runapp-navy mb-4">Distancia esta semana</h2>
           
           <div className="h-52 w-full mb-6">
-            <ChartContainer config={chartConfig} key={`chart-${chartKey}-${lastUpdate}`}>
+            <ChartContainer config={chartConfig} key={`chart-${chartKey}-${updateCounter}`}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
                   data={stats.weeklyData}
@@ -151,7 +113,7 @@ const Stats: React.FC = () => {
               {isLoading ? "Cargando..." : `Total: ${stats.weeklyDistance} km • Promedio: ${stats.averageDistancePerRun} km por carrera`}
             </p>
             <p className="text-xs text-runapp-gray mt-1">
-              Chart Key: #{chartKey} • Update: {new Date(lastUpdate).toLocaleTimeString()}
+              Debug: Counter #{updateCounter} • Chart #{chartKey}
             </p>
           </div>
         </div>

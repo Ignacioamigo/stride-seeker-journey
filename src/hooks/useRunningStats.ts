@@ -109,7 +109,7 @@ const convertMinutesToPace = (totalMinutes: number, totalDistance: number): stri
   return `${finalMinutes}:${finalSeconds.toString().padStart(2, '0')} min/km`;
 };
 
-export const useRunningStats = () => {
+export const useRunningStats = (updateCounter?: number) => {
   const [stats, setStats] = useState<RunningStats>({
     weeklyDistance: 0,
     totalRuns: 0,
@@ -137,28 +137,27 @@ export const useRunningStats = () => {
     previousMonthAveragePace: "0:00 min/km"
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const calculateStats = async () => {
     try {
-      console.log(`=== CALCULANDO ESTADÍSTICAS (trigger: ${refreshTrigger}) ===`);
+      console.log(`=== CALCULANDO ESTADÍSTICAS (updateCounter: ${updateCounter}) ===`);
       setIsLoading(true);
       
       // Pequeño delay para asegurar que la DB se haya actualizado
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       const workouts = await getCompletedWorkouts();
-      console.log(`Entrenamientos obtenidos: ${workouts?.length || 0}`);
+      console.log(`Hook: Entrenamientos obtenidos: ${workouts?.length || 0}`);
       
       if (!workouts || workouts.length === 0) {
-        console.log('No hay entrenamientos, reseteando estadísticas');
+        console.log('Hook: No hay entrenamientos, reseteando estadísticas');
         resetStats();
         return;
       }
 
       calculateStatsFromData(workouts);
     } catch (error) {
-      console.error('Error calculating stats:', error);
+      console.error('Hook: Error calculating stats:', error);
       resetStats();
     }
   };
@@ -169,17 +168,22 @@ export const useRunningStats = () => {
       return;
     }
 
-    console.log('=== INICIANDO CÁLCULO DE ESTADÍSTICAS ===');
+    console.log('=== HOOK: INICIANDO CÁLCULO DE ESTADÍSTICAS ===');
 
     // USAR LA NUEVA FUNCIÓN PARA DATOS SEMANALES
     const { weeklyData, weeklyDistance } = calculateWeeklyData(workouts);
+    
+    console.log('Hook: Datos semanales calculados:', {
+      weeklyDistance,
+      weeklyData: JSON.stringify(weeklyData, null, 2)
+    });
 
+    // Filtrar entrenamientos por períodos usando fecha_completado
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    // Filtrar entrenamientos por períodos usando fecha_completado
     const thisMonthWorkouts = workouts.filter(w => {
       const workoutDate = new Date(w.fecha_completado);
       return workoutDate >= startOfMonth;
@@ -334,16 +338,18 @@ export const useRunningStats = () => {
       previousMonthAveragePace
     };
 
-    console.log('=== NUEVAS ESTADÍSTICAS CALCULADAS ===');
-    console.log('Distancia semanal:', newStats.weeklyDistance);
-    console.log('Datos semanales:', JSON.stringify(newStats.weeklyData, null, 2));
+    console.log('Hook: NUEVAS ESTADÍSTICAS FINALES:', {
+      weeklyDistance: newStats.weeklyDistance,
+      weeklyData: newStats.weeklyData,
+      updateCounter
+    });
     
     setStats(newStats);
     setIsLoading(false);
   };
 
   const resetStats = () => {
-    console.log('Reseteando estadísticas a valores por defecto');
+    console.log('Hook: Reseteando estadísticas a valores por defecto');
     setStats({
       weeklyDistance: 0,
       totalRuns: 0,
@@ -373,13 +379,21 @@ export const useRunningStats = () => {
     setIsLoading(false);
   };
 
+  // Efecto principal que se ejecuta cuando cambia updateCounter
   useEffect(() => {
+    console.log(`Hook: useEffect disparado por updateCounter: ${updateCounter}`);
     calculateStats();
-  }, [refreshTrigger]);
+  }, [updateCounter]);
+
+  // Efecto inicial
+  useEffect(() => {
+    console.log('Hook: useEffect inicial');
+    calculateStats();
+  }, []);
 
   const refreshStats = () => {
-    console.log('useRunningStats: FORZANDO REFRESH COMPLETO');
-    setRefreshTrigger(prev => prev + 1);
+    console.log('Hook: refreshStats llamado');
+    calculateStats();
   };
 
   return {
