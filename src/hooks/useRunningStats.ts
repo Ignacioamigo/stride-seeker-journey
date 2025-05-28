@@ -21,52 +21,75 @@ interface RunningStats {
   previousMonthAveragePace: string;
 }
 
-// Función para convertir duración interval a minutos
-const convertIntervalToMinutes = (interval: string): number => {
-  if (!interval) return 0;
+// Función mejorada para convertir duración a minutos
+const convertDurationToMinutes = (duration: string | any): number => {
+  if (!duration) return 0;
   
-  // Si ya es un número, devolverlo
-  if (!isNaN(Number(interval))) {
-    return Number(interval);
+  // Si viene como string, procesarlo
+  let durationStr = typeof duration === 'string' ? duration : String(duration);
+  
+  console.log(`[convertDurationToMinutes] Procesando: "${durationStr}"`);
+  
+  // Limpiar la cadena
+  const cleanDuration = durationStr.toLowerCase().replace(/\s+/g, '');
+  
+  // Si ya es un número, asumimos minutos
+  if (/^\d+(\.\d+)?$/.test(cleanDuration)) {
+    const minutes = parseFloat(cleanDuration);
+    console.log(`[convertDurationToMinutes] Número directo: ${minutes} minutos`);
+    return minutes;
   }
   
-  // Manejar formato PostgreSQL interval (HH:MM:SS)
-  const timeMatch = interval.match(/(\d+):(\d+):(\d+)/);
-  if (timeMatch) {
-    const hours = parseInt(timeMatch[1]);
-    const minutes = parseInt(timeMatch[2]);
-    const seconds = parseInt(timeMatch[3]);
-    return hours * 60 + minutes + seconds / 60;
+  // Buscar formato "X min"
+  const minMatch = cleanDuration.match(/(\d+(?:\.\d+)?)min/);
+  if (minMatch) {
+    const minutes = parseFloat(minMatch[1]);
+    console.log(`[convertDurationToMinutes] Formato "X min": ${minutes} minutos`);
+    return minutes;
   }
   
-  // Manejar formato texto como "30min", "1h30min"
-  const cleanDuration = interval.toLowerCase().replace(/\s+/g, '');
-  
-  if (/^\d+$/.test(cleanDuration)) {
-    return parseInt(cleanDuration);
-  }
-  
+  // Buscar horas y minutos
   let totalMinutes = 0;
   
-  const hoursMatch = cleanDuration.match(/(\d+)h/);
+  const hoursMatch = cleanDuration.match(/(\d+(?:\.\d+)?)h/);
   if (hoursMatch) {
-    totalMinutes += parseInt(hoursMatch[1]) * 60;
+    totalMinutes += parseFloat(hoursMatch[1]) * 60;
   }
   
-  const minutesMatch = cleanDuration.match(/(\d+)min/);
+  const minutesMatch = cleanDuration.match(/(\d+(?:\.\d+)?)min/);
   if (minutesMatch) {
-    totalMinutes += parseInt(minutesMatch[1]);
+    totalMinutes += parseFloat(minutesMatch[1]);
   }
   
-  const timeMatch2 = cleanDuration.match(/(\d+):(\d+)(?::(\d+))?/);
-  if (timeMatch2 && !hoursMatch && !minutesMatch) {
-    if (timeMatch2[3]) {
-      totalMinutes += parseInt(timeMatch2[1]) * 60 + parseInt(timeMatch2[2]);
+  // Formato HH:MM:SS de PostgreSQL interval
+  const intervalMatch = cleanDuration.match(/(\d+):(\d+):(\d+)/);
+  if (intervalMatch) {
+    const hours = parseInt(intervalMatch[1]);
+    const minutes = parseInt(intervalMatch[2]);
+    const seconds = parseInt(intervalMatch[3]);
+    totalMinutes = hours * 60 + minutes + seconds / 60;
+    console.log(`[convertDurationToMinutes] Formato interval ${hours}:${minutes}:${seconds} = ${totalMinutes} minutos`);
+    return totalMinutes;
+  }
+  
+  // Formato MM:SS
+  const timeMatch = cleanDuration.match(/^(\d+):(\d+)$/);
+  if (timeMatch && !hoursMatch && !minutesMatch) {
+    const first = parseInt(timeMatch[1]);
+    const second = parseInt(timeMatch[2]);
+    
+    if (first > 59) {
+      // HH:MM
+      totalMinutes = first * 60 + second;
     } else {
-      totalMinutes += parseInt(timeMatch2[1]);
+      // MM:SS
+      totalMinutes = first + (second / 60);
     }
+    console.log(`[convertDurationToMinutes] Formato tiempo ${first}:${second} = ${totalMinutes} minutos`);
+    return totalMinutes;
   }
   
+  console.log(`[convertDurationToMinutes] Total calculado: ${totalMinutes} minutos`);
   return totalMinutes;
 };
 
@@ -188,24 +211,29 @@ export const useRunningStats = () => {
     const totalDistanceAllRuns = validWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
     const averageDistancePerRun = totalRuns > 0 ? totalDistanceAllRuns / totalRuns : 0;
 
-    // CORRECCIÓN CRÍTICA: Calcular tiempo total y ritmo promedio global
+    // CÁLCULO CORRECTO: Ritmo promedio global
     let totalTimeMinutes = 0;
     let totalDistance = 0;
 
+    console.log('=== CALCULANDO RITMO PROMEDIO GLOBAL ===');
     validWorkouts.forEach(w => {
       if (w.duracion && w.distancia_recorrida) {
-        const timeInMinutes = convertIntervalToMinutes(w.duracion);
+        const timeInMinutes = convertDurationToMinutes(w.duracion);
         totalTimeMinutes += timeInMinutes;
         totalDistance += w.distancia_recorrida;
         
-        console.log(`Entrenamiento: ${w.workout_title}, Distancia: ${w.distancia_recorrida}km, Duración original: ${w.duracion}, Duración en minutos: ${timeInMinutes}`);
+        console.log(`Entrenamiento: ${w.workout_title}`);
+        console.log(`  - Distancia: ${w.distancia_recorrida}km`);
+        console.log(`  - Duración original: "${w.duracion}"`);
+        console.log(`  - Duración en minutos: ${timeInMinutes}`);
+        console.log(`  - Ritmo individual: ${timeInMinutes / w.distancia_recorrida} min/km`);
       }
     });
 
-    console.log(`CÁLCULO RITMO PROMEDIO GLOBAL:`);
-    console.log(`Total tiempo en minutos: ${totalTimeMinutes}`);
-    console.log(`Total distancia: ${totalDistance}`);
-    console.log(`Ritmo calculado (min/km): ${totalTimeMinutes / totalDistance}`);
+    console.log(`TOTALES GLOBALES:`);
+    console.log(`  - Total tiempo: ${totalTimeMinutes} minutos`);
+    console.log(`  - Total distancia: ${totalDistance} km`);
+    console.log(`  - Ritmo promedio: ${totalTimeMinutes / totalDistance} min/km`);
 
     // CORRECCIÓN: usar la función corregida para el ritmo promedio GLOBAL
     const averagePace = totalDistance > 0 && totalTimeMinutes > 0 ? 
@@ -217,22 +245,25 @@ export const useRunningStats = () => {
     // Distancia mensual
     const monthlyDistance = validThisMonthWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
 
-    // CORRECCIÓN CRÍTICA: Tiempo total mensual
+    // CÁLCULO CORRECTO: Tiempo total mensual
     let monthlyTotalTime = 0;
     let monthlyTotalDistance = 0;
 
+    console.log('=== CALCULANDO RITMO PROMEDIO MENSUAL ===');
     validThisMonthWorkouts.forEach(w => {
       if (w.duracion && w.distancia_recorrida) {
-        const timeInMinutes = convertIntervalToMinutes(w.duracion);
+        const timeInMinutes = convertDurationToMinutes(w.duracion);
         monthlyTotalTime += timeInMinutes;
         monthlyTotalDistance += w.distancia_recorrida;
+        
+        console.log(`Entrenamiento mensual: ${w.workout_title} - ${timeInMinutes}min / ${w.distancia_recorrida}km`);
       }
     });
 
-    console.log(`CÁLCULO RITMO PROMEDIO MENSUAL:`);
-    console.log(`Tiempo mensual total en minutos: ${monthlyTotalTime}`);
-    console.log(`Distancia mensual total: ${monthlyTotalDistance}`);
-    console.log(`Ritmo mensual calculado (min/km): ${monthlyTotalTime / monthlyTotalDistance}`);
+    console.log(`TOTALES MENSUALES:`);
+    console.log(`  - Tiempo mensual: ${monthlyTotalTime} minutos`);
+    console.log(`  - Distancia mensual: ${monthlyTotalDistance} km`);
+    console.log(`  - Ritmo mensual: ${monthlyTotalTime / monthlyTotalDistance} min/km`);
 
     // CORRECCIÓN: usar la función corregida para el ritmo promedio mensual
     const monthlyAveragePace = monthlyTotalDistance > 0 && monthlyTotalTime > 0 ? 
@@ -242,27 +273,28 @@ export const useRunningStats = () => {
     const longestRun = validThisMonthWorkouts.length > 0 ? 
       Math.max(...validThisMonthWorkouts.map(w => w.distancia_recorrida)) : 0;
 
-    // CORRECCIÓN CRÍTICA: Mejor ritmo del mes
+    // CÁLCULO CORRECTO: Mejor ritmo del mes
     let bestPaceValue = Infinity;
+    console.log('=== CALCULANDO MEJOR RITMO DEL MES ===');
     validThisMonthWorkouts.forEach(w => {
       if (w.duracion && w.distancia_recorrida) {
-        const timeInMinutes = convertIntervalToMinutes(w.duracion);
-        // CORRECCIÓN: el mejor ritmo es el menor tiempo por kilómetro (totalMinutes / totalDistance)
+        const timeInMinutes = convertDurationToMinutes(w.duracion);
+        // CORRECCIÓN: el mejor ritmo es el menor tiempo por kilómetro
         const pace = timeInMinutes / w.distancia_recorrida;
-        console.log(`Entrenamiento ${w.workout_title}: ${timeInMinutes} min / ${w.distancia_recorrida} km = ${pace} min/km`);
+        console.log(`  - ${w.workout_title}: ${timeInMinutes}min / ${w.distancia_recorrida}km = ${pace} min/km`);
         if (pace < bestPaceValue && pace > 0) {
           bestPaceValue = pace;
         }
       }
     });
 
-    console.log(`MEJOR RITMO DEL MES: ${bestPaceValue} min/km`);
+    console.log(`MEJOR RITMO: ${bestPaceValue} min/km`);
 
     // CORRECCIÓN: convertir el mejor ritmo usando la función corregida
     const bestPace = bestPaceValue === Infinity ? "0:00 min/km" : 
       convertMinutesToPace(bestPaceValue, 1);
 
-    // CORRECCIÓN CRÍTICA: Calcular variaciones del mes anterior
+    // CÁLCULO CORRECTO: Variaciones del mes anterior
     const previousMonthDistance = validLastMonthWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
     
     let previousMonthTotalTime = 0;
@@ -270,15 +302,11 @@ export const useRunningStats = () => {
 
     validLastMonthWorkouts.forEach(w => {
       if (w.duracion && w.distancia_recorrida) {
-        const timeInMinutes = convertIntervalToMinutes(w.duracion);
+        const timeInMinutes = convertDurationToMinutes(w.duracion);
         previousMonthTotalTime += timeInMinutes;
         previousMonthTotalDistance += w.distancia_recorrida;
       }
     });
-
-    console.log(`CÁLCULO RITMO PROMEDIO MES ANTERIOR:`);
-    console.log(`Tiempo mes anterior total en minutos: ${previousMonthTotalTime}`);
-    console.log(`Distancia mes anterior total: ${previousMonthTotalDistance}`);
 
     // CORRECCIÓN: usar la función corregida para el ritmo promedio del mes anterior
     const previousMonthAveragePace = previousMonthTotalDistance > 0 && previousMonthTotalTime > 0 ? 
@@ -288,13 +316,9 @@ export const useRunningStats = () => {
     const distanceVariation = previousMonthDistance > 0 ? 
       Math.round(((monthlyDistance - previousMonthDistance) / previousMonthDistance) * 100) : 0;
 
-    // CORRECCIÓN CRÍTICA: Variación de ritmo
+    // CÁLCULO CORRECTO: Variación de ritmo
     const currentPaceMinutes = monthlyTotalDistance > 0 ? monthlyTotalTime / monthlyTotalDistance : 0;
     const previousPaceMinutes = previousMonthTotalDistance > 0 ? previousMonthTotalTime / previousMonthTotalDistance : 0;
-    
-    console.log(`VARIACIÓN DE RITMO:`);
-    console.log(`Ritmo actual (min/km): ${currentPaceMinutes}`);
-    console.log(`Ritmo anterior (min/km): ${previousPaceMinutes}`);
     
     // Para el ritmo, una mejora significa un tiempo menor (ritmo más rápido)
     const paceVariation = previousPaceMinutes > 0 && currentPaceMinutes > 0 ? 
@@ -321,7 +345,7 @@ export const useRunningStats = () => {
       });
     }
 
-    console.log('RESULTADOS FINALES:');
+    console.log('=== RESULTADOS FINALES ===');
     console.log(`Ritmo promedio global: ${averagePace}`);
     console.log(`Ritmo promedio mensual: ${monthlyAveragePace}`);
     console.log(`Mejor ritmo: ${bestPace}`);
