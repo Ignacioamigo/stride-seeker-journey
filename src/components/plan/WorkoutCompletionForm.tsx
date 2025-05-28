@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Workout } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { saveCompletedWorkout } from "@/services/completedWorkoutService";
+import { useStats } from "@/context/StatsContext";
 
 interface WorkoutCompletionFormProps {
   workout: Workout;
@@ -21,6 +21,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
   const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
   const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { refreshStats } = useStats();
   
   const isRestDay = workout.type === 'descanso';
   
@@ -61,19 +62,42 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         // Actualizar el estado local del workout
         await onComplete(workout.id, distanceValue, durationValue);
         
-        // MEJORADO: Disparar múltiples eventos y con delay para asegurar actualización
-        console.log("WorkoutCompletionForm: 🔄 Disparando eventos de actualización...");
+        // NUEVA ESTRATEGIA: Múltiples actualizaciones con diferentes delays
+        console.log("WorkoutCompletionForm: 🔄 Iniciando secuencia de actualización agresiva...");
         
-        // Evento inmediato
+        // Actualización inmediata del contexto
+        refreshStats();
+        
+        // Eventos inmediatos
         window.dispatchEvent(new CustomEvent('statsUpdated'));
         window.dispatchEvent(new CustomEvent('workoutCompleted'));
         
-        // Evento con delay para asegurar que Supabase se haya actualizado
+        // Secuencia de actualizaciones con diferentes delays
         setTimeout(() => {
-          console.log("WorkoutCompletionForm: 🔄 Disparando eventos con delay...");
+          console.log("WorkoutCompletionForm: 🔄 Actualización 100ms...");
+          refreshStats();
           window.dispatchEvent(new CustomEvent('statsUpdated'));
-          window.dispatchEvent(new CustomEvent('workoutCompleted'));
-        }, 200);
+        }, 100);
+        
+        setTimeout(() => {
+          console.log("WorkoutCompletionForm: 🔄 Actualización 300ms...");
+          refreshStats();
+          window.dispatchEvent(new CustomEvent('statsUpdated'));
+        }, 300);
+        
+        setTimeout(() => {
+          console.log("WorkoutCompletionForm: 🔄 Actualización 500ms...");
+          refreshStats();
+          window.dispatchEvent(new CustomEvent('statsUpdated'));
+        }, 500);
+        
+        // Actualización final con log
+        setTimeout(() => {
+          console.log("WorkoutCompletionForm: 🔄 Actualización final 1000ms...");
+          refreshStats();
+          window.dispatchEvent(new CustomEvent('statsUpdated'));
+          console.log("WorkoutCompletionForm: ✅ Secuencia de actualización completada");
+        }, 1000);
         
         toast({
           title: "¡Entrenamiento completado!",
