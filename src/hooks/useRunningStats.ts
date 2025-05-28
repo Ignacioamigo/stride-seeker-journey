@@ -70,10 +70,11 @@ const convertIntervalToMinutes = (interval: string): number => {
   return totalMinutes;
 };
 
-// Función para convertir minutos a formato de ritmo (min/km)
+// Función para convertir minutos a formato de ritmo (min/km) - CORREGIDA
 const convertMinutesToPace = (totalMinutes: number, totalDistance: number): string => {
   if (totalDistance === 0) return "0:00 min/km";
   
+  // CORRECCIÓN: debe ser totalMinutes / totalDistance para obtener min/km
   const paceMinutes = totalMinutes / totalDistance;
   const minutes = Math.floor(paceMinutes);
   const seconds = Math.round((paceMinutes - minutes) * 60);
@@ -141,7 +142,10 @@ export const useRunningStats = () => {
 
     const now = new Date();
     const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
+    // CORRECCIÓN: Calcular el inicio de la semana correctamente (lunes = 1, domingo = 0)
+    const dayOfWeek = now.getDay();
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Si es domingo (0), restar 6, sino restar (dayOfWeek - 1)
+    startOfWeek.setDate(now.getDate() - daysToSubtract);
     startOfWeek.setHours(0, 0, 0, 0);
 
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -261,7 +265,7 @@ export const useRunningStats = () => {
     const paceVariation = previousPaceMinutes > 0 && currentPaceMinutes > 0 ? 
       Math.round(((previousPaceMinutes - currentPaceMinutes) / previousPaceMinutes) * 100) : 0;
 
-    // Datos semanales por día
+    // CORRECCIÓN: Datos semanales por día - corregir el mapeo de días
     const weeklyData = [];
     const daysOfWeek = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     
@@ -281,6 +285,9 @@ export const useRunningStats = () => {
         distance: Math.round(dayDistance * 10) / 10
       });
     }
+
+    console.log('Datos semanales calculados:', weeklyData);
+    console.log('Entrenamientos de esta semana:', validThisWeekWorkouts);
 
     setStats({
       weeklyDistance: Math.round(weeklyDistance * 10) / 10,

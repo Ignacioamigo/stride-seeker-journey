@@ -26,22 +26,30 @@ const Stats: React.FC = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
           <h2 className="text-lg font-medium text-runapp-navy mb-2">Distancia esta semana</h2>
           
-          <div className="h-40 w-full">
+          <div className="h-32 w-full">
             <ChartContainer config={chartConfig}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.weeklyData}>
+                <BarChart 
+                  data={stats.weeklyData}
+                  margin={{ top: 5, right: 5, left: 5, bottom: 20 }}
+                >
                   <XAxis 
                     dataKey="day" 
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 12, fill: '#6B7280' }}
+                    height={20}
                   />
-                  <YAxis hide />
+                  <YAxis 
+                    hide 
+                    domain={[0, 'dataMax + 1']}
+                  />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar 
                     dataKey="distance" 
                     fill="var(--color-distance)"
                     radius={[4, 4, 0, 0]}
+                    maxBarSize={40}
                   />
                 </BarChart>
               </ResponsiveContainer>
