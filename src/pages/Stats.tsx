@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 const Stats: React.FC = () => {
   const { stats, isLoading, refreshStats } = useStats();
   const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
+  const [chartKey, setChartKey] = useState<number>(0);
 
   const chartConfig = {
     distance: {
@@ -22,14 +23,16 @@ const Stats: React.FC = () => {
     console.log('=== STATS PAGE: Configurando listeners ===');
     
     const handleStatsUpdated = () => {
-      console.log('Stats: Evento statsUpdated recibido, actualizando gráfico...');
+      console.log('Stats: Evento statsUpdated recibido, forzando actualización completa...');
       setLastUpdate(Date.now());
+      setChartKey(prev => prev + 1); // Forzar re-render del gráfico
       refreshStats();
     };
 
     const handleWorkoutCompleted = () => {
-      console.log('Stats: Evento workoutCompleted recibido, actualizando gráfico...');
+      console.log('Stats: Evento workoutCompleted recibido, forzando actualización completa...');
       setLastUpdate(Date.now());
+      setChartKey(prev => prev + 1); // Forzar re-render del gráfico
       refreshStats();
     };
 
@@ -43,12 +46,19 @@ const Stats: React.FC = () => {
     };
   }, [refreshStats]);
 
-  // Log de datos del gráfico para debugging
+  // Log de datos del gráfico para debugging - CON MÁS DETALLE
   useEffect(() => {
-    console.log('=== STATS GRÁFICO: Datos actualizados ===');
-    console.log('Datos del gráfico semanal:', stats.weeklyData);
-    console.log('Distancia semanal total:', stats.weeklyDistance);
+    console.log('=== STATS GRÁFICO: Datos actualizados (DETALLADO) ===');
     console.log('Timestamp última actualización:', lastUpdate);
+    console.log('Chart key (para forzar re-render):', chartKey);
+    console.log('isLoading:', isLoading);
+    console.log('Datos del gráfico semanal completos:', stats.weeklyData);
+    console.log('Distancia semanal total:', stats.weeklyDistance);
+    
+    // Verificar cada día individualmente
+    stats.weeklyData.forEach((day, index) => {
+      console.log(`DÍA ${index + 1} - ${day.day}: ${day.distance}km`);
+    });
     
     // Verificar que los datos del gráfico tengan sentido
     const totalFromChart = stats.weeklyData.reduce((sum, day) => sum + day.distance, 0);
@@ -57,8 +67,10 @@ const Stats: React.FC = () => {
     
     if (Math.abs(totalFromChart - stats.weeklyDistance) > 0.1) {
       console.warn('⚠️ INCONSISTENCIA: Los totales no coinciden');
+    } else {
+      console.log('✅ COHERENCIA: Los totales coinciden correctamente');
     }
-  }, [stats.weeklyData, stats.weeklyDistance, lastUpdate]);
+  }, [stats.weeklyData, stats.weeklyDistance, lastUpdate, chartKey]);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -67,23 +79,23 @@ const Stats: React.FC = () => {
       </div>
       
       <div className="container max-w-md mx-auto p-4">
-        {/* Gráfico de distancia semanal - DISEÑO MEJORADO */}
+        {/* Gráfico de distancia semanal - DISEÑO MEJORADO CON KEY PARA FORZAR RE-RENDER */}
         <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
           <h2 className="text-lg font-medium text-runapp-navy mb-4">Distancia esta semana</h2>
           
           <div className="h-48 w-full mb-6">
-            <ChartContainer config={chartConfig}>
+            <ChartContainer config={chartConfig} key={chartKey}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
                   data={stats.weeklyData}
-                  margin={{ top: 10, right: 10, left: 10, bottom: 50 }}
+                  margin={{ top: 10, right: 10, left: 10, bottom: 60 }}
                 >
                   <XAxis 
                     dataKey="day" 
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 12, fill: '#6B7280' }}
-                    height={35}
+                    height={45}
                   />
                   <YAxis 
                     hide 
@@ -94,7 +106,7 @@ const Stats: React.FC = () => {
                     dataKey="distance" 
                     fill="var(--color-distance)"
                     radius={[4, 4, 0, 0]}
-                    maxBarSize={30}
+                    maxBarSize={25}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -106,7 +118,7 @@ const Stats: React.FC = () => {
               {isLoading ? "Cargando..." : `Total: ${stats.weeklyDistance} km • Promedio: ${stats.averageDistancePerRun} km por carrera`}
             </p>
             <p className="text-xs text-runapp-gray mt-1">
-              Última actualización: {new Date(lastUpdate).toLocaleTimeString()}
+              Última actualización: {new Date(lastUpdate).toLocaleTimeString()} • Chart: #{chartKey}
             </p>
           </div>
         </div>

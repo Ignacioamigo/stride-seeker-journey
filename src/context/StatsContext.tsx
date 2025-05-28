@@ -14,16 +14,22 @@ const StatsContext = createContext<StatsContextType | undefined>(undefined);
 export const StatsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { stats, isLoading, refreshStats, resetStats } = useRunningStats();
 
-  // Escuchar eventos globales para actualizar estadísticas
+  // Escuchar eventos globales para actualizar estadísticas - MEJORADO
   useEffect(() => {
     const handleStatsUpdated = () => {
-      console.log('StatsContext: Evento statsUpdated recibido, actualizando...');
-      refreshStats();
+      console.log('StatsContext: Evento statsUpdated recibido, actualizando INMEDIATAMENTE...');
+      // Usar setTimeout para asegurar que se ejecute después de que se guarde en Supabase
+      setTimeout(() => {
+        refreshStats();
+      }, 100);
     };
 
     const handleWorkoutCompleted = () => {
-      console.log('StatsContext: Evento workoutCompleted recibido, actualizando gráfico...');
-      refreshStats();
+      console.log('StatsContext: Evento workoutCompleted recibido, actualizando INMEDIATAMENTE...');
+      // Usar setTimeout para asegurar que se ejecute después de que se guarde en Supabase
+      setTimeout(() => {
+        refreshStats();
+      }, 100);
     };
 
     const handleResetStats = () => {

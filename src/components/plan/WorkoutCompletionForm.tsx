@@ -61,8 +61,19 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         // Actualizar el estado local del workout
         await onComplete(workout.id, distanceValue, durationValue);
         
-        // Disparar evento global para actualizar estadísticas
+        // MEJORADO: Disparar múltiples eventos y con delay para asegurar actualización
+        console.log("WorkoutCompletionForm: 🔄 Disparando eventos de actualización...");
+        
+        // Evento inmediato
         window.dispatchEvent(new CustomEvent('statsUpdated'));
+        window.dispatchEvent(new CustomEvent('workoutCompleted'));
+        
+        // Evento con delay para asegurar que Supabase se haya actualizado
+        setTimeout(() => {
+          console.log("WorkoutCompletionForm: 🔄 Disparando eventos con delay...");
+          window.dispatchEvent(new CustomEvent('statsUpdated'));
+          window.dispatchEvent(new CustomEvent('workoutCompleted'));
+        }, 200);
         
         toast({
           title: "¡Entrenamiento completado!",
