@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { getCompletedWorkouts } from '@/services/completedWorkoutService';
 import { calculateWeeklyData } from './utils/weeklyStatsCalculator';
@@ -138,14 +137,18 @@ export const useRunningStats = () => {
     previousMonthAveragePace: "0:00 min/km"
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const calculateStats = async () => {
     try {
+      console.log(`=== CALCULANDO ESTADÍSTICAS (trigger: ${refreshTrigger}) ===`);
       setIsLoading(true);
       
-      console.log('=== CALCULANDO ESTADÍSTICAS DESDE ENTRENAMIENTOS_COMPLETADOS ===');
+      // Pequeño delay para asegurar que la DB se haya actualizado
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       const workouts = await getCompletedWorkouts();
+      console.log(`Entrenamientos obtenidos: ${workouts?.length || 0}`);
       
       if (!workouts || workouts.length === 0) {
         console.log('No hay entrenamientos, reseteando estadísticas');
@@ -153,7 +156,6 @@ export const useRunningStats = () => {
         return;
       }
 
-      console.log('Entrenamientos encontrados:', workouts.length);
       calculateStatsFromData(workouts);
     } catch (error) {
       console.error('Error calculating stats:', error);
@@ -313,12 +315,12 @@ export const useRunningStats = () => {
     const paceVariation = previousPaceMinutes > 0 && currentPaceMinutes > 0 ? 
       Math.round(((previousPaceMinutes - currentPaceMinutes) / previousPaceMinutes) * 100) : 0;
 
-    setStats({
+    const newStats = {
       weeklyDistance,
-      totalRuns,
+      totalRuns: validWorkouts.length,
       averagePace,
-      weeklyCalories,
-      averageDistancePerRun: Math.round(averageDistancePerRun * 10) / 10,
+      weeklyCalories: Math.round(weeklyDistance * 60),
+      averageDistancePerRun: Math.round((validWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0) / Math.max(validWorkouts.length, 1)) * 10) / 10,
       monthlyDistance: Math.round(monthlyDistance * 10) / 10,
       paceImprovement: 0,
       weeklyData,
@@ -330,8 +332,13 @@ export const useRunningStats = () => {
       paceVariation,
       previousMonthDistance,
       previousMonthAveragePace
-    });
+    };
 
+    console.log('=== NUEVAS ESTADÍSTICAS CALCULADAS ===');
+    console.log('Distancia semanal:', newStats.weeklyDistance);
+    console.log('Datos semanales:', JSON.stringify(newStats.weeklyData, null, 2));
+    
+    setStats(newStats);
     setIsLoading(false);
   };
 
@@ -368,11 +375,11 @@ export const useRunningStats = () => {
 
   useEffect(() => {
     calculateStats();
-  }, []);
+  }, [refreshTrigger]);
 
   const refreshStats = () => {
-    console.log('useRunningStats: refreshStats llamado - recalculando datos del gráfico');
-    calculateStats();
+    console.log('useRunningStats: FORZANDO REFRESH COMPLETO');
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return {

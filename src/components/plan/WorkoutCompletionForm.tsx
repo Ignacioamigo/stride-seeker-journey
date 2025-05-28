@@ -35,7 +35,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       const distanceValue = actualDistance && actualDistance.trim() ? parseFloat(actualDistance) : null;
       const durationValue = actualDuration && actualDuration.trim() ? actualDuration.trim() : null;
       
-      console.log("WorkoutCompletionForm: Datos del formulario:", {
+      console.log("WorkoutCompletionForm: Guardando entrenamiento:", {
         workoutId: workout.id,
         workoutTitle: workout.title,
         workoutType: workout.type,
@@ -44,9 +44,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         durationValue
       });
       
-      console.log("WorkoutCompletionForm: Llamando a saveCompletedWorkout...");
-      
-      // Guardar en la nueva tabla entre_completado
+      // Guardar en la base de datos
       const savedToNewTable = await saveCompletedWorkout(
         workout.title,
         workout.type,
@@ -54,65 +52,34 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         durationValue
       );
 
-      console.log("WorkoutCompletionForm: Resultado de saveCompletedWorkout:", savedToNewTable);
-
       if (savedToNewTable) {
-        console.log("WorkoutCompletionForm: ✅ Guardado exitoso, actualizando estado local...");
+        console.log("✅ Guardado exitoso en DB");
         
         // Actualizar el estado local del workout
         await onComplete(workout.id, distanceValue, durationValue);
         
-        // NUEVA ESTRATEGIA: Múltiples actualizaciones con diferentes delays
-        console.log("WorkoutCompletionForm: 🔄 Iniciando secuencia de actualización agresiva...");
-        
-        // Actualización inmediata del contexto
-        refreshStats();
-        
-        // Eventos inmediatos
-        window.dispatchEvent(new CustomEvent('statsUpdated'));
-        window.dispatchEvent(new CustomEvent('workoutCompleted'));
-        
-        // Secuencia de actualizaciones con diferentes delays
-        setTimeout(() => {
-          console.log("WorkoutCompletionForm: 🔄 Actualización 100ms...");
-          refreshStats();
-          window.dispatchEvent(new CustomEvent('statsUpdated'));
-        }, 100);
+        // ESTRATEGIA SIMPLIFICADA: Solo un refresh con delay
+        console.log("🔄 Actualizando estadísticas...");
         
         setTimeout(() => {
-          console.log("WorkoutCompletionForm: 🔄 Actualización 300ms...");
-          refreshStats();
-          window.dispatchEvent(new CustomEvent('statsUpdated'));
-        }, 300);
-        
-        setTimeout(() => {
-          console.log("WorkoutCompletionForm: 🔄 Actualización 500ms...");
+          console.log("🔄 Ejecutando refresh de estadísticas");
           refreshStats();
           window.dispatchEvent(new CustomEvent('statsUpdated'));
         }, 500);
-        
-        // Actualización final con log
-        setTimeout(() => {
-          console.log("WorkoutCompletionForm: 🔄 Actualización final 1000ms...");
-          refreshStats();
-          window.dispatchEvent(new CustomEvent('statsUpdated'));
-          console.log("WorkoutCompletionForm: ✅ Secuencia de actualización completada");
-        }, 1000);
         
         toast({
           title: "¡Entrenamiento completado!",
           description: "Los datos se han guardado correctamente.",
         });
       } else {
-        console.error("WorkoutCompletionForm: ❌ saveCompletedWorkout devolvió false");
         throw new Error("No se pudieron guardar los datos en la base de datos");
       }
     } catch (error) {
-      console.error("WorkoutCompletionForm: ❌ Error en handleSubmit:", error);
+      console.error("❌ Error en handleSubmit:", error);
       
       toast({
         title: "Error al guardar",
-        description: "No se pudieron guardar los datos del entrenamiento. Revisa la consola para más detalles.",
+        description: "No se pudieron guardar los datos del entrenamiento.",
         variant: "destructive",
       });
     } finally {
