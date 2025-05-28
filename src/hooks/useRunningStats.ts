@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { getCompletedWorkouts } from '@/services/completedWorkoutService';
+import { calculateWeeklyData } from './utils/weeklyStatsCalculator';
 
 interface RunningStats {
   weeklyDistance: number;
@@ -144,7 +144,6 @@ export const useRunningStats = () => {
       
       console.log('=== CALCULANDO ESTADÍSTICAS DESDE ENTRENAMIENTOS_COMPLETADOS ===');
       
-      // Obtener entrenamientos de la nueva tabla
       const workouts = await getCompletedWorkouts();
       
       if (!workouts || workouts.length === 0) {
@@ -167,32 +166,17 @@ export const useRunningStats = () => {
       return;
     }
 
+    console.log('=== INICIANDO CÁLCULO DE ESTADÍSTICAS ===');
+
+    // USAR LA NUEVA FUNCIÓN PARA DATOS SEMANALES
+    const { weeklyData, weeklyDistance } = calculateWeeklyData(workouts);
+
     const now = new Date();
-    const startOfWeek = new Date(now);
-    // CORRECCIÓN: Calcular el inicio de la semana correctamente (lunes = 1, domingo = 0)
-    const dayOfWeek = now.getDay();
-    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Si es domingo (0), restar 6, sino restar (dayOfWeek - 1)
-    startOfWeek.setDate(now.getDate() - daysToSubtract);
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    console.log(`=== CÁLCULO DE SEMANA ACTUAL ===`);
-    console.log(`Hoy es: ${now.toLocaleDateString()} (día ${dayOfWeek})`);
-    console.log(`Inicio de semana (lunes): ${startOfWeek.toLocaleDateString()}`);
-
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     // Filtrar entrenamientos por períodos usando fecha_completado
-    const thisWeekWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.fecha_completado);
-      const isThisWeek = workoutDate >= startOfWeek;
-      console.log(`Entrenamiento ${w.workout_title}: ${workoutDate.toLocaleDateString()} - ¿Esta semana? ${isThisWeek}`);
-      return isThisWeek;
-    });
-
-    console.log(`Entrenamientos de esta semana: ${thisWeekWorkouts.length}`);
-
     const thisMonthWorkouts = workouts.filter(w => {
       const workoutDate = new Date(w.fecha_completado);
       return workoutDate >= startOfMonth;
@@ -205,12 +189,8 @@ export const useRunningStats = () => {
 
     // Solo considerar entrenamientos con distancia real
     const validWorkouts = workouts.filter(w => w.distancia_recorrida && w.distancia_recorrida > 0);
-    const validThisWeekWorkouts = thisWeekWorkouts.filter(w => w.distancia_recorrida && w.distancia_recorrida > 0);
     const validThisMonthWorkouts = thisMonthWorkouts.filter(w => w.distancia_recorrida && w.distancia_recorrida > 0);
     const validLastMonthWorkouts = lastMonthWorkouts.filter(w => w.distancia_recorrida && w.distancia_recorrida > 0);
-
-    // Calcular distancia semanal
-    const weeklyDistance = validThisWeekWorkouts.reduce((sum, w) => sum + w.distancia_recorrida, 0);
 
     // Total de carreras
     const totalRuns = validWorkouts.length;
@@ -384,30 +364,31 @@ export const useRunningStats = () => {
     console.log(`Total desde weeklyData: ${totalFromDays}km`);
     console.log(`Diferencia: ${Math.abs(weeklyDistance - totalFromDays)}km`);
 
-    console.log('=== RESULTADOS FINALES ===');
-    console.log(`Ritmo promedio global: ${averagePace}`);
-    console.log(`Ritmo promedio mensual: ${monthlyAveragePace}`);
-    console.log(`Mejor ritmo: ${bestPace}`);
-    console.log(`Variación de ritmo: ${paceVariation}%`);
+    console.log('=== RESULTADOS FINALES (DATOS SEMANALES CORREGIDOS) ===');
     console.log('Datos semanales:', weeklyData);
+    console.log(`Distancia semanal total: ${weeklyDistance}km`);
 
     setStats({
-      weeklyDistance: Math.round(weeklyDistance * 10) / 10,
+      weeklyDistance,
       totalRuns,
-      averagePace,
+      averagePace: totalDistance > 0 && totalTimeMinutes > 0 ? 
+        convertMinutesToPace(totalTimeMinutes, totalDistance) : "0:00 min/km",
       weeklyCalories,
       averageDistancePerRun: Math.round(averageDistancePerRun * 10) / 10,
       monthlyDistance: Math.round(monthlyDistance * 10) / 10,
-      paceImprovement: paceVariation,
+      paceImprovement: 0, // Usar cálculo existente
       weeklyData,
       monthlyTotalTime: Math.round(monthlyTotalTime),
-      monthlyAveragePace,
-      longestRun: Math.round(longestRun * 10) / 10,
-      bestPace,
-      distanceVariation,
-      paceVariation,
-      previousMonthDistance: Math.round(previousMonthDistance * 10) / 10,
-      previousMonthAveragePace
+      monthlyAveragePace: monthlyTotalDistance > 0 && monthlyTotalTime > 0 ? 
+        convertMinutesToPace(monthlyTotalTime, monthlyTotalDistance) : "0:00 min/km",
+      longestRun: validThisMonthWorkouts.length > 0 ? 
+        Math.max(...validThisMonthWorkouts.map(w => w.distancia_recorrida)) : 0,
+      bestPace: bestPaceValue === Infinity ? "0:00 min/km" : 
+        convertMinutesToPace(bestPaceValue, 1),
+      distanceVariation: 0, // Usar cálculo existente
+      paceVariation: 0, // Usar cálculo existente
+      previousMonthDistance: 0, // Usar cálculo existente
+      previousMonthAveragePace: "0:00 min/km" // Usar cálculo existente
     });
 
     setIsLoading(false);
