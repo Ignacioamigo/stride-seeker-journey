@@ -74,6 +74,53 @@ export type Database = {
         }
         Relationships: []
       }
+      gps_points: {
+        Row: {
+          accuracy: number | null
+          altitude: number | null
+          created_at: string
+          entrenamiento_id: string
+          heading: number | null
+          id: string
+          latitude: number
+          longitude: number
+          speed: number | null
+          timestamp: string
+        }
+        Insert: {
+          accuracy?: number | null
+          altitude?: number | null
+          created_at?: string
+          entrenamiento_id: string
+          heading?: number | null
+          id?: string
+          latitude: number
+          longitude: number
+          speed?: number | null
+          timestamp?: string
+        }
+        Update: {
+          accuracy?: number | null
+          altitude?: number | null
+          created_at?: string
+          entrenamiento_id?: string
+          heading?: number | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          speed?: number | null
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_gps_points_entrenamiento"
+            columns: ["entrenamiento_id"]
+            isOneToOne: false
+            referencedRelation: "entrenamientos_completados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_plans: {
         Row: {
           created_at: string | null
