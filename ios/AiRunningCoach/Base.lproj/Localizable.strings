@@ -1,0 +1,24 @@
+
+/* Localizable.strings - Spanish (Base) */
+
+/* Location permissions */
+"location_when_in_use_description" = "AI Running Coach necesita acceso a tu ubicación para rastrear tu entrenamiento y calcular la distancia recorrida.";
+"location_always_description" = "AI Running Coach necesita acceso continuo a tu ubicación para seguir registrando tu entrenamiento incluso cuando la app está en segundo plano.";
+
+/* App name */
+"app_name" = "AI Running Coach";
+
+/* General */
+"allow" = "Permitir";
+"deny" = "Denegar";
+"settings" = "Configuración";
+"privacy_policy" = "Política de Privacidad";
+"terms_of_service" = "Términos de Servicio";
+
+/* Training */
+"start_training" = "Iniciar Entrenamiento";
+"stop_training" = "Detener Entrenamiento";
+"gps_tracking" = "Tracking GPS";
+"distance" = "Distancia";
+"pace" = "Pace";
+"time" = "Tiempo";

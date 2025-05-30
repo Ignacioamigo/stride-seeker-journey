@@ -153,14 +153,23 @@ const Train: React.FC = () => {
               <p className="text-sm text-yellow-800">
                 ⚠️ Necesitas habilitar los permisos de ubicación para usar el tracking GPS.
               </p>
-              <Button
-                onClick={requestLocationPermission}
-                variant="outline"
-                size="sm"
-                className="mt-2"
-              >
-                Habilitar GPS
-              </Button>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  onClick={requestLocationPermission}
+                  variant="outline"
+                  size="sm"
+                >
+                  Habilitar GPS
+                </Button>
+                <Button
+                  onClick={() => window.location.href = '/permissions'}
+                  variant="outline"
+                  size="sm"
+                  className="text-runapp-purple"
+                >
+                  Configurar permisos
+                </Button>
+              </div>
             </div>
           )}
         </div>
