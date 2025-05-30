@@ -1,26 +1,25 @@
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, Alert } from 'react-native';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapPin, Shield, Activity } from 'lucide-react';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigate } from 'react-router-dom';
 
 const PermissionsScreen: React.FC = () => {
   const [permissionStep, setPermissionStep] = useState<'initial' | 'when-in-use' | 'always' | 'completed'>('initial');
-  const navigation = useNavigation();
+  const navigate = useNavigate();
 
   const requestWhenInUsePermission = async () => {
     try {
       // Simular solicitud de permiso "When in Use"
       setPermissionStep('when-in-use');
       
-      // En una app real, aquí usarías react-native-permissions
+      // En una app real, aquí usarías navigator.geolocation
       setTimeout(() => {
         setPermissionStep('always');
       }, 1000);
     } catch (error) {
-      Alert.alert('Error', 'No se pudieron obtener los permisos de ubicación');
+      alert('No se pudieron obtener los permisos de ubicación');
     }
   };
 
@@ -30,27 +29,23 @@ const PermissionsScreen: React.FC = () => {
       setPermissionStep('completed');
       
       setTimeout(() => {
-        navigation.goBack();
+        navigate(-1);
       }, 2000);
     } catch (error) {
-      Alert.alert('Error', 'No se pudieron obtener los permisos de ubicación continua');
+      alert('No se pudieron obtener los permisos de ubicación continua');
     }
   };
 
   const skipPermissions = () => {
-    Alert.alert(
-      'Funcionalidad limitada',
-      'Sin permisos de ubicación, no podrás usar el tracking GPS.',
-      [
-        { text: 'Entendido', onPress: () => navigation.goBack() }
-      ]
-    );
+    if (confirm('Sin permisos de ubicación, no podrás usar el tracking GPS. ¿Continuar?')) {
+      navigate(-1);
+    }
   };
 
   if (permissionStep === 'completed') {
     return (
-      <View className="flex-1 bg-gray-50 p-4 justify-center">
-        <Card className="mx-4">
+      <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
+        <Card className="mx-4 max-w-md">
           <CardHeader className="text-center">
             <Shield className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <CardTitle className="text-xl text-green-600">¡Listo!</CardTitle>
@@ -59,15 +54,15 @@ const PermissionsScreen: React.FC = () => {
             </CardDescription>
           </CardHeader>
         </Card>
-      </View>
+      </div>
     );
   }
 
   if (permissionStep === 'always') {
     return (
-      <View className="flex-1 bg-gray-50 p-4">
-        <View className="flex-1 justify-center">
-          <Card className="mx-4">
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="mx-4 max-w-md">
             <CardHeader>
               <Activity className="w-12 h-12 text-runapp-purple mx-auto mb-4" />
               <CardTitle className="text-center text-xl">Tracking en segundo plano</CardTitle>
@@ -76,39 +71,40 @@ const PermissionsScreen: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <View className="bg-blue-50 p-4 rounded-lg">
-                <Text className="text-sm text-blue-800 font-medium mb-2">¿Por qué "Siempre"?</Text>
-                <Text className="text-sm text-blue-700">
-                  • Continúa el tracking si bloqueas la pantalla{'\n'}
-                  • Registra tu ruta completa sin interrupciones{'\n'}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-800 font-medium mb-2">¿Por qué "Siempre"?</p>
+                <p className="text-sm text-blue-700">
+                  • Continúa el tracking si bloqueas la pantalla<br />
+                  • Registra tu ruta completa sin interrupciones<br />
                   • Calcula estadísticas precisas de pace y distancia
-                </Text>
-              </View>
+                </p>
+              </div>
               
               <Button 
-                onPress={requestAlwaysPermission}
-                className="bg-runapp-purple"
+                onClick={requestAlwaysPermission}
+                className="bg-runapp-purple w-full"
               >
                 Permitir acceso continuo
               </Button>
               
               <Button 
                 variant="outline" 
-                onPress={skipPermissions}
+                onClick={skipPermissions}
+                className="w-full"
               >
                 Usar sin tracking en segundo plano
               </Button>
             </CardContent>
           </Card>
-        </View>
-      </View>
+        </div>
+      </div>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50 p-4">
-      <View className="flex-1 justify-center">
-        <Card className="mx-4">
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="mx-4 max-w-md">
           <CardHeader>
             <MapPin className="w-12 h-12 text-runapp-purple mx-auto mb-4" />
             <CardTitle className="text-center text-xl">Permisos de ubicación</CardTitle>
@@ -117,44 +113,45 @@ const PermissionsScreen: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <View className="space-y-3">
-              <View className="flex-row items-center space-x-3">
-                <View className="w-2 h-2 bg-runapp-purple rounded-full" />
-                <Text className="text-sm text-gray-700">Calcular distancia recorrida</Text>
-              </View>
-              <View className="flex-row items-center space-x-3">
-                <View className="w-2 h-2 bg-runapp-purple rounded-full" />
-                <Text className="text-sm text-gray-700">Mostrar tu ruta en tiempo real</Text>
-              </View>
-              <View className="flex-row items-center space-x-3">
-                <View className="w-2 h-2 bg-runapp-purple rounded-full" />
-                <Text className="text-sm text-gray-700">Generar estadísticas de pace</Text>
-              </View>
-            </View>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-runapp-purple rounded-full" />
+                <span className="text-sm text-gray-700">Calcular distancia recorrida</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-runapp-purple rounded-full" />
+                <span className="text-sm text-gray-700">Mostrar tu ruta en tiempo real</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-runapp-purple rounded-full" />
+                <span className="text-sm text-gray-700">Generar estadísticas de pace</span>
+              </div>
+            </div>
             
-            <View className="bg-yellow-50 p-3 rounded-lg">
-              <Text className="text-xs text-yellow-800">
+            <div className="bg-yellow-50 p-3 rounded-lg">
+              <p className="text-xs text-yellow-800">
                 🔒 Tu ubicación se procesa localmente y solo se guarda cuando inicias un entrenamiento.
-              </Text>
-            </View>
+              </p>
+            </div>
             
             <Button 
-              onPress={requestWhenInUsePermission}
-              className="bg-runapp-purple"
+              onClick={requestWhenInUsePermission}
+              className="bg-runapp-purple w-full"
             >
               Permitir acceso a ubicación
             </Button>
             
             <Button 
               variant="outline" 
-              onPress={skipPermissions}
+              onClick={skipPermissions}
+              className="w-full"
             >
               Continuar sin GPS
             </Button>
           </CardContent>
         </Card>
-      </View>
-    </View>
+      </div>
+    </div>
   );
 };
 

@@ -1,3 +1,4 @@
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,6 +16,10 @@ import Stats from "@/pages/Stats";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
+
+// Mobile screens
+import PermissionsScreen from "@/components/PermissionsScreen";
+import SettingsScreen from "@/components/SettingsScreen";
 
 // Onboarding Components
 import NameQuestion from "@/components/onboarding/NameQuestion";
@@ -49,7 +54,7 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/admin" element={<Admin />} />
               
-              {/* New routes for iOS setup */}
+              {/* Mobile setup routes */}
               <Route path="/permissions" element={<PermissionsScreen />} />
               <Route path="/settings" element={<SettingsScreen />} />
               

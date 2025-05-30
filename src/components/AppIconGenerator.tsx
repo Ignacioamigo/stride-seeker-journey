@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { View } from 'react-native';
 import { Activity } from 'lucide-react';
 
 // Este componente genera el ícono de la app para usar en el diseño
@@ -8,12 +7,13 @@ import { Activity } from 'lucide-react';
 
 const AppIconDesign: React.FC<{ size?: number }> = ({ size = 1024 }) => {
   return (
-    <View 
+    <div 
       style={{
         width: size,
         height: size,
         backgroundColor: '#4C1D95', // runapp-purple
         borderRadius: size * 0.2, // iOS icon corner radius ~20%
+        display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
       }}
@@ -23,7 +23,7 @@ const AppIconDesign: React.FC<{ size?: number }> = ({ size = 1024 }) => {
         color="white" 
         strokeWidth={size * 0.01}
       />
-    </View>
+    </div>
   );
 };
 
