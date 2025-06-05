@@ -1,11 +1,8 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
 import { registerPlugin } from '@capacitor/core';
 import { saveCompletedWorkout } from '@/services/completedWorkoutService';
 import { toast } from '@/hooks/use-toast';
-
-const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
 
 export interface GPSPoint {
   latitude: number;
@@ -28,6 +25,8 @@ export interface RunSession {
   avgPace?: string;
 }
 
+const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+
 export const useBackgroundGPSTracker = () => {
   const [runSession, setRunSession] = useState<RunSession | null>(null);
   const [isTracking, setIsTracking] = useState(false);
@@ -37,7 +36,6 @@ export const useBackgroundGPSTracker = () => {
   const watcherIdRef = useRef<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Calcular distancia entre dos puntos GPS (fórmula de Haversine)
   const calculateDistance = (point1: GPSPoint, point2: GPSPoint): number => {
     const R = 6371000; // Radio de la Tierra en metros
     const lat1Rad = (point1.latitude * Math.PI) / 180;
@@ -53,7 +51,6 @@ export const useBackgroundGPSTracker = () => {
     return R * c;
   };
 
-  // Formatear duración en HH:MM:SS
   const formatDuration = (startTime: Date, endTime?: Date): string => {
     const now = endTime || new Date();
     const diff = Math.floor((now.getTime() - startTime.getTime()) / 1000);
@@ -63,7 +60,6 @@ export const useBackgroundGPSTracker = () => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Calcular pace promedio
   const calculatePace = (distance: number, duration: string): string => {
     if (distance === 0) return '--:--';
     
@@ -80,7 +76,6 @@ export const useBackgroundGPSTracker = () => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
   };
 
-  // Solicitar permisos
   const requestPermissions = async (): Promise<boolean> => {
     try {
       console.log('Solicitando permisos de ubicación...');
@@ -109,7 +104,6 @@ export const useBackgroundGPSTracker = () => {
     }
   };
 
-  // Iniciar tracking
   const startRun = async () => {
     console.log('Iniciando carrera...');
     
@@ -135,14 +129,13 @@ export const useBackgroundGPSTracker = () => {
       setIsTracking(true);
       setIsPaused(false);
 
-      // Configurar background geolocation
       const watcherId = await BackgroundGeolocation.addWatcher(
         {
           backgroundMessage: "Tracking tu carrera en segundo plano.",
           backgroundTitle: "Stride Seeker",
           requestPermissions: true,
           stale: false,
-          distanceFilter: 5, // Mínimo 5 metros entre puntos
+          distanceFilter: 5,
         },
         (location, error) => {
           if (error) {
@@ -164,18 +157,15 @@ export const useBackgroundGPSTracker = () => {
 
             setCurrentLocation(newPoint);
 
-            // Actualizar sesión solo si no está pausada
             setRunSession(prev => {
               if (!prev || prev.isPaused) return prev;
               
               let newDistance = prev.distance;
               
-              // Calcular distancia si hay puntos previos
               if (prev.gpsPoints.length > 0) {
                 const lastPoint = prev.gpsPoints[prev.gpsPoints.length - 1];
                 const segmentDistance = calculateDistance(lastPoint, newPoint);
                 
-                // Filtrar ruido GPS (máximo 50m entre puntos)
                 if (segmentDistance > 2 && segmentDistance < 50) {
                   newDistance += segmentDistance;
                 }
@@ -194,7 +184,6 @@ export const useBackgroundGPSTracker = () => {
 
       watcherIdRef.current = watcherId;
 
-      // Timer para actualizar duración cada segundo
       intervalRef.current = setInterval(() => {
         setRunSession(prev => {
           if (!prev || prev.isPaused) return prev;
@@ -220,7 +209,6 @@ export const useBackgroundGPSTracker = () => {
     }
   };
 
-  // Pausar tracking
   const pauseRun = async () => {
     console.log('Pausando carrera...');
     setIsPaused(true);
@@ -232,7 +220,6 @@ export const useBackgroundGPSTracker = () => {
     });
   };
 
-  // Reanudar tracking
   const resumeRun = async () => {
     console.log('Reanudando carrera...');
     setIsPaused(false);
@@ -244,14 +231,12 @@ export const useBackgroundGPSTracker = () => {
     });
   };
 
-  // Finalizar tracking y guardar en base de datos
   const finishRun = async () => {
     console.log('Finalizando carrera...');
     
     if (!runSession) return;
 
     try {
-      // Detener tracking
       if (watcherIdRef.current) {
         await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
         watcherIdRef.current = null;
@@ -277,11 +262,10 @@ export const useBackgroundGPSTracker = () => {
 
       setRunSession(finalSession);
 
-      // Guardar en base de datos
       const success = await saveCompletedWorkout(
         'Carrera con GPS',
         'carrera',
-        finalDistance / 1000, // convertir a km
+        finalDistance / 1000,
         finalDuration
       );
 
@@ -291,7 +275,6 @@ export const useBackgroundGPSTracker = () => {
           description: `Distancia: ${(finalDistance / 1000).toFixed(2)} km • Pace: ${avgPace}`,
         });
 
-        // Disparar evento para actualizar estadísticas
         window.dispatchEvent(new CustomEvent('workoutCompleted'));
       } else {
         toast({
@@ -301,7 +284,6 @@ export const useBackgroundGPSTracker = () => {
         });
       }
 
-      // Limpiar estado
       setIsTracking(false);
       setIsPaused(false);
       setCurrentLocation(null);
@@ -316,7 +298,6 @@ export const useBackgroundGPSTracker = () => {
     }
   };
 
-  // Cleanup al desmontar
   useEffect(() => {
     return () => {
       if (watcherIdRef.current) {
