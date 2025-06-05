@@ -1,58 +1,33 @@
-
 import { supabase, ensureSession } from './authService';
 
 /**
- * Convierte duración de texto a minutos numéricos
+ * Convierte duración de texto a formato PostgreSQL interval
  */
-const convertDurationToMinutes = (duration: string): number => {
-  if (!duration || !duration.trim()) return 0;
+const convertDurationToInterval = (duration: string): string => {
+  if (!duration || !duration.trim()) return '0 minutes';
   
-  const cleanDuration = duration.toLowerCase().replace(/\s+/g, '');
+  console.log(`[convertDurationToInterval] Input: "${duration}"`);
   
-  console.log(`[convertDurationToMinutes] Input: "${duration}", Clean: "${cleanDuration}"`);
-  
-  // Si ya es un número, asumimos que son minutos
-  if (/^\d+(\.\d+)?$/.test(cleanDuration)) {
-    const minutes = parseFloat(cleanDuration);
-    console.log(`[convertDurationToMinutes] Número directo: ${minutes} minutos`);
-    return minutes;
+  // Si viene en formato HH:MM:SS
+  if (/^\d{2}:\d{2}:\d{2}$/.test(duration)) {
+    const [hours, minutes, seconds] = duration.split(':').map(Number);
+    return `${hours} hours ${minutes} minutes ${seconds} seconds`;
   }
   
-  let totalMinutes = 0;
-  
-  // Formato "45min", "30min"
-  const minutesMatch = cleanDuration.match(/(\d+(?:\.\d+)?)min/);
+  // Si viene como "X min"
+  const minutesMatch = duration.match(/(\d+(?:\.\d+)?)\s*min/i);
   if (minutesMatch) {
-    totalMinutes += parseFloat(minutesMatch[1]);
-    console.log(`[convertDurationToMinutes] Minutos encontrados: ${minutesMatch[1]}`);
+    return `${minutesMatch[1]} minutes`;
   }
   
-  // Formato "1h30min", "2h"
-  const hoursMatch = cleanDuration.match(/(\d+(?:\.\d+)?)h/);
-  if (hoursMatch) {
-    totalMinutes += parseFloat(hoursMatch[1]) * 60;
-    console.log(`[convertDurationToMinutes] Horas encontradas: ${hoursMatch[1]} = ${parseFloat(hoursMatch[1]) * 60} minutos`);
+  // Fallback: asumir que son minutos
+  const numericValue = parseFloat(duration);
+  if (!isNaN(numericValue)) {
+    return `${numericValue} minutes`;
   }
   
-  // Formato "MM:SS" o "HH:MM"
-  const timeMatch = cleanDuration.match(/^(\d+):(\d+)$/);
-  if (timeMatch && !hoursMatch && !minutesMatch) {
-    const first = parseInt(timeMatch[1]);
-    const second = parseInt(timeMatch[2]);
-    
-    // Si el primer número es mayor a 59, asumimos HH:MM
-    if (first > 59) {
-      totalMinutes = first * 60 + second;
-      console.log(`[convertDurationToMinutes] Formato HH:MM: ${first}h ${second}min = ${totalMinutes} minutos`);
-    } else {
-      // Si es menor o igual a 59, asumimos MM:SS
-      totalMinutes = first + (second / 60);
-      console.log(`[convertDurationToMinutes] Formato MM:SS: ${first}min ${second}s = ${totalMinutes} minutos`);
-    }
-  }
-  
-  console.log(`[convertDurationToMinutes] Total calculado: ${totalMinutes} minutos`);
-  return totalMinutes;
+  console.warn(`[convertDurationToInterval] Formato no reconocido: ${duration}`);
+  return '0 minutes';
 };
 
 /**
@@ -76,23 +51,18 @@ export const saveCompletedWorkout = async (
     // Asegurar que tenemos una sesión activa
     await ensureSession();
     
-    // Convertir duración a formato que guarde minutos de manera clara
-    let duracionFormateada = null;
+    // Convertir duración a formato PostgreSQL interval
+    let duracionInterval = null;
     if (duracion && duracion.trim()) {
-      const minutosCalculados = convertDurationToMinutes(duracion);
-      
-      if (minutosCalculados > 0) {
-        // Guardar como "X min" para que sea claro que son minutos
-        duracionFormateada = `${minutosCalculados} min`;
-        console.log(`[saveCompletedWorkout] Duración convertida: "${duracion}" -> "${duracionFormateada}" (${minutosCalculados} minutos)`);
-      }
+      duracionInterval = convertDurationToInterval(duracion);
+      console.log(`[saveCompletedWorkout] Duración convertida: "${duracion}" -> "${duracionInterval}"`);
     }
 
     const workoutData = {
       workout_title: workoutTitle,
       workout_type: workoutType,
       distancia_recorrida: distanciaRecorrida,
-      duracion: duracionFormateada,
+      duracion: duracionInterval,
       fecha_completado: new Date().toISOString().split('T')[0]
       // user_id se establece automáticamente con auth.uid() por defecto
     };
@@ -113,7 +83,7 @@ export const saveCompletedWorkout = async (
         workoutTitle,
         workoutType,
         distanciaRecorrida,
-        duracion: duracionFormateada,
+        duracion,
         fechaCompletado: new Date().toISOString().split('T')[0],
         createdAt: new Date().toISOString()
       };

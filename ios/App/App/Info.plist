@@ -1,3 +1,4 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -45,5 +46,20 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	
+	<!-- Permisos de ubicación para GPS tracking -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Esta app necesita acceso a tu ubicación para hacer tracking de tus carreras y calcular distancia y ritmo.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Esta app necesita acceso continuo a tu ubicación para hacer tracking de tus carreras incluso cuando la app está en segundo plano.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Esta app necesita acceso continuo a tu ubicación para hacer tracking de tus carreras incluso cuando la app está en segundo plano.</string>
+	
+	<!-- Background modes para GPS tracking -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>background-processing</string>
+	</array>
 </dict>
 </plist>
