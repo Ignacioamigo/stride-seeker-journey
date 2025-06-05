@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
 import { registerPlugin } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 import { saveCompletedWorkout } from '@/services/completedWorkoutService';
 import { toast } from '@/hooks/use-toast';
 
@@ -80,9 +81,8 @@ export const useBackgroundGPSTracker = () => {
     try {
       console.log('Solicitando permisos de ubicación...');
       
-      const permissions = await BackgroundGeolocation.requestPermissions({
-        permissions: ['location', 'background-location']
-      });
+      // Use Capacitor's Geolocation plugin for permission requests
+      const permissions = await Geolocation.requestPermissions();
       
       console.log('Permisos obtenidos:', permissions);
       
@@ -100,6 +100,11 @@ export const useBackgroundGPSTracker = () => {
       return false;
     } catch (error) {
       console.error('Error al solicitar permisos:', error);
+      toast({
+        title: "Error de permisos",
+        description: "No se pudieron obtener los permisos de ubicación.",
+        variant: "destructive",
+      });
       return false;
     }
   };
