@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,7 +44,7 @@ const RunTracker: React.FC = () => {
 
   if (!permissionGranted) {
     return (
-      <Card className="mx-4">
+      <Card className="w-full">
         <CardContent className="p-6 text-center">
           <MapPin className="w-12 h-12 text-runapp-purple mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-runapp-navy mb-2">
@@ -63,7 +62,7 @@ const RunTracker: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       {/* Estado del GPS */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -81,7 +80,7 @@ const RunTracker: React.FC = () => {
       </div>
 
       {/* Métricas principales */}
-      <Card>
+      <Card className="w-full">
         <CardContent className="p-6">
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
@@ -121,86 +120,68 @@ const RunTracker: React.FC = () => {
           </div>
           
           {/* Controles principales */}
-          <div className="flex justify-center gap-4 mb-6">
+          <div className="flex justify-center gap-4">
             {!isTracking ? (
-              <Button
+              <Button 
                 onClick={startRun}
-                className="w-20 h-20 rounded-full bg-runapp-purple hover:bg-runapp-purple/90 text-white flex items-center justify-center"
+                className="bg-runapp-purple hover:bg-runapp-purple/90 w-16 h-16 rounded-full"
               >
-                <Play className="w-8 h-8" />
+                <Play className="w-6 h-6" />
+              </Button>
+            ) : isPaused ? (
+              <Button 
+                onClick={resumeRun}
+                className="bg-runapp-purple hover:bg-runapp-purple/90 w-16 h-16 rounded-full"
+              >
+                <Play className="w-6 h-6" />
               </Button>
             ) : (
-              <div className="flex gap-4">
-                <Button
-                  onClick={isPaused ? resumeRun : pauseRun}
-                  className="w-16 h-16 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white flex items-center justify-center"
-                >
-                  {isPaused ? <Play className="w-6 h-6" /> : <Pause className="w-6 h-6" />}
-                </Button>
-                <Button
-                  onClick={finishRun}
-                  className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center"
-                >
-                  <Square className="w-6 h-6" />
-                </Button>
-              </div>
+              <Button 
+                onClick={pauseRun}
+                className="bg-runapp-purple hover:bg-runapp-purple/90 w-16 h-16 rounded-full"
+              >
+                <Pause className="w-6 h-6" />
+              </Button>
             )}
-          </div>
-
-          {/* Información de ubicación actual */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Activity className="w-4 h-4 text-runapp-purple" />
-              <p className="text-runapp-navy font-medium">Ubicación actual</p>
-            </div>
-            {currentLocation ? (
-              <div className="text-sm text-runapp-gray space-y-1">
-                <p>Lat: {currentLocation.latitude.toFixed(6)}</p>
-                <p>Lng: {currentLocation.longitude.toFixed(6)}</p>
-                {currentLocation.accuracy && (
-                  <p>Precisión: ±{currentLocation.accuracy.toFixed(0)}m</p>
-                )}
-                {currentLocation.speed && currentLocation.speed > 0 && (
-                  <p>Velocidad: {(currentLocation.speed * 3.6).toFixed(1)} km/h</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-runapp-gray">
-                {isTracking ? "Obteniendo ubicación..." : "Inicia el tracking para ver tu ubicación"}
-              </p>
+            
+            {isTracking && (
+              <Button 
+                onClick={finishRun}
+                variant="outline"
+                className="w-16 h-16 rounded-full border-2"
+              >
+                <Square className="w-6 h-6" />
+              </Button>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Estadísticas de la sesión */}
-      {runSession && (
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="font-semibold text-runapp-navy mb-3">Estadísticas de la sesión</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-runapp-gray">Tiempo transcurrido</p>
-                <p className="font-medium">{runSession.duration}</p>
-              </div>
-              <div>
-                <p className="text-runapp-gray">Distancia total</p>
-                <p className="font-medium">{formatDistance(runSession.distance)}</p>
-              </div>
-              <div>
-                <p className="text-runapp-gray">Pace actual</p>
-                <p className="font-medium">{formatPace()}</p>
-              </div>
-              <div>
-                <p className="text-runapp-gray">Estado</p>
-                <p className={`font-medium ${isPaused ? 'text-yellow-600' : isTracking ? 'text-green-600' : 'text-gray-600'}`}>
-                  {isPaused ? "Pausado" : isTracking ? "Activo" : "Detenido"}
-                </p>
-              </div>
+      {/* Ubicación actual */}
+      <Card className="w-full">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Activity className="w-4 h-4 text-runapp-purple" />
+            <p className="text-runapp-navy font-medium">Ubicación actual</p>
+          </div>
+          {currentLocation ? (
+            <div className="text-sm text-runapp-gray space-y-1">
+              <p>Lat: {currentLocation.latitude.toFixed(6)}</p>
+              <p>Lng: {currentLocation.longitude.toFixed(6)}</p>
+              {currentLocation.accuracy && (
+                <p>Precisión: ±{currentLocation.accuracy.toFixed(0)}m</p>
+              )}
+              {currentLocation.speed && currentLocation.speed > 0 && (
+                <p>Velocidad: {(currentLocation.speed * 3.6).toFixed(1)} km/h</p>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-runapp-gray">
+              {isTracking ? "Obteniendo ubicación..." : "Inicia el tracking para ver tu ubicación"}
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -1,0 +1,9 @@
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'stride.seeker',
+  appName: 'Stride Seeker',
+  webDir: 'dist'
+};
+
+export default config;

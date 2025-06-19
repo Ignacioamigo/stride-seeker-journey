@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapPin, Shield, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Geolocation } from '@capacitor/geolocation';
 
 const PermissionsScreen: React.FC = () => {
   const [permissionStep, setPermissionStep] = useState<'initial' | 'when-in-use' | 'always' | 'completed'>('initial');
@@ -11,13 +11,13 @@ const PermissionsScreen: React.FC = () => {
 
   const requestWhenInUsePermission = async () => {
     try {
-      // Simular solicitud de permiso "When in Use"
-      setPermissionStep('when-in-use');
-      
-      // En una app real, aquí usarías navigator.geolocation
-      setTimeout(() => {
+      const permResult = await Geolocation.requestPermissions();
+      console.log('Permiso:', permResult);
+      if (permResult.location === 'granted' || permResult.location === 'prompt-with-rationale') {
         setPermissionStep('always');
-      }, 1000);
+      } else {
+        alert('Permiso denegado. No se podrá usar el GPS.');
+      }
     } catch (error) {
       alert('No se pudieron obtener los permisos de ubicación');
     }
@@ -25,9 +25,10 @@ const PermissionsScreen: React.FC = () => {
 
   const requestAlwaysPermission = async () => {
     try {
-      // Simular solicitud de permiso "Always"
+      // En iOS, no hay un método separado para "always", pero puedes volver a solicitar permisos si es necesario
+      const permResult = await Geolocation.requestPermissions();
+      console.log('Permiso always:', permResult);
       setPermissionStep('completed');
-      
       setTimeout(() => {
         navigate(-1);
       }, 2000);

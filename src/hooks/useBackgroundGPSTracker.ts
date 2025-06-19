@@ -141,6 +141,28 @@ export const useBackgroundGPSTracker = () => {
           requestPermissions: true,
           stale: false,
           distanceFilter: 5,
+          activityType: "fitness",
+          desiredAccuracy: "high",
+          stationaryRadius: 10,
+          stopDetectionDelay: 5,
+          stopTimeout: 5,
+          batteryLevel: true,
+          batteryLevelThreshold: 20,
+          accuracy: {
+            ios: "best",
+            android: "high"
+          },
+          activityRecognitionInterval: 1000,
+          stopOnTerminate: false,
+          startForeground: true,
+          foregroundService: {
+            channelId: "location_service",
+            channelName: "Location Tracking",
+            title: "Stride Seeker",
+            text: "Tracking tu carrera",
+            icon: "ic_launcher",
+            color: "#4CAF50"
+          }
         },
         (location, error) => {
           if (error) {
@@ -149,6 +171,11 @@ export const useBackgroundGPSTracker = () => {
           }
 
           if (location) {
+            if (location.accuracy && location.accuracy > 20) {
+              console.log('Lectura descartada por baja precisión:', location.accuracy);
+              return;
+            }
+
             console.log('Nueva ubicación:', location);
             
             const newPoint: GPSPoint = {
@@ -171,7 +198,8 @@ export const useBackgroundGPSTracker = () => {
                 const lastPoint = prev.gpsPoints[prev.gpsPoints.length - 1];
                 const segmentDistance = calculateDistance(lastPoint, newPoint);
                 
-                if (segmentDistance > 2 && segmentDistance < 50) {
+                if (segmentDistance > 2 && segmentDistance < 50 && 
+                    newPoint.accuracy && newPoint.accuracy <= 20) {
                   newDistance += segmentDistance;
                 }
               }
