@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Workout } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -119,12 +118,18 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
               </label>
               <Input
                 id="actualDistance"
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*[.,]?[0-9]*"
                 placeholder="Ej: 5.2"
                 value={actualDistance}
-                onChange={(e) => setActualDistance(e.target.value)}
+                onChange={(e) => {
+                  // Solo permitir números, punto y coma
+                  const val = e.target.value.replace(/[^0-9.,]/g, "");
+                  setActualDistance(val);
+                }}
                 className="h-8 text-sm"
+                style={{ fontSize: 16 }}
               />
             </div>
           )}
@@ -140,6 +145,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
               value={actualDuration}
               onChange={(e) => setActualDuration(e.target.value)}
               className="h-8 text-sm"
+              style={{ fontSize: 16 }}
             />
           </div>
         </>

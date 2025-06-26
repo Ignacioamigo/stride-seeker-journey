@@ -909,3 +909,106 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
     throw error;
   }
 };
+
+/**
+ * Marca como completado el slot de training_sessions más cercano a la fecha dada,
+ * o crea un slot adicional si todos están completos.
+ */
+export const markClosestSessionAsCompleted = async ({
+  userId,
+  planId,
+  workoutTitle,
+  workoutType = 'carrera',
+  actualDistance,
+  actualDuration,
+  workoutDate
+}: {
+  userId: string,
+  planId: string,
+  workoutTitle: string,
+  workoutType?: string,
+  actualDistance: number | null,
+  actualDuration: string | null,
+  workoutDate: string // formato YYYY-MM-DD
+}) => {
+  console.log('[markClosestSessionAsCompleted] INICIO', { userId, planId, workoutTitle, workoutType, actualDistance, actualDuration, workoutDate });
+  // 1. Buscar slots pendientes (completed false o null)
+  const { data: sessions, error } = await supabase
+    .from('training_sessions')
+    .select('*')
+    .eq('plan_id', planId)
+    .eq('type', workoutType)
+    .or('completed.is.false,completed.is.null');
+
+  if (error) {
+    console.error('[markClosestSessionAsCompleted] Error al buscar sesiones:', error);
+    return;
+  }
+  console.log('[markClosestSessionAsCompleted] Slots pendientes encontrados:', sessions?.length);
+
+  // 2. Buscar el slot más cercano por fecha
+  let closestSession = null;
+  let minDiff = Infinity;
+  const workoutDateObj = new Date(workoutDate);
+
+  if (sessions && sessions.length > 0) {
+    sessions.forEach(session => {
+      const sessionDate = new Date(session.day_date);
+      const diff = Math.abs(sessionDate.getTime() - workoutDateObj.getTime());
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestSession = session;
+      }
+    });
+  }
+
+  if (closestSession) {
+    // 3. Marcar el slot como completado y actualizar datos reales
+    const updateData: any = {
+      completed: true,
+      completion_date: workoutDate,
+      actual_distance: actualDistance,
+      actual_duration: actualDuration
+    };
+    console.log('[markClosestSessionAsCompleted] Actualizando slot más cercano:', closestSession.id, updateData);
+    const { error: updateError } = await supabase
+      .from('training_sessions')
+      .update(updateData)
+      .eq('id', closestSession.id);
+    if (updateError) {
+      console.error('[markClosestSessionAsCompleted] Error al actualizar sesión:', updateError);
+    } else {
+      console.log('[markClosestSessionAsCompleted] Slot más cercano marcado como completado:', closestSession.id);
+    }
+    return closestSession.id;
+  } else {
+    // 4. Si no hay slot pendiente, crear uno adicional
+    const newSession = {
+      plan_id: planId,
+      day_number: 99, // o el siguiente disponible
+      day_date: workoutDate,
+      title: workoutTitle + ' (Adicional)',
+      description: 'Entrenamiento adicional realizado fuera de los días planeados',
+      type: 'adicional',
+      planned_distance: null,
+      planned_duration: null,
+      target_pace: null,
+      completed: true,
+      actual_distance: actualDistance,
+      actual_duration: actualDuration,
+      completion_date: workoutDate
+    };
+    console.log('[markClosestSessionAsCompleted] Creando sesión adicional:', newSession);
+    const { data: inserted, error: insertError } = await supabase
+      .from('training_sessions')
+      .insert(newSession)
+      .select();
+    if (insertError) {
+      console.error('[markClosestSessionAsCompleted] Error al crear sesión adicional:', insertError);
+      return null;
+    } else {
+      console.log('[markClosestSessionAsCompleted] Sesión adicional creada:', inserted[0]?.id);
+      return inserted[0]?.id;
+    }
+  }
+};

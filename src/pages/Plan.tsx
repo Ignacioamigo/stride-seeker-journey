@@ -9,6 +9,11 @@ import TrainingPlanDisplay from "@/components/plan/TrainingPlanDisplay";
 import { WorkoutPlan } from "@/types";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import AppHeader from "@/components/layout/AppHeader";
+import Header from "@/components/layout/Header";
+import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
+
+const HEADER_HEIGHT = 56;
 
 const Plan: React.FC = () => {
   const { user } = useUser();
@@ -19,6 +24,8 @@ const Plan: React.FC = () => {
   const [generationStage, setGenerationStage] = useState<'init' | 'rag' | 'api' | 'complete'>('init');
   const [connectionStatus, setConnectionStatus] = useState<boolean>(navigator.onLine);
   const [ragActive, setRagActive] = useState(false);
+  const insets = useSafeAreaInsets();
+  const headerHeight = insets.top + HEADER_HEIGHT;
 
   // Monitor connection status
   useEffect(() => {
@@ -48,6 +55,8 @@ const Plan: React.FC = () => {
             setCurrentPlan(plan);
             // Check if ragActive was included in the response
             setRagActive(!!plan.ragActive);
+            // Log para depuración: mostrar el plan actualizado
+            console.log('[Plan.tsx] Plan actualizado tras loadPlan:', plan);
           } else {
             console.log("No existing plan found");
           }
@@ -62,6 +71,16 @@ const Plan: React.FC = () => {
     };
     
     loadPlan();
+
+    // Escuchar evento global para refrescar el plan
+    const handlePlanUpdated = () => {
+      console.log('[Plan.tsx] Evento plan-updated recibido, recargando plan...');
+      loadPlan();
+    };
+    window.addEventListener('plan-updated', handlePlanUpdated);
+    return () => {
+      window.removeEventListener('plan-updated', handlePlanUpdated);
+    };
   }, []);
 
   const handleGeneratePlan = async () => {
@@ -197,14 +216,11 @@ const Plan: React.FC = () => {
   const renderLayout = () => {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <div className="bg-runapp-purple text-white p-4">
-          <h1 className="text-xl font-bold mb-1">Hello, {user.name} 👋</h1>
-          <p className="text-sm opacity-90">
-            Your personalized training plan
-          </p>
-        </div>
-        
-        <div className="container max-w-md mx-auto p-4">
+        <Header title="Plan de entrenamiento" subtitle="Tu semana personalizada" />
+        <div
+          className="container max-w-md mx-auto p-4"
+          style={{ paddingTop: headerHeight }}
+        >
           {/* Connection status indicator */}
           {!connectionStatus && (
             <Alert className="mb-4 bg-amber-50 border-amber-200">

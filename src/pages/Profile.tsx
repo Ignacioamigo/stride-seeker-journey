@@ -4,10 +4,17 @@ import { useUser } from "@/context/UserContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import AppHeader from "@/components/layout/AppHeader";
+import Header from "@/components/layout/Header";
+import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
+
+const HEADER_HEIGHT = 56;
 
 const Profile: React.FC = () => {
   const { user, resetUser } = useUser();
   const navigate = useNavigate();
+  const insets = useSafeAreaInsets();
+  const headerHeight = insets.top + HEADER_HEIGHT;
 
   const handleResetOnboarding = () => {
     if (window.confirm("¿Estás seguro que deseas reiniciar el proceso de onboarding? Se borrarán todos tus datos de perfil.")) {
@@ -23,11 +30,8 @@ const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-runapp-purple text-white p-4">
-        <h1 className="text-xl font-bold">Perfil</h1>
-      </div>
-      
-      <div className="container max-w-md mx-auto p-4">
+      <Header title="Perfil" />
+      <div className="container max-w-md mx-auto p-4" style={{ paddingTop: headerHeight }}>
         <div className="bg-white rounded-xl p-6 shadow-sm mb-4">
           <div className="flex items-center">
             <div className="w-16 h-16 bg-runapp-light-purple rounded-full flex items-center justify-center">

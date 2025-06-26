@@ -1,5 +1,4 @@
-
-import { Home, Calendar, SendIcon, BarChart2, User } from "lucide-react";
+import { Calendar, SendIcon, BarChart2, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const BottomNav: React.FC = () => {
@@ -7,7 +6,6 @@ const BottomNav: React.FC = () => {
   const currentPath = location.pathname;
 
   const navItems = [
-    { name: "Inicio", path: "/dashboard", icon: Home },
     { name: "Plan", path: "/plan", icon: Calendar },
     { name: "Entrenar", path: "/train", icon: SendIcon },
     { name: "Estadísticas", path: "/stats", icon: BarChart2 },
