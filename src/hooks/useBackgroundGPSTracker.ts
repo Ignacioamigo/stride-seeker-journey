@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
+import { BackgroundGeolocationPlugin, ExtendedWatcherOptions } from '@capacitor-community/background-geolocation';
 import { registerPlugin } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { saveCompletedWorkout } from '@/services/completedWorkoutService';
 import { toast } from '@/hooks/use-toast';
+import { markClosestSessionAsCompleted, getUserProfileId, loadLatestPlan } from '@/services/planService';
 
 export interface GPSPoint {
   latitude: number;
@@ -27,6 +28,13 @@ export interface RunSession {
 }
 
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+
+// Función para detectar si estamos en Capacitor
+const isCapacitor = () => {
+  return typeof window !== 'undefined' && 
+         window.Capacitor && 
+         window.Capacitor.isNative;
+};
 
 export const useBackgroundGPSTracker = () => {
   const [runSession, setRunSession] = useState<RunSession | null>(null);
@@ -163,7 +171,7 @@ export const useBackgroundGPSTracker = () => {
             icon: "ic_launcher",
             color: "#4CAF50"
           }
-        },
+        } as ExtendedWatcherOptions,
         (location, error) => {
           if (error) {
             console.error('Error de GPS:', error);
@@ -303,6 +311,27 @@ export const useBackgroundGPSTracker = () => {
       );
 
       if (success) {
+        try {
+          const userId = await getUserProfileId();
+          const plan = await loadLatestPlan();
+          if (userId && plan) {
+            const sessionId = await markClosestSessionAsCompleted({
+              userId,
+              planId: plan.id,
+              workoutTitle: 'Carrera con GPS',
+              workoutType: 'carrera',
+              actualDistance: finalDistance / 1000,
+              actualDuration: finalDuration,
+              workoutDate: new Date().toISOString().split('T')[0]
+            });
+            if (sessionId) {
+              window.dispatchEvent(new Event('plan-updated'));
+            }
+          }
+        } catch (e) {
+          console.error('Error asociando entrenamiento GPS a slot del plan:', e);
+        }
+
         toast({
           title: "¡Carrera completada!",
           description: `Distancia: ${(finalDistance / 1000).toFixed(2)} km • Pace: ${avgPace}`,
@@ -340,6 +369,66 @@ export const useBackgroundGPSTracker = () => {
         clearInterval(intervalRef.current);
       }
     };
+  }, []);
+
+  // Verificar permisos al inicializar el hook
+  useEffect(() => {
+    const checkPermissions = async () => {
+      try {
+        if (isCapacitor()) {
+          console.log('Verificando permisos de ubicación en Capacitor...');
+          const permissions = await Geolocation.checkPermissions();
+          console.log('Estado actual de permisos:', permissions);
+          
+          if (permissions.location === 'granted') {
+            console.log('Permisos ya concedidos, actualizando estado...');
+            setPermissionGranted(true);
+          } else if (permissions.location === 'prompt-with-rationale') {
+            console.log('Permisos en estado prompt-with-rationale');
+            // En iOS, esto puede significar que los permisos están concedidos pero necesitan confirmación
+            setPermissionGranted(true);
+          } else {
+            console.log('Permisos no concedidos:', permissions.location);
+            setPermissionGranted(false);
+          }
+        } else {
+          // En web, usar la API de geolocalización del navegador
+          console.log('Verificando permisos de ubicación en web...');
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              () => {
+                console.log('Permisos concedidos en web');
+                setPermissionGranted(true);
+              },
+              (error) => {
+                console.log('Permisos no concedidos en web:', error.message);
+                setPermissionGranted(false);
+              },
+              { enableHighAccuracy: true, timeout: 5000 }
+            );
+          } else {
+            console.log('Geolocalización no disponible en este navegador');
+            setPermissionGranted(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error al verificar permisos:', error);
+        // En caso de error, intentamos verificar de otra manera
+        try {
+          if (isCapacitor()) {
+            // Intentar obtener una posición para verificar si los permisos están concedidos
+            await Geolocation.getCurrentPosition();
+            console.log('Permisos verificados mediante getCurrentPosition en Capacitor');
+            setPermissionGranted(true);
+          }
+        } catch (getPositionError) {
+          console.log('Permisos no disponibles:', getPositionError);
+          setPermissionGranted(false);
+        }
+      }
+    };
+
+    checkPermissions();
   }, []);
 
   return {

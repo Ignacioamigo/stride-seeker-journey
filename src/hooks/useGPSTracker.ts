@@ -1,7 +1,7 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { markClosestSessionAsCompleted, getUserProfileId, loadLatestPlan } from '@/services/planService';
 
 export interface GPSPoint {
   latitude: number;
@@ -272,6 +272,30 @@ export const useGPSTracker = () => {
         workoutSession.duration
       );
 
+      // Asociar el entrenamiento GPS al slot más cercano del plan
+      try {
+        const userId = await getUserProfileId();
+        const plan = await loadLatestPlan();
+        if (userId && plan) {
+          // Asociar el entrenamiento GPS al slot más cercano del plan
+          const sessionId = await markClosestSessionAsCompleted({
+            userId,
+            planId: plan.id,
+            workoutTitle: 'Carrera con GPS',
+            workoutType: 'carrera',
+            actualDistance: workoutSession.distance / 1000, // En km
+            actualDuration: workoutSession.duration, // Formato HH:MM:SS
+            workoutDate: new Date().toISOString().split('T')[0]
+          });
+          if (sessionId) {
+            // Solo lanzamos el evento si la actualización fue exitosa
+            window.dispatchEvent(new Event('plan-updated'));
+          }
+        }
+      } catch (e) {
+        console.error('Error asociando entrenamiento GPS a slot del plan:', e);
+      }
+
       toast({
         title: "Entrenamiento completado",
         description: `Distancia: ${(workoutSession.distance / 1000).toFixed(2)} km`,
@@ -290,6 +314,32 @@ export const useGPSTracker = () => {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };
+  }, []);
+
+  // Verificar permisos al inicializar el hook
+  useEffect(() => {
+    const checkPermissions = async () => {
+      try {
+        // Para PWA, verificamos si podemos obtener la ubicación
+        if (navigator.geolocation) {
+          // Intentamos obtener una posición para verificar permisos
+          navigator.geolocation.getCurrentPosition(
+            () => {
+              setPermissionGranted(true);
+            },
+            (error) => {
+              console.log('Permisos no concedidos:', error.message);
+              setPermissionGranted(false);
+            },
+            { enableHighAccuracy: true, timeout: 5000 }
+          );
+        }
+      } catch (error) {
+        console.error('Error al verificar permisos:', error);
+      }
+    };
+
+    checkPermissions();
   }, []);
 
   // Actualizar duración cada segundo

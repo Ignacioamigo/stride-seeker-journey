@@ -25,4 +25,14 @@ declare module '@capacitor-community/background-geolocation' {
       color: string;
     };
   }
+}
+
+// Declaración de tipos para Capacitor
+declare global {
+  interface Window {
+    Capacitor?: {
+      isNative: boolean;
+      platform: string;
+    };
+  }
 } 
