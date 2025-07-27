@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { UserProfile } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { resetSession } from '@/services/authService';
+import { removeSavedPlan } from '@/services/planService';
 
 interface UserContextProps {
   user: UserProfile;
@@ -100,6 +101,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Resetear el usuario local
     setUser(defaultUser);
     localStorage.removeItem('runAdaptiveUser');
+    
+    // Limpiar planes guardados para asegurar un inicio limpio
+    removeSavedPlan();
     
     // Disparar evento personalizado para notificar que se resetean las estadísticas
     window.dispatchEvent(new CustomEvent('resetStats'));

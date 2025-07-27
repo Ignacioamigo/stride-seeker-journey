@@ -7,9 +7,9 @@ interface HeaderProps {
   bgColor?: string;
 }
 
-const HEADER_HEIGHT = 56;
-const RADIUS_TOP = 32;
-const RADIUS_BOTTOM = 24;
+const HEADER_HEIGHT = 44;
+const RADIUS_TOP = 28;
+const RADIUS_BOTTOM = 0;
 
 const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" }) => {
   const insets = useSafeAreaInsets();
@@ -46,12 +46,12 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" })
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
-        minHeight: 64,
+        minHeight: 44,
       }}
     >
       <h1
         style={{
-          fontSize: 20,
+          fontSize: 16,
           fontWeight: 600,
           margin: 0,
           letterSpacing: 0.1,
@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" })
       {subtitle && (
         <p
           style={{
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: 400,
             opacity: 0.85,
             marginTop: 2,

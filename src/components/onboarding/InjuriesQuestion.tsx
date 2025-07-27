@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import ProgressHeader from "@/components/layout/ProgressHeader";
+import { removeSavedPlan } from "@/services/planService";
 
 const InjuriesQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
@@ -12,11 +13,16 @@ const InjuriesQuestion: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Clear any existing plans to ensure fresh start for new user
+    console.log("Clearing any existing plans for new user...");
+    removeSavedPlan();
+    
     updateUser({ 
       injuries,
       completedOnboarding: true 
     });
-    navigate("/dashboard");
+    navigate("/plan");
   };
 
   const commonInjuries = [

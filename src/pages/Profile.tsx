@@ -23,7 +23,7 @@ const Profile: React.FC = () => {
         title: "Perfil reiniciado",
         description: "Serás redirigido al inicio del onboarding.",
       });
-      // Redireccionar al inicio del onboarding
+      // Usar el smart redirect que detectará automáticamente que debe ir al onboarding
       setTimeout(() => navigate("/"), 1500);
     }
   };

@@ -10,9 +10,9 @@ const WelcomePage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Si el usuario ya completó el onboarding, redirigir al dashboard
+    // Si el usuario ya completó el onboarding, redirigir al plan principal
     if (user.completedOnboarding) {
-      navigate("/dashboard");
+      navigate("/plan");
     } else {
       // Si el usuario está comenzando de nuevo, asegurarse de que no haya plan guardado
       removeSavedPlan();

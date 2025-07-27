@@ -3,12 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { UserProvider } from "@/context/UserContext";
+import { UserProvider, useUser } from "@/context/UserContext";
 import { StatsProvider } from "@/context/StatsContext";
 
 // Pages
 import WelcomePage from "@/pages/WelcomePage";
-import Dashboard from "@/pages/Dashboard";
 import Plan from "@/pages/Plan";
 import Train from "@/pages/Train";
 import Stats from "@/pages/Stats";
@@ -33,6 +32,17 @@ import WeeklyWorkoutsQuestion from "@/components/onboarding/WeeklyWorkoutsQuesti
 import ExperienceQuestion from "@/components/onboarding/ExperienceQuestion";
 import InjuriesQuestion from "@/components/onboarding/InjuriesQuestion";
 
+// Component to handle smart redirects based on onboarding status
+const SmartRedirect = () => {
+  const { user } = useUser();
+  
+  if (user.completedOnboarding) {
+    return <Navigate to="/plan" replace />;
+  } else {
+    return <Navigate to="/onboarding/name" replace />;
+  }
+};
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -44,8 +54,10 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
+              {/* Smart redirect based on onboarding status */}
+              <Route path="/" element={<SmartRedirect />} />
+              
               {/* Main Routes */}
-              <Route path="/" element={<Navigate to="/plan" replace />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/train" element={<Train />} />
               <Route path="/stats" element={<Stats />} />

@@ -59,6 +59,11 @@ const Plan: React.FC = () => {
             console.log('[Plan.tsx] Plan actualizado tras loadPlan:', plan);
           } else {
             console.log("No existing plan found");
+            
+            // If user just completed onboarding and has no plan, show helpful message
+            if (user.completedOnboarding && user.name) {
+              console.log("User completed onboarding but has no plan - ready to generate new plan");
+            }
           }
           setError(null);
         } catch (error) {
@@ -288,20 +293,25 @@ const Plan: React.FC = () => {
 
     return (
       <div className="bg-white rounded-xl p-6 shadow-sm text-center">
-        <h2 className="text-xl font-bold text-runapp-navy mb-2">Start your journey!</h2>
+        <h2 className="text-xl font-bold text-runapp-navy mb-2">
+          {user.completedOnboarding && user.name ? `¡Hola ${user.name}!` : "¡Comienza tu aventura!"}
+        </h2>
         <p className="text-runapp-gray mb-6">
-          Generate your personalized training plan based on your profile and goals.
+          {user.completedOnboarding && user.name 
+            ? "Tu perfil está completo. Ahora vamos a generar tu plan de entrenamiento personalizado basado en tus objetivos y experiencia."
+            : "Genera tu plan de entrenamiento personalizado basado en tu perfil y objetivos."
+          }
         </p>
         <RunButton 
           onClick={handleGeneratePlan}
           className="w-full"
           disabled={!connectionStatus}
         >
-          {connectionStatus ? "Generate my plan" : "No connection"}
+          {connectionStatus ? "Generar mi plan" : "Sin conexión"}
         </RunButton>
         {!connectionStatus && (
           <p className="text-xs text-runapp-gray mt-3">
-            You need an internet connection to generate a training plan.
+            Necesitas conexión a internet para generar un plan de entrenamiento.
           </p>
         )}
       </div>
