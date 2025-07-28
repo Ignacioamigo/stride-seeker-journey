@@ -1,11 +1,11 @@
 import { useState } from "react";
+import { Workout } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Workout } from "@/types";
-import { toast } from "@/components/ui/use-toast";
-import { generateWorkoutFeedback } from "@/components/feedback/WorkoutFeedback";
+import { Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { saveCompletedWorkout } from "@/services/completedWorkoutService";
+import { useStats } from "@/context/StatsContext";
 
 interface WorkoutCompletionFormProps {
   workout: Workout;
@@ -13,29 +13,39 @@ interface WorkoutCompletionFormProps {
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
 }
 
-const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ workout, planId, onComplete }) => {
-  const [actualDistance, setActualDistance] = useState<string>("");
-  const [actualDuration, setActualDuration] = useState<string>("");
+const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
+  workout, 
+  planId, 
+  onComplete
+}) => {
+  const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
+  const [actualDuration, setActualDuration] = useState<string>(workout.actualDuration || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const { forceUpdate, updateCounter } = useStats();
+  
+  const isRestDay = workout.type === 'descanso';
+  
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    console.log("=== INICIANDO SUBMIT DEL FORMULARIO ===");
+    console.log("Counter antes del submit:", updateCounter);
     
     setIsSubmitting(true);
-    
     try {
-      console.log("🔄 INICIANDO handleSubmit en WorkoutCompletionForm");
+      const distanceValue = actualDistance && actualDistance.trim() ? parseFloat(actualDistance) : null;
+      const durationValue = actualDuration && actualDuration.trim() ? actualDuration.trim() : null;
       
-      const distanceValue = actualDistance ? Number(actualDistance) : null;
-      const durationValue = actualDuration || null;
-      
-      console.log("📊 Valores del entrenamiento:", {
+      console.log("WorkoutCompletionForm: Guardando entrenamiento:", {
         workoutId: workout.id,
-        actualDistance: distanceValue,
-        actualDuration: durationValue
+        workoutTitle: workout.title,
+        workoutType: workout.type,
+        planId,
+        distanceValue,
+        durationValue
       });
-
-      // Save to database first
+      
+      // Guardar en la base de datos
       const savedToNewTable = await saveCompletedWorkout(
         workout.title,
         workout.type,
@@ -46,45 +56,24 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ workout, 
       if (savedToNewTable) {
         console.log("✅ Guardado exitoso en DB");
         
-        // Generate personalized feedback
-        const feedback = generateWorkoutFeedback({
-          workout,
-          actualDistance: distanceValue || undefined,
-          actualDuration: durationValue || undefined,
-          // TODO: In the future, fetch previous best from database
-          previousBestDistance: undefined,
-          previousBestTime: undefined
-        });
-        
-        // Show personalized toast with feedback
-        toast({
-          title: feedback.title,
-          description: feedback.description,
-          variant: "success" as any,
-        });
-        
-        // Additional toast with achievements if any
-        if (feedback.achievements.length > 1) {
-          setTimeout(() => {
-            toast({
-              title: "🏆 Logros adicionales",
-              description: feedback.achievements.slice(1).join(" • "),
-              variant: "success" as any,
-            });
-          }, 1500);
-        }
-        
-        // Update the parent component
+        // Actualizar el estado local del workout
         await onComplete(workout.id, distanceValue, durationValue);
         
-        // Dispatch events for stats updates
+        // FORZAR ACTUALIZACIÓN COMPLETA
+        console.log("🔄 FORZANDO ACTUALIZACIÓN CON FORCE UPDATE");
+        
         setTimeout(() => {
           console.log("🔄 Ejecutando forceUpdate");
+          forceUpdate();
           window.dispatchEvent(new CustomEvent('statsUpdated'));
           window.dispatchEvent(new CustomEvent('workoutCompleted'));
         }, 300);
         
-        console.log("✅ Proceso de guardado completado exitosamente");
+        toast({
+          title: "🎉 ¡Entrenamiento completado!",
+          description: `¡Excelente trabajo! Has completado ${workout.title}`,
+          variant: "success" as any,
+        });
       } else {
         throw new Error("No se pudieron guardar los datos en la base de datos");
       }
@@ -100,90 +89,84 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ workout, 
       setIsSubmitting(false);
     }
   };
-
-  const handleDistanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setActualDistance(value);
-    }
-  };
-
-  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || /^\d{1,2}:\d{0,2}$/.test(value)) {
-      setActualDuration(value);
-    }
-  };
   
   if (workout.completed) {
     return (
       <div className="mt-4 pt-4 border-t border-gray-100">
-        <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-green-700 mb-1">✓ Entrenamiento completado</h4>
-            {workout.actualDistance && (
-              <p className="text-xs text-green-600">Distancia: {workout.actualDistance} km</p>
-            )}
-            {workout.actualDuration && (
-              <p className="text-xs text-green-600">Duración: {workout.actualDuration}</p>
-            )}
-          </div>
-          <div className="text-2xl">🎉</div>
-        </div>
+        <h4 className="text-sm font-medium text-green-700 mb-2">✓ Entrenamiento completado</h4>
+        {workout.actualDistance && (
+          <p className="text-xs text-runapp-gray">Distancia: {workout.actualDistance} km</p>
+        )}
+        {workout.actualDuration && (
+          <p className="text-xs text-runapp-gray">Duración: {workout.actualDuration}</p>
+        )}
       </div>
     );
   }
-
+  
   return (
-    <div className="mt-4 pt-4 border-t border-gray-100">
-      <h4 className="text-sm font-medium text-runapp-navy mb-3">Registrar entrenamiento</h4>
+    <form onSubmit={handleSubmit} className="mt-4 pt-4 border-t border-gray-100">
+      <h4 className="text-sm font-medium text-runapp-navy mb-3">Completar entrenamiento</h4>
       
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div>
-          <Label htmlFor="actualDistance" className="text-xs">Distancia recorrida (km)</Label>
-          <Input
-            type="number"
-            id="actualDistance"
-            value={actualDistance}
-            onChange={handleDistanceChange}
-            placeholder={workout.distance ? workout.distance.toString() : "Ej: 5.0"}
-            step="0.1"
-            min="0"
-            className="text-sm"
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="actualDuration" className="text-xs">Duración (MM:SS)</Label>
-          <Input
-            type="text"
-            id="actualDuration"
-            value={actualDuration}
-            onChange={handleDurationChange}
-            placeholder={workout.duration || "Ej: 25:30"}
-            className="text-sm"
-          />
-          <p className="text-xs text-gray-500 mt-1">Formato: minutos:segundos</p>
-        </div>
-        
-        <div className="flex gap-2 pt-2">
-          <Button 
-            type="submit" 
-            disabled={isSubmitting || (!actualDistance && !actualDuration)}
-            className="flex-1 bg-runapp-purple hover:bg-runapp-purple/90 text-sm py-2"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
-                Guardando...
-              </>
-            ) : (
-              "Completar Entrenamiento"
-            )}
-          </Button>
-        </div>
-      </form>
-    </div>
+      {isRestDay ? (
+        <p className="text-xs text-runapp-gray mb-3">Este es un día de descanso. Simplemente marca como completado.</p>
+      ) : (
+        <>
+          {workout.type === 'carrera' && (
+            <div className="mb-3">
+              <label htmlFor="actualDistance" className="block text-xs text-runapp-gray mb-1">
+                Distancia recorrida (km)
+              </label>
+              <Input
+                id="actualDistance"
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*[.,]?[0-9]*"
+                placeholder="Ej: 5.2"
+                value={actualDistance}
+                onChange={(e) => {
+                  // Solo permitir números, punto y coma
+                  const val = e.target.value.replace(/[^0-9.,]/g, "");
+                  setActualDistance(val);
+                }}
+                className="h-8 text-sm"
+                style={{ fontSize: 16 }}
+              />
+            </div>
+          )}
+          
+          <div className="mb-3">
+            <label htmlFor="actualDuration" className="block text-xs text-runapp-gray mb-1">
+              Duración (ej: 45min)
+            </label>
+            <Input
+              id="actualDuration"
+              type="text"
+              placeholder="Ej: 45min"
+              value={actualDuration}
+              onChange={(e) => setActualDuration(e.target.value)}
+              className="h-8 text-sm"
+              style={{ fontSize: 16 }}
+            />
+          </div>
+        </>
+      )}
+      
+      <Button 
+        type="submit" 
+        className="w-full bg-runapp-purple hover:bg-runapp-purple/90 text-sm h-9"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Guardando...
+          </>
+        ) : (
+          "Marcar como completado"
+        )}
+      </Button>
+    </form>
   );
 };
 
