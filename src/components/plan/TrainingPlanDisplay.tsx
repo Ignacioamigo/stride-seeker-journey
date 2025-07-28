@@ -1,13 +1,14 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from "react";
+import { Loader2, Calendar, MapPin, Clock, ChevronDown, ChevronUp, WifiOff } from "lucide-react";
 import { WorkoutPlan, Workout } from "@/types";
+import { saveCompletedWorkout } from "@/services/completedWorkoutService";
+import { generateNextWeekPlan } from "@/services/planService";
+import { toast } from "@/components/ui/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import RunButton from "@/components/ui/RunButton";
-import { Calendar, Loader2, WifiOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import WorkoutCompletionForm from './WorkoutCompletionForm';
-import { generateNextWeekPlan } from '@/services/planService';
-import { toast } from '@/hooks/use-toast';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import WorkoutCompletionForm from "./WorkoutCompletionForm";
+import WeeklyFeedback from "@/components/feedback/WeeklyFeedback";
 
 interface TrainingPlanDisplayProps {
   plan: WorkoutPlan;
@@ -113,184 +114,170 @@ const WorkoutCard: React.FC<{
   );
 };
 
-const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanUpdate, offlineMode = false }) => {
-  const navigate = useNavigate();
+const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanUpdate, offlineMode }) => {
+  const [currentPlan, setCurrentPlan] = useState<WorkoutPlan>(plan);
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [isGeneratingNextWeek, setIsGeneratingNextWeek] = useState(false);
-  
+  const [showWeeklyFeedback, setShowWeeklyFeedback] = useState(false);
+
+  // Update local plan when prop changes
+  useEffect(() => {
+    setCurrentPlan(plan);
+  }, [plan]);
+
   // Sort workouts by date if dates are available
-  const sortedWorkouts = [...plan.workouts].sort((a, b) => {
-    if (a.date && b.date) {
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
-    } else {
-      return 0; // Keep original order if no dates
-    }
+  const sortedWorkouts = [...currentPlan.workouts].sort((a, b) => {
+    if (!a.date || !b.date) return 0;
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
   });
-  
-  // Filtrar los entrenamientos para excluir los días de descanso
-  const activeWorkouts = sortedWorkouts.filter(workout => workout.type !== 'descanso');
-  
-  const allWorkoutsCompleted = activeWorkouts.every(workout => workout.completed);
-  
-  // Find today's workout
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todaysWorkout = sortedWorkouts.find(w => {
-    if (w.date) {
-      const workoutDate = new Date(w.date);
-      workoutDate.setHours(0, 0, 0, 0);
-      return workoutDate.getTime() === today.getTime();
-    }
-    return false;
-  });
-  
-  const handleCompleteWorkout = async (
-    workoutId: string, 
-    actualDistance: number | null, 
-    actualDuration: string | null
-  ) => {
+
+  const handleCompleteWorkout = async (workoutId: string, actualDistance: number | null, actualDuration: string | null) => {
     try {
-      console.log("TrainingPlanDisplay: Marcando workout como completado en localStorage");
+      console.log('🔄 INICIANDO handleCompleteWorkout', { workoutId, actualDistance, actualDuration });
       
-      // Actualizar el plan en localStorage
-      const updatedWorkouts = plan.workouts.map(workout => {
-        if (workout.id === workoutId) {
-          return {
-            ...workout,
-            completed: true,
-            actualDistance,
-            actualDuration
-          };
-        }
-        return workout;
-      });
+      // Find the workout to get its title and type
+      const workout = currentPlan.workouts.find(w => w.id === workoutId);
+      if (!workout) {
+        throw new Error("Workout no encontrado");
+      }
 
-      const updatedPlan: WorkoutPlan = {
-        ...plan,
-        workouts: updatedWorkouts
-      };
+      const savedToNewTable = await saveCompletedWorkout(
+        workout.title,
+        workout.type,
+        actualDistance,
+        actualDuration
+      );
 
-      // Guardar en localStorage
-      localStorage.setItem('savedPlan', JSON.stringify(updatedPlan));
-      
-      // Actualizar el estado
-      onPlanUpdate(updatedPlan);
-      
-      // Colapsar el formulario
-      setExpandedWorkoutId(null);
-      
-      console.log("TrainingPlanDisplay: Plan actualizado exitosamente");
+      if (savedToNewTable) {
+        console.log("✅ Entrenamiento guardado en BD");
+
+        const updatedWorkouts = currentPlan.workouts.map(workout => {
+          if (workout.id === workoutId) {
+            return {
+              ...workout,
+              completed: true,
+              actualDistance,
+              actualDuration
+            };
+          }
+          return workout;
+        });
+
+        const updatedPlan = {
+          ...currentPlan,
+          workouts: updatedWorkouts
+        };
+
+        console.log('📊 Plan actualizado:', updatedPlan);
+        setCurrentPlan(updatedPlan);
+        onPlanUpdate(updatedPlan);
+
+        setTimeout(() => {
+          console.log("🔄 Actualizando estadísticas");
+          
+          // Check if week is completed
+          const workoutsExcludingRest = updatedWorkouts.filter(w => w.type !== 'descanso');
+          const completedWorkouts = workoutsExcludingRest.filter(w => w.completed);
+          const isWeekCompleted = completedWorkouts.length === workoutsExcludingRest.length && workoutsExcludingRest.length > 0;
+          
+          if (isWeekCompleted) {
+            console.log("🎉 ¡Semana completada! Mostrando feedback semanal");
+            // Delay to let the current toast show first
+            setTimeout(() => {
+              setShowWeeklyFeedback(true);
+            }, 2000);
+          }
+          
+          window.dispatchEvent(new CustomEvent('statsUpdated'));
+          window.dispatchEvent(new CustomEvent('workoutCompleted'));
+        }, 500);
+
+        console.log("✅ Proceso completado exitosamente");
+      } else {
+        throw new Error("No se pudo guardar en la base de datos");
+      }
     } catch (error) {
-      console.error("TrainingPlanDisplay: Error al actualizar plan:", error);
-      
-      toast({
-        title: "Error",
-        description: "Hubo un problema al actualizar el plan local.",
-        variant: "destructive",
-      });
+      console.error("❌ Error en handleCompleteWorkout:", error);
+      throw error;
     }
   };
-  
+
   const handleGenerateNextWeek = async () => {
     setIsGeneratingNextWeek(true);
     try {
-      const nextWeekPlan = await generateNextWeekPlan(plan);
+      const nextWeekPlan = await generateNextWeekPlan(currentPlan);
       
       if (nextWeekPlan) {
         toast({
           title: `¡Plan de Semana ${nextWeekPlan.weekNumber} generado!`,
           description: "Se ha creado el plan de entrenamiento para la siguiente semana basado en tus resultados.",
         });
+        setCurrentPlan(nextWeekPlan);
         onPlanUpdate(nextWeekPlan);
       }
     } catch (error) {
       console.error("Error generando el plan de la siguiente semana:", error);
       toast({
         title: "Error",
-        description: "No se pudo generar el plan de la siguiente semana.",
+        description: "No se pudo generar el plan de la siguiente semana. Inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
       setIsGeneratingNextWeek(false);
     }
   };
-  
+
+  const allWorkoutsCompleted = sortedWorkouts
+    .filter(workout => workout.type !== 'descanso')
+    .every(workout => workout.completed);
+
   return (
-    <div className="mb-8">
-      {offlineMode && (
+    <div className="bg-white rounded-xl p-4 shadow-sm">
+      {/* Weekly Feedback Modal */}
+      <WeeklyFeedback
+        isOpen={showWeeklyFeedback}
+        onClose={() => setShowWeeklyFeedback(false)}
+        plan={currentPlan}
+        onGenerateNextWeek={handleGenerateNextWeek}
+      />
+      
+      {!navigator.onLine && (
         <Alert className="mb-4 bg-amber-50 border-amber-200">
-          <WifiOff className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-700 text-sm">
-            Este plan se generó en modo offline y puede tener funcionalidad limitada.
+          <WifiOff className="h-4 w-4 mr-2 text-amber-600" />
+          <AlertDescription className="text-amber-700">
+            Sin conexión. Los datos se sincronizarán cuando vuelvas a tener internet.
           </AlertDescription>
         </Alert>
       )}
-
-      <div className="bg-white rounded-xl p-6 shadow-sm mb-4">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-xl font-bold text-runapp-navy">{plan.name}</h2>
-            <p className="text-sm text-runapp-gray">
-              {plan.duration} • {plan.intensity} {plan.weekNumber ? `• Semana ${plan.weekNumber}` : ''}
-            </p>
-            {plan.createdAt && (
-              <p className="text-xs text-runapp-gray mt-1">
-                Generado el: {new Date(plan.createdAt).toLocaleDateString('es-ES')}
-              </p>
-            )}
-            {plan.ragActive !== undefined && (
-              <p className="text-xs mt-1">
-                <span className={`px-2 py-0.5 rounded-full ${
-                  plan.ragActive 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {plan.ragActive ? 'Plan generado con RAG' : 'Plan generado sin RAG'}
-                </span>
-              </p>
-            )}
-          </div>
-          <div className="p-2 bg-runapp-light-purple rounded-full">
-            <Calendar className="text-runapp-purple" size={20} />
-          </div>
-        </div>
-        <p className="text-runapp-gray mb-4 text-sm">{plan.description}</p>
-        
-        {todaysWorkout && todaysWorkout.type !== 'descanso' && (
-          <RunButton 
-            onClick={() => {
-              setExpandedWorkoutId(todaysWorkout.id);
-              const element = document.getElementById(`workout-${todaysWorkout.id}`);
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}
-            className="w-full"
-          >
-            Comenzar entrenamiento de hoy
-          </RunButton>
-        )}
-      </div>
       
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-semibold text-runapp-navy">Tu semana de entrenamiento</h3>
         
         {allWorkoutsCompleted && !offlineMode && (
-          <RunButton 
-            onClick={handleGenerateNextWeek}
-            variant="outline" 
-            disabled={isGeneratingNextWeek}
-            className="text-xs h-8 py-0"
-          >
-            {isGeneratingNextWeek ? (
-              <>
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                Generando...
-              </>
-            ) : (
-              "Generar semana siguiente"
-            )}
-          </RunButton>
+          <div className="flex gap-2">
+            <RunButton 
+              onClick={() => setShowWeeklyFeedback(true)}
+              variant="outline" 
+              className="text-xs h-8 py-0"
+            >
+              Ver Resumen
+            </RunButton>
+            <RunButton 
+              onClick={handleGenerateNextWeek}
+              variant="outline" 
+              disabled={isGeneratingNextWeek}
+              className="text-xs h-8 py-0"
+            >
+              {isGeneratingNextWeek ? (
+                <>
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                "Semana siguiente"
+              )}
+            </RunButton>
+          </div>
         )}
       </div>
       
@@ -299,7 +286,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
           <div key={workout.id} id={`workout-${workout.id}`}>
             <WorkoutCard 
               workout={workout} 
-              planId={plan.id}
+              planId={currentPlan.id}
               onComplete={handleCompleteWorkout}
               expanded={expandedWorkoutId === workout.id}
               onToggleExpand={() => setExpandedWorkoutId(
