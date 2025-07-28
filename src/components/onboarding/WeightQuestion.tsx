@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
+import SliderInput from "@/components/ui/SliderInput";
 import ProgressHeader from "@/components/layout/ProgressHeader";
 import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
@@ -19,6 +20,25 @@ const WeightQuestion: React.FC = () => {
   const convertToKg = (lbs: number) => Math.round(lbs * 0.45359237);
   const convertToLbs = (kg: number) => Math.round(kg * 2.20462);
 
+  // Get appropriate ranges based on unit
+  const getWeightConfig = () => {
+    if (unit === 'kg') {
+      return {
+        min: 30,
+        max: 200,
+        step: 1,
+        placeholder: "70"
+      };
+    } else {
+      return {
+        min: 66,  // ~30kg
+        max: 440, // ~200kg
+        step: 1,
+        placeholder: "154"
+      };
+    }
+  };
+
   const handleUnitChange = (newUnit: 'kg' | 'lbs') => {
     if (unit !== newUnit) {
       setUnit(newUnit);
@@ -33,6 +53,10 @@ const WeightQuestion: React.FC = () => {
         }
       }
     }
+  };
+
+  const handleWeightChange = (newWeight: string) => {
+    setWeight(newWeight);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -52,14 +76,8 @@ const WeightQuestion: React.FC = () => {
     navigate("/onboarding/max-distance");
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setWeight(value);
-    }
-  };
-
   const isValid = weight !== "" && Number(weight) > 0;
+  const config = getWeightConfig();
 
   return (
     <div 
@@ -80,51 +98,44 @@ const WeightQuestion: React.FC = () => {
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="mb-4">
-              <div className="bg-gray-100 rounded-full p-1 flex mb-4">
+            <div className="mb-6">
+              {/* Unit toggle */}
+              <div className="bg-gray-100 rounded-full p-1 flex mb-6">
                 <button
                   type="button"
                   onClick={() => handleUnitChange('kg')}
-                  className={`toggle-option ${unit === 'kg' ? 'active' : ''}`}
+                  className={`flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all duration-200 ${
+                    unit === 'kg' 
+                      ? 'bg-runapp-purple text-white shadow-md' 
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
                 >
                   kg
                 </button>
                 <button
                   type="button"
                   onClick={() => handleUnitChange('lbs')}
-                  className={`toggle-option ${unit === 'lbs' ? 'active' : ''}`}
+                  className={`flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all duration-200 ${
+                    unit === 'lbs' 
+                      ? 'bg-runapp-purple text-white shadow-md' 
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
                 >
                   lbs
                 </button>
               </div>
               
-              <div className="relative">
-                <input
-                  type="number"
-                  value={weight}
-                  onChange={handleChange}
-                  placeholder={unit === 'kg' ? "70" : "154"}
-                  min="1"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-runapp-purple focus:border-transparent"
-                />
-                <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-runapp-gray">
-                  {unit}
-                </span>
-              </div>
-              
-              <div className="text-center mt-2 text-sm text-runapp-gray">
-                {/* Numbers for the spinner visualization */}
-                <div className="grid grid-cols-7 gap-1 text-gray-300 font-medium">
-                  {Array.from({ length: 7 }, (_, i) => {
-                    const baseNum = Math.max(parseInt(weight || '0') - 3 + i, 0);
-                    return (
-                      <div key={i} className={i === 3 ? "text-runapp-navy font-bold text-lg" : ""}>
-                        {baseNum}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Slider Input */}
+              <SliderInput
+                value={weight}
+                onChange={handleWeightChange}
+                min={config.min}
+                max={config.max}
+                step={config.step}
+                unit={unit}
+                placeholder={config.placeholder}
+                type="weight"
+              />
             </div>
             
             <RunButton type="submit" disabled={!isValid}>

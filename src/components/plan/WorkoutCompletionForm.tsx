@@ -70,8 +70,9 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         }, 300);
         
         toast({
-          title: "¡Entrenamiento completado!",
-          description: "Los datos se han guardado correctamente.",
+          title: "🎉 ¡Entrenamiento completado!",
+          description: `¡Excelente trabajo! Has completado ${workout.title}`,
+          variant: "success" as any,
         });
       } else {
         throw new Error("No se pudieron guardar los datos en la base de datos");
@@ -80,8 +81,8 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       console.error("❌ Error en handleSubmit:", error);
       
       toast({
-        title: "Error al guardar",
-        description: "No se pudieron guardar los datos del entrenamiento.",
+        title: "❌ Error al guardar",
+        description: "No se pudo guardar el entrenamiento. Revisa tu conexión e inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {

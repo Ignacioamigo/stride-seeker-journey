@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
+import SliderInput from "@/components/ui/SliderInput";
 import ProgressHeader from "@/components/layout/ProgressHeader";
 import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
@@ -18,6 +19,25 @@ const HeightQuestion: React.FC = () => {
 
   const convertToCm = (inches: number) => Math.round(inches * 2.54);
   const convertToInches = (cm: number) => Math.round(cm / 2.54);
+
+  // Get appropriate ranges based on unit
+  const getHeightConfig = () => {
+    if (unit === 'cm') {
+      return {
+        min: 120,
+        max: 220,
+        step: 1,
+        placeholder: "170"
+      };
+    } else {
+      return {
+        min: 47,  // ~120cm
+        max: 87,  // ~220cm
+        step: 1,
+        placeholder: "67"
+      };
+    }
+  };
 
   const handleUnitChange = (newUnit: 'cm' | 'in') => {
     if (unit !== newUnit) {
@@ -35,6 +55,10 @@ const HeightQuestion: React.FC = () => {
     }
   };
 
+  const handleHeightChange = (newHeight: string) => {
+    setHeight(newHeight);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numHeight = parseFloat(height);
@@ -43,14 +67,8 @@ const HeightQuestion: React.FC = () => {
     navigate("/onboarding/weight");
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setHeight(value);
-    }
-  };
-
   const isValid = height !== "" && Number(height) > 0;
+  const config = getHeightConfig();
 
   return (
     <div 
@@ -71,45 +89,44 @@ const HeightQuestion: React.FC = () => {
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="mb-4">
-              <div className="bg-gray-100 rounded-full p-1 flex mb-4">
+            <div className="mb-6">
+              {/* Unit toggle */}
+              <div className="bg-gray-100 rounded-full p-1 flex mb-6">
                 <button
                   type="button"
                   onClick={() => handleUnitChange('cm')}
-                  className={`toggle-option ${unit === 'cm' ? 'active' : ''}`}
+                  className={`flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all duration-200 ${
+                    unit === 'cm' 
+                      ? 'bg-runapp-purple text-white shadow-md' 
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
                 >
                   cm
                 </button>
                 <button
                   type="button"
                   onClick={() => handleUnitChange('in')}
-                  className={`toggle-option ${unit === 'in' ? 'active' : ''}`}
+                  className={`flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all duration-200 ${
+                    unit === 'in' 
+                      ? 'bg-runapp-purple text-white shadow-md' 
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
                 >
                   in
                 </button>
               </div>
               
-              <input
-                type="number"
+              {/* Slider Input */}
+              <SliderInput
                 value={height}
-                onChange={handleChange}
-                placeholder={unit === 'cm' ? "170" : "67"}
-                min="1"
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-runapp-purple focus:border-transparent"
+                onChange={handleHeightChange}
+                min={config.min}
+                max={config.max}
+                step={config.step}
+                unit={unit}
+                placeholder={config.placeholder}
+                type="height"
               />
-              <div className="text-center mt-2 text-sm text-runapp-gray">
-                {/* Numbers for the spinner visualization like in the screenshot */}
-                <div className="grid grid-cols-7 gap-1 text-gray-300 font-medium">
-                  {Array.from({ length: 7 }, (_, i) => {
-                    const baseNum = Math.max(parseInt(height || '0') - 3 + i, 0);
-                    return (
-                      <div key={i} className={i === 3 ? "text-runapp-navy font-bold text-lg" : ""}>
-                        {baseNum}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
             
             <RunButton type="submit" disabled={!isValid}>
