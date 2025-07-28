@@ -12,6 +12,7 @@ import Plan from "@/pages/Plan";
 import Train from "@/pages/Train";
 import Stats from "@/pages/Stats";
 import Profile from "@/pages/Profile";
+import EditProfile from "@/pages/EditProfile";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
 
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/train" element={<Train />} />
               <Route path="/stats" element={<Stats />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/edit-profile" element={<EditProfile />} />
               <Route path="/admin" element={<Admin />} />
               
               {/* Mobile setup routes */}

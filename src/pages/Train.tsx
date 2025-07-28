@@ -8,20 +8,26 @@ const HEADER_HEIGHT = 56;
 
 const Train: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const headerHeight = insets.top + HEADER_HEIGHT;
+  
   return (
     <div
-      className="min-h-screen bg-gray-50 flex flex-col"
+      className="bg-gray-50 flex flex-col h-screen overflow-hidden"
       style={{
-        paddingLeft: "env(safe-area-inset-left, 0px)",
-        paddingRight: "env(safe-area-inset-right, 0px)",
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        paddingTop: insets.top,
+        paddingLeft: Math.max(insets.left, 0),
+        paddingRight: Math.max(insets.right, 0),
       }}
     >
       <Header title="Entrenamiento GPS" subtitle="Tracking avanzado con background GPS" />
-      {/* Main content container */}
-      <main className="flex-1 px-4 py-4 flex flex-col" style={{ paddingTop: headerHeight }}>
-        <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center">
+      
+      {/* Main content container - centered and contained */}
+      <main 
+        className="flex-1 flex flex-col justify-center px-4 pb-20"
+        style={{ 
+          paddingTop: HEADER_HEIGHT + 16, // Header height + spacing
+        }}
+      >
+        <div className="max-w-md mx-auto w-full">
           <RunTracker />
         </div>
       </main>

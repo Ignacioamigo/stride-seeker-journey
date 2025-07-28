@@ -1,6 +1,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
 interface ProgressHeaderProps {
   currentStep: number;
@@ -14,10 +15,14 @@ const ProgressHeader: React.FC<ProgressHeaderProps> = ({
   showBackButton = false 
 }) => {
   const navigate = useNavigate();
+  const insets = useSafeAreaInsets();
   const progress = (currentStep / totalSteps) * 100;
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white z-10">
+    <header 
+      className="fixed top-0 left-0 right-0 bg-white z-10"
+      style={{ paddingTop: insets.top }}
+    >
       <div className="px-4 py-3 flex items-center">
         {showBackButton && (
           <button 

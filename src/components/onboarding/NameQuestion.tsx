@@ -4,11 +4,16 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import ProgressHeader from "@/components/layout/ProgressHeader";
+import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
 const NameQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
   const [name, setName] = useState(user.name || "");
   const navigate = useNavigate();
+  const insets = useSafeAreaInsets();
+
+  // Calculate header height: safe area + padding + content
+  const headerHeight = insets.top + 24 + 32; // safe area + py-3 (12px*2) + estimated content height
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,10 +24,18 @@ const NameQuestion: React.FC = () => {
   const isValid = name.trim().length > 0;
 
   return (
-    <div className="min-h-screen pt-16 pb-20 flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white">
+    <div 
+      className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
+      style={{
+        paddingTop: headerHeight,
+        paddingBottom: insets.bottom + 80, // safe area + space for content
+        paddingLeft: Math.max(insets.left, 16),
+        paddingRight: Math.max(insets.right, 16),
+      }}
+    >
       <ProgressHeader currentStep={1} totalSteps={10} />
       
-      <div className="flex-1 flex flex-col justify-center px-6 max-w-md mx-auto w-full">
+      <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-runapp-navy mb-2">RunAdaptive</h1>
           <p className="text-lg text-runapp-gray">Tu entrenador personal para correr</p>

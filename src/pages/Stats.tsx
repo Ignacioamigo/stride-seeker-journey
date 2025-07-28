@@ -11,15 +11,32 @@ const HEADER_HEIGHT = 56;
 const Stats: React.FC = () => {
   const { user } = useUser();
   const insets = useSafeAreaInsets();
-  const headerHeight = insets.top + HEADER_HEIGHT;
+  
   return (
     <StatsProvider>
-      <div className="min-h-screen bg-gray-50 pb-20">
+      <div 
+        className="bg-gray-50 flex flex-col h-screen overflow-hidden"
+        style={{
+          paddingTop: insets.top,
+          paddingLeft: Math.max(insets.left, 0),
+          paddingRight: Math.max(insets.right, 0),
+        }}
+      >
         <Header title="Estadísticas" subtitle={`Hola, ${user.name} 👋 | Tu progreso semanal y estadísticas`} />
-        <div className="container max-w-md mx-auto p-4" style={{ paddingTop: headerHeight }}>
-          <WeeklyProgress />
-          <RunStats />
+        
+        {/* Content area with proper spacing */}
+        <div 
+          className="flex-1 overflow-y-auto pb-20"
+          style={{ 
+            paddingTop: HEADER_HEIGHT + 16, // Header height + spacing
+          }}
+        >
+          <div className="container max-w-md mx-auto px-4">
+            <WeeklyProgress />
+            <RunStats />
+          </div>
         </div>
+        
         <BottomNav />
       </div>
     </StatsProvider>

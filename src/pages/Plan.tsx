@@ -219,13 +219,27 @@ const Plan: React.FC = () => {
 
   // Base layout that always renders to prevent blank screen
   const renderLayout = () => {
+    const insets = useSafeAreaInsets();
+    
     return (
-      <div className="min-h-screen bg-gray-50 pb-20">
+      <div 
+        className="bg-gray-50 flex flex-col h-screen overflow-hidden"
+        style={{
+          paddingTop: insets.top,
+          paddingLeft: Math.max(insets.left, 0),
+          paddingRight: Math.max(insets.right, 0),
+        }}
+      >
         <Header title="Plan de entrenamiento" subtitle="Tu semana personalizada" />
-        <div
-          className="container max-w-md mx-auto p-4"
-          style={{ paddingTop: headerHeight }}
+        
+        {/* Scrollable content area */}
+        <div 
+          className="flex-1 overflow-y-auto pb-20"
+          style={{ 
+            paddingTop: HEADER_HEIGHT + 16, // Header height + spacing
+          }}
         >
+          <div className="container max-w-md mx-auto px-4">
           {/* Connection status indicator */}
           {!connectionStatus && (
             <Alert className="mb-4 bg-amber-50 border-amber-200">
@@ -267,7 +281,8 @@ const Plan: React.FC = () => {
           
           {renderRagIndicator()}
           
-          {renderContent()}
+            {renderContent()}
+          </div>
         </div>
         
         <BottomNav />
