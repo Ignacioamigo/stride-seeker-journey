@@ -8,6 +8,7 @@ import WorkoutCompletionForm from './WorkoutCompletionForm';
 import { generateNextWeekPlan } from '@/services/planService';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useWeeklyFeedback } from '@/context/WeeklyFeedbackContext';
 
 interface TrainingPlanDisplayProps {
   plan: WorkoutPlan;
@@ -117,6 +118,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   const navigate = useNavigate();
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [isGeneratingNextWeek, setIsGeneratingNextWeek] = useState(false);
+  const { showWeeklyFeedback, isGeneratingFeedback } = useWeeklyFeedback();
   
   // Sort workouts by date if dates are available
   const sortedWorkouts = [...plan.workouts].sort((a, b) => {
@@ -192,6 +194,17 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   };
   
   const handleGenerateNextWeek = async () => {
+    // Primero mostrar el feedback semanal, luego generar el plan
+    console.log('🎯 Usuario solicita generar siguiente semana - mostrando feedback primero');
+    
+    await showWeeklyFeedback(plan, () => {
+      // Este callback se ejecuta cuando el usuario cierra el modal de feedback
+      console.log('✅ Feedback cerrado - procediendo a generar siguiente semana');
+      performPlanGeneration();
+    });
+  };
+
+  const performPlanGeneration = async () => {
     setIsGeneratingNextWeek(true);
     try {
       const nextWeekPlan = await generateNextWeekPlan(plan);
@@ -279,16 +292,21 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
           <RunButton 
             onClick={handleGenerateNextWeek}
             variant="outline" 
-            disabled={isGeneratingNextWeek}
+            disabled={isGeneratingNextWeek || isGeneratingFeedback}
             className="text-xs h-8 py-0"
           >
-            {isGeneratingNextWeek ? (
+            {isGeneratingFeedback ? (
+              <>
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                Analizando semana...
+              </>
+            ) : isGeneratingNextWeek ? (
               <>
                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                 Generando...
               </>
             ) : (
-              "Generar semana siguiente"
+              "Ver resumen y generar siguiente"
             )}
           </RunButton>
         )}
