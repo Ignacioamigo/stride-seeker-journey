@@ -812,7 +812,32 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
     
     if (error) {
       console.error("Error calling Edge function:", error);
-      throw new Error(`Error de conexión con el servidor: ${error.message}`);
+      console.error("Error details:", JSON.stringify(error, null, 2));
+      console.error("Error name:", error.name);
+      console.error("Error context:", error.context);
+      console.error("Error message:", error.message);
+      
+      // Proporcionar mensaje de error más específico
+      let errorMessage = "Error de conexión con el servidor";
+      if (error.name === "FunctionsHttpError") {
+        errorMessage = "Error en el servidor de generación de planes. Puede ser un problema de configuración o conectividad.";
+        
+        // Detectar errores específicos de cuota de API
+        if (data && typeof data === 'object' && data.error && typeof data.error === 'string') {
+          if (data.error.includes('429 Too Many Requests') || data.error.includes('exceeded your current quota')) {
+            errorMessage = "Se ha alcanzado el límite de uso de la API de inteligencia artificial. Por favor, intenta de nuevo en unos minutos o contacta al administrador.";
+          } else if (data.error.includes('API key not configured') || data.error.includes('GEMINI_API_KEY')) {
+            errorMessage = "Servicio de inteligencia artificial no configurado. Contacta al administrador.";
+          } else if (data.error.includes('Invalid response format')) {
+            errorMessage = "Error procesando la respuesta del servicio. Intenta de nuevo.";
+          }
+        }
+      }
+      if (error.message && !errorMessage.includes("límite de uso")) {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      throw new Error(errorMessage);
     }
     
     if (!data) {

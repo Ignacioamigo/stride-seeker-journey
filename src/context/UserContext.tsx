@@ -53,60 +53,71 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentUserId) {
         console.log('Eliminando entrenamientos del usuario:', currentUserId);
         
-        // Eliminar de la tabla entrenamientos_completados
-        const { error: completedError } = await supabase
-          .from('entrenamientos_completados')
-          .delete()
-          .eq('user_id', currentUserId);
-
-        if (completedError) {
-          console.error('Error eliminando entrenamientos completados:', completedError);
-        }
-
-        // Obtener los IDs de los planes del usuario
-        const { data: userPlans, error: plansError } = await supabase
-          .from('training_plans')
-          .select('id')
-          .eq('user_id', currentUserId);
-
-        if (plansError) {
-          console.error('Error obteniendo planes del usuario:', plansError);
-        } else if (userPlans && userPlans.length > 0) {
-          const planIds = userPlans.map(plan => plan.id);
-          
-          // Eliminar sesiones de entrenamiento del usuario actual
-          const { error: sessionsError } = await supabase
-            .from('training_sessions')
+        try {
+          // Eliminar de la tabla entrenamientos_completados
+          const { error: completedError } = await supabase
+            .from('entrenamientos_completados')
             .delete()
-            .in('plan_id', planIds);
+            .eq('user_id', currentUserId);
 
-          if (sessionsError) {
-            console.error('Error eliminando sesiones de entrenamiento:', sessionsError);
+          if (completedError) {
+            console.error('Error eliminando entrenamientos completados:', completedError);
           }
 
-          console.log('Entrenamientos del usuario eliminados correctamente');
-        } else {
-          console.log('No se encontraron planes para el usuario');
+          // Obtener los IDs de los planes del usuario
+          const { data: userPlans, error: plansError } = await supabase
+            .from('training_plans')
+            .select('id')
+            .eq('user_id', currentUserId);
+
+          if (plansError) {
+            console.error('Error obteniendo planes del usuario:', plansError);
+          } else if (userPlans && userPlans.length > 0) {
+            const planIds = userPlans.map(plan => plan.id);
+            
+            // Eliminar sesiones de entrenamiento del usuario actual
+            const { error: sessionsError } = await supabase
+              .from('training_sessions')
+              .delete()
+              .in('plan_id', planIds);
+
+            if (sessionsError) {
+              console.error('Error eliminando sesiones de entrenamiento:', sessionsError);
+            }
+
+            console.log('Entrenamientos del usuario eliminados correctamente');
+          } else {
+            console.log('No se encontraron planes para el usuario');
+          }
+        } catch (dbError) {
+          console.error('Error en operaciones de base de datos:', dbError);
+          // Continuar con el reset local aunque falle la base de datos
         }
       }
 
-      // Usar la nueva función resetSession para crear una nueva sesión
-      const newUserId = await resetSession();
-      console.log('Nueva sesión creada con user_id:', newUserId);
+      try {
+        // Usar la nueva función resetSession para crear una nueva sesión
+        const newUserId = await resetSession();
+        console.log('Nueva sesión creada con user_id:', newUserId);
+      } catch (sessionError) {
+        console.error('Error al resetear sesión:', sessionError);
+        // Continuar con el reset local aunque falle la sesión
+      }
       
     } catch (error) {
-      console.error('Error al resetear sesión:', error);
+      console.error('Error general al resetear usuario:', error);
+    } finally {
+      // Asegurar que siempre se resetee el estado local
+      console.log('Reseteando estado local del usuario...');
+      setUser(defaultUser);
+      localStorage.removeItem('runAdaptiveUser');
+      
+      // Limpiar planes guardados para asegurar un inicio limpio
+      removeSavedPlan();
+      
+      // Disparar evento personalizado para notificar que se resetean las estadísticas
+      window.dispatchEvent(new CustomEvent('resetStats'));
     }
-    
-    // Resetear el usuario local
-    setUser(defaultUser);
-    localStorage.removeItem('runAdaptiveUser');
-    
-    // Limpiar planes guardados para asegurar un inicio limpio
-    removeSavedPlan();
-    
-    // Disparar evento personalizado para notificar que se resetean las estadísticas
-    window.dispatchEvent(new CustomEvent('resetStats'));
   };
 
   return (

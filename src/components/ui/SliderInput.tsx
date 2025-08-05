@@ -60,7 +60,8 @@ const SliderInput: React.FC<SliderInputProps> = ({
 
     const deltaX = clientX - startX;
     const sensitivity = type === 'weight' ? 0.5 : 1;
-    const deltaValue = (deltaX * sensitivity * step) / 10;
+    // Invertir la dirección: deslizar hacia la derecha disminuye el valor
+    const deltaValue = -(deltaX * sensitivity * step) / 10;
     
     let newValue = startValue + deltaValue;
     newValue = Math.max(min, Math.min(max, newValue));
@@ -184,7 +185,7 @@ const SliderInput: React.FC<SliderInputProps> = ({
         {/* Drag instruction */}
         <div className="text-center mt-2">
           <p className="text-xs text-gray-400">
-            Desliza para ajustar o introduce manualmente
+            Desliza hacia la izquierda ← para ajustar o introduce manualmente
           </p>
         </div>
       </div>

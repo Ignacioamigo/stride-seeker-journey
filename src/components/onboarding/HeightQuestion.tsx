@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
 const HeightQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
-  const [height, setHeight] = useState<string>(user.height?.toString() || "");
+  const [height, setHeight] = useState<string>(user.height?.toString() || "170");
   const [unit, setUnit] = useState<'cm' | 'in'>('cm');
   const navigate = useNavigate();
   const insets = useSafeAreaInsets();
@@ -67,8 +67,8 @@ const HeightQuestion: React.FC = () => {
     navigate("/onboarding/weight");
   };
 
-  const isValid = height !== "" && Number(height) > 0;
   const config = getHeightConfig();
+  const isValid = height !== "" && Number(height) > 0 && Number(height) >= config.min && Number(height) <= config.max;
 
   return (
     <div 

@@ -16,15 +16,24 @@ const Profile: React.FC = () => {
   const insets = useSafeAreaInsets();
   const headerHeight = insets.top + HEADER_HEIGHT;
 
-  const handleResetOnboarding = () => {
+  const handleResetOnboarding = async () => {
     if (window.confirm("¿Estás seguro que deseas reiniciar el proceso de onboarding? Se borrarán todos tus datos de perfil.")) {
-      resetUser();
-      toast({
-        title: "Perfil reiniciado",
-        description: "Serás redirigido al inicio del onboarding.",
-      });
-      // Usar el smart redirect que detectará automáticamente que debe ir al onboarding
-      setTimeout(() => navigate("/"), 1500);
+      try {
+        await resetUser();
+        toast({
+          title: "Perfil reiniciado",
+          description: "Serás redirigido al inicio del onboarding.",
+        });
+        // Navegar directamente al onboarding inicial
+        setTimeout(() => navigate("/onboarding/name"), 1000);
+      } catch (error) {
+        console.error("Error al reiniciar onboarding:", error);
+        toast({
+          title: "Error",
+          description: "Hubo un problema al reiniciar el perfil. Intenta de nuevo.",
+          variant: "destructive",
+        });
+      }
     }
   };
 

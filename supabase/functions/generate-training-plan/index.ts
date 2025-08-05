@@ -66,7 +66,14 @@ serve(async (req) => {
     // 1. Get data from the request
     const { userProfile, previousWeekResults, customPrompt } = await req.json() as RequestBody;
     if (!userProfile || !userProfile.goal) {
-      throw new Error('Missing required user profile information');
+      console.error('Missing required user profile information:', userProfile);
+      return new Response(
+        JSON.stringify({ error: 'Missing required user profile information', details: 'userProfile.goal is required' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        },
+      );
     }
 
     console.log("Processing request with user profile:", JSON.stringify(userProfile));
@@ -80,7 +87,14 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase credentials');
+      console.error('Missing Supabase credentials - URL:', !!supabaseUrl, 'Key:', !!supabaseKey);
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error', details: 'Missing Supabase credentials' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        },
+      );
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -236,12 +250,39 @@ IMPORTANTE:
 
     // 5. Call Gemini
     const apiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error', details: 'AI service not configured' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        },
+      );
+    }
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     console.log("Calling Gemini API...");
-    const result = await model.generateContent(prompt);
+    
+    let result;
+    try {
+      result = await model.generateContent(prompt);
+    } catch (geminiError) {
+      console.error("Gemini API error:", geminiError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'AI service error', 
+          details: 'Failed to generate training plan content',
+          originalError: geminiError.message 
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 503,
+        },
+      );
+    }
+    
     const response = await result.response;
     const text = response.text();
     console.log("Received response from Gemini:", text.substring(0, 200) + "...");
@@ -367,18 +408,32 @@ IMPORTANTE:
           status: 200,
         },
       );
-    } catch (e) {
-      console.error("Failed to parse Gemini response:", e);
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response:", parseError);
       console.error("Raw response was:", text);
-      throw new Error('Invalid response format from AI model');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid response format from AI model',
+          details: 'Failed to parse AI response as valid JSON',
+          rawResponse: text.substring(0, 500) + '...'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 502,
+        },
+      );
     }
   } catch (error) {
-    console.error("Error in edge function:", error);
+    console.error("Unexpected error in edge function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error.message,
+        timestamp: new Date().toISOString()
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 500,
       },
     );
   }
