@@ -1,4 +1,4 @@
-import { getCompletedWorkouts } from '@/services/completedWorkoutService';
+import { getCompletedWorkouts, getCompletedWorkoutsForPlan } from '@/services/completedWorkoutService';
 import { WorkoutPlan } from '@/types';
 
 export interface WeeklyInsights {
@@ -43,49 +43,38 @@ export const generateWeeklyInsights = async (
   try {
     console.log('🧠 Generando insights semanales para', userName);
     
-    // Obtener todos los entrenamientos para análisis histórico
-    const allWorkouts = await getCompletedWorkouts();
-    
-    // Calcular fechas de la semana actual del plan
-    const planWorkouts = currentPlan.workouts.filter(w => w.date); // Solo workouts con fecha
-    const planDates = planWorkouts.map(w => new Date(w.date!));
-    const planStartDate = new Date(Math.min(...planDates.map(d => d.getTime())));
-    const planEndDate = new Date(Math.max(...planDates.map(d => d.getTime())));
-    
-    console.log('📅 Fechas del plan actual:', {
+    console.log('📅 Analizando plan:', {
+      planId: currentPlan.id,
       weekNumber: currentPlan.weekNumber,
-      startDate: planStartDate.toISOString().split('T')[0],
-      endDate: planEndDate.toISOString().split('T')[0]
+      totalWorkouts: currentPlan.workouts.length
     });
     
-    // Filtrar entrenamientos SOLO de la semana actual del plan
-    const thisWeekWorkouts = allWorkouts.filter(w => {
-      const workoutDate = new Date(w.fecha_completado);
-      // Normalizar fechas para comparación (solo día, sin hora)
-      const normalizedWorkoutDate = new Date(workoutDate.getFullYear(), workoutDate.getMonth(), workoutDate.getDate());
-      const normalizedStartDate = new Date(planStartDate.getFullYear(), planStartDate.getMonth(), planStartDate.getDate());
-      const normalizedEndDate = new Date(planEndDate.getFullYear(), planEndDate.getMonth(), planEndDate.getDate());
-      
-      return normalizedWorkoutDate >= normalizedStartDate && normalizedWorkoutDate <= normalizedEndDate;
-    });
+    // Obtener entrenamientos completados SOLO del plan actual
+    const thisWeekWorkouts = await getCompletedWorkoutsForPlan(currentPlan.id);
     
-    // Para semana anterior, buscar entrenamientos de la semana de plan anterior (si existe)
-    const lastWeekWorkouts = allWorkouts.filter(w => {
-      if (currentPlan.weekNumber <= 1) return false; // No hay semana anterior si es la primera
+    // Para semana anterior, obtener datos del plan anterior (si existe)
+    // Por ahora, usar datos históricos generales para comparación
+    let lastWeekWorkouts: any[] = [];
+    if (currentPlan.weekNumber > 1) {
+      // Obtener algunos entrenamientos de la tabla general para comparación histórica
+      const allHistoricalWorkouts = await getCompletedWorkouts();
+      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       
-      const workoutDate = new Date(w.fecha_completado);
-      const oneWeekBefore = new Date(planStartDate.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const twoWeeksBefore = new Date(planStartDate.getTime() - 14 * 24 * 60 * 60 * 1000);
-      
-      return workoutDate >= twoWeeksBefore && workoutDate < oneWeekBefore;
-    });
+      lastWeekWorkouts = allHistoricalWorkouts.filter(w => {
+        const workoutDate = new Date(w.fecha_completado);
+        return workoutDate >= twoWeeksAgo && workoutDate < oneWeekAgo;
+      });
+    }
     
-    console.log(`📊 Entrenamientos filtrados para semana ${currentPlan.weekNumber}:`, {
-      thisWeek: thisWeekWorkouts.length,
-      lastWeek: lastWeekWorkouts.length,
+    console.log(`📊 Entrenamientos filtrados para plan ${currentPlan.id} (semana ${currentPlan.weekNumber}):`, {
+      thisWeekFromPlan: thisWeekWorkouts.length,
+      lastWeekHistorical: lastWeekWorkouts.length,
       thisWeekWorkouts: thisWeekWorkouts.map(w => ({
+        title: w.workout_title,
         fecha: w.fecha_completado,
-        distancia: w.distancia_recorrida
+        distancia: w.distancia_recorrida,
+        day_date: w.day_date
       }))
     });
 

@@ -9,6 +9,8 @@ import { generateNextWeekPlan } from '@/services/planService';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useWeeklyFeedback } from '@/context/WeeklyFeedbackContext';
+import { supabase } from '@/integrations/supabase/client';
+import { debugWorkoutCompletion, attemptWorkoutUpdate } from '@/utils/debugWorkoutCompletion';
 
 interface TrainingPlanDisplayProps {
   plan: WorkoutPlan;
@@ -152,9 +154,22 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
     actualDuration: string | null
   ) => {
     try {
-      console.log("TrainingPlanDisplay: Marcando workout como completado en localStorage");
+      console.log("🚀 === INICIANDO COMPLETION DE WORKOUT ===");
+      console.log("🚀 Datos:", { workoutId, actualDistance, actualDuration, planId: plan.id });
       
-      // Actualizar el plan en localStorage
+      // PASO 0: DEBUGGING EXHAUSTIVO
+      console.log("🔍 === EJECUTANDO DEBUGGING COMPLETO ===");
+      const debugResult = await debugWorkoutCompletion(workoutId, plan.id);
+      console.log("🔍 Debug result:", debugResult);
+      
+      // PASO 1: Intentar actualizar en Supabase con debugging
+      console.log("🔄 === INTENTANDO ACTUALIZAR SUPABASE ===");
+      const updateResult = await attemptWorkoutUpdate(workoutId, actualDistance, actualDuration);
+      console.log("🔄 Update result:", updateResult);
+      
+      // PASO 2: Actualizar localStorage SIEMPRE
+      console.log("💾 === ACTUALIZANDO LOCALSTORAGE ===");
+      
       const updatedWorkouts = plan.workouts.map(workout => {
         if (workout.id === workoutId) {
           return {
@@ -181,13 +196,33 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
       // Colapsar el formulario
       setExpandedWorkoutId(null);
       
-      console.log("TrainingPlanDisplay: Plan actualizado exitosamente");
+      console.log("💾 ✅ LocalStorage actualizado exitosamente");
+      
+      // PASO 3: Verificar el resultado final
+      console.log("🔍 === VERIFICACIÓN FINAL ===");
+      const finalDebug = await debugWorkoutCompletion(workoutId, plan.id);
+      console.log("🔍 Estado final:", finalDebug);
+      
+      // PASO 4: Verificar getCompletedWorkoutsForPlan
+      try {
+        const { getCompletedWorkoutsForPlan } = await import('@/services/completedWorkoutService');
+        const completedWorkouts = await getCompletedWorkoutsForPlan(plan.id);
+        console.log("🔍 getCompletedWorkoutsForPlan result:", completedWorkouts);
+      } catch (importError) {
+        console.error("🔍 Error importing getCompletedWorkoutsForPlan:", importError);
+      }
+      
+      toast({
+        title: "Entrenamiento completado",
+        description: `Distancia: ${actualDistance || 0} km. Revisa la consola para debug info.`,
+      });
+      
     } catch (error) {
-      console.error("TrainingPlanDisplay: Error al actualizar plan:", error);
+      console.error("🚀 Error general en handleCompleteWorkout:", error);
       
       toast({
         title: "Error",
-        description: "Hubo un problema al actualizar el plan local.",
+        description: "Hubo un problema al actualizar el plan. Revisa la consola.",
         variant: "destructive",
       });
     }

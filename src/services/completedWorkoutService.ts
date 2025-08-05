@@ -166,3 +166,101 @@ export const getCompletedWorkouts = async () => {
     return workouts;
   }
 };
+
+/**
+ * Obtiene entrenamientos completados específicos de un plan desde training_sessions
+ * Con fallback a localStorage si Supabase falla
+ */
+export const getCompletedWorkoutsForPlan = async (planId: string) => {
+  try {
+    console.log(`[getCompletedWorkoutsForPlan] 🔍 INICIANDO búsqueda para plan: ${planId}`);
+    
+    // MÉTODO 1: Intentar desde Supabase training_sessions
+    try {
+      console.log(`[getCompletedWorkoutsForPlan] 🔍 Método 1: Buscando en Supabase training_sessions...`);
+      
+      // Asegurar que tenemos una sesión activa
+      await ensureSession();
+
+      // Debug: Verificar autenticación
+      const { data: authUser } = await supabase.auth.getUser();
+      console.log(`[getCompletedWorkoutsForPlan] 🔍 Usuario autenticado:`, authUser?.user?.id || 'NO USER');
+
+      // Obtener sesiones completadas del plan específico
+      const { data, error } = await supabase
+        .from('training_sessions')
+        .select('*')
+        .eq('plan_id', planId)
+        .eq('completed', true)
+        .order('day_date', { ascending: true });
+
+      console.log(`[getCompletedWorkoutsForPlan] 🔍 Supabase response:`, { data, error });
+
+      if (!error && data && data.length > 0) {
+        console.log(`[getCompletedWorkoutsForPlan] ✅ Método 1 exitoso: ${data.length} sesiones desde Supabase`);
+        
+        // Transformar datos a formato compatible con weeklyAnalyzer
+        const transformedData = data.map(session => ({
+          id: session.id,
+          workout_title: session.title,
+          workout_type: session.type,
+          distancia_recorrida: session.actual_distance,
+          duracion: session.actual_duration,
+          fecha_completado: session.completion_date || session.day_date,
+          plan_id: session.plan_id,
+          day_date: session.day_date,
+          day_number: session.day_number
+        }));
+
+        console.log("[getCompletedWorkoutsForPlan] ✅ Datos transformados desde Supabase:", transformedData);
+        return transformedData;
+      } else {
+        console.log(`[getCompletedWorkoutsForPlan] ⚠️ Método 1 sin resultados:`, { error: error?.message, dataLength: data?.length });
+      }
+      
+    } catch (supabaseError) {
+      console.error("[getCompletedWorkoutsForPlan] ❌ Error en Método 1 (Supabase):", supabaseError);
+    }
+
+    // MÉTODO 2: Fallback a localStorage
+    console.log(`[getCompletedWorkoutsForPlan] 🔍 Método 2: Fallback a localStorage...`);
+    
+    const savedPlan = localStorage.getItem('savedPlan');
+    if (!savedPlan) {
+      console.log("[getCompletedWorkoutsForPlan] ❌ No hay plan guardado en localStorage");
+      return [];
+    }
+
+    const planData = JSON.parse(savedPlan);
+    console.log(`[getCompletedWorkoutsForPlan] 🔍 Plan localStorage ID: ${planData.id} vs buscado: ${planId}`);
+    
+    // Verificar que el plan ID coincida (o usar el plan actual si no hay coincidencia)
+    if (planData.id !== planId) {
+      console.log(`[getCompletedWorkoutsForPlan] ⚠️ Plan ID no coincide, usando plan actual de localStorage`);
+    }
+
+    // Extraer entrenamientos completados del localStorage
+    const completedWorkouts = planData.workouts
+      .filter((workout: any) => workout.completed)
+      .map((workout: any, index: number) => ({
+        id: workout.id,
+        workout_title: workout.title,
+        workout_type: workout.type || 'carrera',
+        distancia_recorrida: workout.actualDistance,
+        duracion: workout.actualDuration,
+        fecha_completado: new Date().toISOString().split('T')[0], // Fecha de hoy como fallback
+        plan_id: planData.id,
+        day_date: workout.date || new Date().toISOString().split('T')[0],
+        day_number: index + 1
+      }));
+
+    console.log(`[getCompletedWorkoutsForPlan] ✅ Método 2 exitoso: ${completedWorkouts.length} entrenamientos desde localStorage`);
+    console.log("[getCompletedWorkoutsForPlan] ✅ Datos desde localStorage:", completedWorkouts);
+    
+    return completedWorkouts;
+    
+  } catch (error: any) {
+    console.error("[getCompletedWorkoutsForPlan] ❌ Error general:", error);
+    return [];
+  }
+};
