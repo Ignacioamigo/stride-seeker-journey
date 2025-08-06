@@ -13,7 +13,7 @@ const GoalQuestion: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateUser({ goal });
-    navigate("/onboarding/weekly-workouts");
+    navigate("/onboarding/race-preparation");
   };
 
   const isValid = goal.trim().length > 0;

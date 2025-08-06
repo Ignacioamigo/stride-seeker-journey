@@ -12,7 +12,34 @@ export interface UserProfile {
   weeklyWorkouts: number | null;
   experienceLevel: 'principiante' | 'intermedio' | 'avanzado' | null;
   injuries: string;
+  targetRace?: RaceEvent | null;
   completedOnboarding: boolean;
+}
+
+export interface RaceEvent {
+  id: string;
+  name: string;
+  location: string;
+  date: string;
+  distance: string;
+  type: 'carrera_popular' | 'media_maraton' | 'maraton' | 'trail' | 'ultra' | 'trail_running' | 'ultra_trail' | 'cross' | 'nocturna' | 'solidaria' | 'triathlon' | 'montaña' | 'otros';
+  registrationUrl?: string;
+  description?: string;
+  // Additional fields from database
+  organizer?: string;
+  price?: number;
+  maxParticipants?: number;
+  imageUrl?: string;
+  website?: string;
+  province?: string;
+  city?: string;
+  venue?: string;
+  elevationGain?: number;
+  difficulty?: 'principiante' | 'intermedio' | 'avanzado' | 'elite';
+  includesTshirt?: boolean;
+  includesMedal?: boolean;
+  wheelchairAccessible?: boolean;
+  registrationStatus?: 'upcoming' | 'registration_open' | 'registration_closed' | 'completed' | 'cancelled' | 'postponed';
 }
 
 export interface FormQuestion {

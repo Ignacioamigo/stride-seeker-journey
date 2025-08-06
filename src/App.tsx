@@ -34,6 +34,7 @@ import WeightQuestion from "@/components/onboarding/WeightQuestion";
 import MaxDistanceQuestion from "@/components/onboarding/MaxDistanceQuestion";
 import PaceQuestion from "@/components/onboarding/PaceQuestion";
 import GoalQuestion from "@/components/onboarding/GoalQuestion";
+import RacePreparationQuestion from "@/components/onboarding/RacePreparationQuestion";
 import WeeklyWorkoutsQuestion from "@/components/onboarding/WeeklyWorkoutsQuestion";
 import ExperienceQuestion from "@/components/onboarding/ExperienceQuestion";
 import InjuriesQuestion from "@/components/onboarding/InjuriesQuestion";
@@ -85,6 +86,7 @@ const App = () => (
                 <Route path="/onboarding/max-distance" element={<MaxDistanceQuestion />} />
                 <Route path="/onboarding/pace" element={<PaceQuestion />} />
                 <Route path="/onboarding/goal" element={<GoalQuestion />} />
+                <Route path="/onboarding/race-preparation" element={<RacePreparationQuestion />} />
                 <Route path="/onboarding/weekly-workouts" element={<WeeklyWorkoutsQuestion />} />
                 <Route path="/onboarding/experience" element={<ExperienceQuestion />} />
                 <Route path="/onboarding/injuries" element={<InjuriesQuestion />} />

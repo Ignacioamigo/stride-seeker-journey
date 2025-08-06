@@ -23,6 +23,7 @@ const defaultUser: UserProfile = {
   weeklyWorkouts: null,
   experienceLevel: null,
   injuries: '',
+  targetRace: null,
   completedOnboarding: false,
 };
 
