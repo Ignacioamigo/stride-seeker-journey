@@ -13,7 +13,7 @@ const RunButton: React.FC<RunButtonProps> = ({
   disabled,
   ...props 
 }) => {
-  const baseStyles = "rounded-full py-4 px-6 font-medium text-center w-full transition-colors focus:outline-none focus:ring-2";
+  const baseStyles = "rounded-full py-4 px-6 font-medium text-center w-full transition-colors focus:outline-none focus:ring-2 no-select";
   
   const variantStyles = {
     primary: "bg-runapp-purple text-white hover:bg-runapp-deep-purple focus:ring-runapp-light-purple",

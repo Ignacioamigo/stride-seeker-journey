@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserProvider, useUser } from "@/context/UserContext";
 import { StatsProvider } from "@/context/StatsContext";
 import { WeeklyFeedbackProvider } from "@/context/WeeklyFeedbackContext";
+import AppLoader from "@/components/AppLoader";
 
 // Weekly Feedback Components
 import WeeklyFeedbackModal from "@/components/feedback/WeeklyFeedbackModal";
@@ -58,49 +59,51 @@ const App = () => (
       <UserProvider>
         <StatsProvider>
           <WeeklyFeedbackProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {/* Smart redirect based on onboarding status */}
-                <Route path="/" element={<SmartRedirect />} />
+            <AppLoader>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {/* Smart redirect based on onboarding status */}
+                  <Route path="/" element={<SmartRedirect />} />
+                  
+                  {/* Main Routes */}
+                  <Route path="/plan" element={<Plan />} />
+                  <Route path="/train" element={<Train />} />
+                  <Route path="/stats" element={<Stats />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/edit-profile" element={<EditProfile />} />
+                  <Route path="/admin" element={<Admin />} />
+                  
+                  {/* Mobile setup routes */}
+                  <Route path="/permissions" element={<PermissionsScreen />} />
+                  <Route path="/settings" element={<SettingsScreen />} />
+                  
+                  {/* Onboarding Routes */}
+                  <Route path="/onboarding/name" element={<NameQuestion />} />
+                  <Route path="/onboarding/age" element={<AgeQuestion />} />
+                  <Route path="/onboarding/gender" element={<GenderQuestion />} />
+                  <Route path="/onboarding/height" element={<HeightQuestion />} />
+                  <Route path="/onboarding/weight" element={<WeightQuestion />} />
+                  <Route path="/onboarding/max-distance" element={<MaxDistanceQuestion />} />
+                  <Route path="/onboarding/pace" element={<PaceQuestion />} />
+                  <Route path="/onboarding/goal" element={<GoalQuestion />} />
+                  <Route path="/onboarding/race-preparation" element={<RacePreparationQuestion />} />
+                  <Route path="/onboarding/weekly-workouts" element={<WeeklyWorkoutsQuestion />} />
+                  <Route path="/onboarding/experience" element={<ExperienceQuestion />} />
+                  <Route path="/onboarding/injuries" element={<InjuriesQuestion />} />
+                  
+                  {/* Catch-all and redirect */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
                 
-                {/* Main Routes */}
-                <Route path="/plan" element={<Plan />} />
-                <Route path="/train" element={<Train />} />
-                <Route path="/stats" element={<Stats />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/edit-profile" element={<EditProfile />} />
-                <Route path="/admin" element={<Admin />} />
+                {/* Weekly Feedback Modal - Global */}
+                <WeeklyFeedbackModal />
                 
-                {/* Mobile setup routes */}
-                <Route path="/permissions" element={<PermissionsScreen />} />
-                <Route path="/settings" element={<SettingsScreen />} />
-                
-                {/* Onboarding Routes */}
-                <Route path="/onboarding/name" element={<NameQuestion />} />
-                <Route path="/onboarding/age" element={<AgeQuestion />} />
-                <Route path="/onboarding/gender" element={<GenderQuestion />} />
-                <Route path="/onboarding/height" element={<HeightQuestion />} />
-                <Route path="/onboarding/weight" element={<WeightQuestion />} />
-                <Route path="/onboarding/max-distance" element={<MaxDistanceQuestion />} />
-                <Route path="/onboarding/pace" element={<PaceQuestion />} />
-                <Route path="/onboarding/goal" element={<GoalQuestion />} />
-                <Route path="/onboarding/race-preparation" element={<RacePreparationQuestion />} />
-                <Route path="/onboarding/weekly-workouts" element={<WeeklyWorkoutsQuestion />} />
-                <Route path="/onboarding/experience" element={<ExperienceQuestion />} />
-                <Route path="/onboarding/injuries" element={<InjuriesQuestion />} />
-                
-                {/* Catch-all and redirect */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              
-              {/* Weekly Feedback Modal - Global */}
-              <WeeklyFeedbackModal />
-              
-              {/* Development Testing Component */}
-              <WeeklyFeedbackTester />
-            </BrowserRouter>
+                {/* Development Testing Component */}
+                <WeeklyFeedbackTester />
+              </BrowserRouter>
+            </AppLoader>
           </WeeklyFeedbackProvider>
         </StatsProvider>
       </UserProvider>

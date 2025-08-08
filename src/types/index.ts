@@ -10,6 +10,7 @@ export interface UserProfile {
   pace: string | null;
   goal: string;
   weeklyWorkouts: number | null;
+  selectedDays?: WeekDay[];
   experienceLevel: 'principiante' | 'intermedio' | 'avanzado' | null;
   injuries: string;
   targetRace?: RaceEvent | null;
@@ -101,6 +102,14 @@ export interface PreviousWeekResults {
     plannedDuration?: string | null;
     actualDuration?: string | null;
   }[];
+}
+
+export interface WeekDay {
+  id: number; // 0 = Lunes, 1 = Martes, ..., 6 = Domingo
+  name: string; // "Lunes", "Martes", etc.
+  shortName: string; // "L", "M", "M", "J", "V", "S", "D"
+  date: string; // Fecha real de esta semana en formato YYYY-MM-DD
+  selected: boolean;
 }
 
 export interface TrainingPlanRequest {

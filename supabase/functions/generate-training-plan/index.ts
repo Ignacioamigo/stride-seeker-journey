@@ -40,10 +40,12 @@ function getDayMapping(dayNumber: number): string {
 function generateDatesFromToday(): { date: Date, dayName: string }[] {
   const dates = [];
   const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
   
   for (let i = 0; i < 7; i++) {
-    const date = new Date();
+    const date = new Date(today);
     date.setDate(today.getDate() + i);
+    date.setHours(0, 0, 0, 0);
     
     // Get day of week in Spanish
     const dayNumber = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
@@ -55,6 +57,80 @@ function generateDatesFromToday(): { date: Date, dayName: string }[] {
   }
   
   return dates;
+}
+
+function generateDatesForSelectedDays(selectedDays: any[]): { date: Date, dayName: string }[] {
+  if (!selectedDays || selectedDays.length === 0) {
+    // Fallback to all week days if no selection
+    return generateDatesFromToday();
+  }
+  
+  const dates = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+  
+  // Get current week Monday
+  const currentDayOfWeek = today.getDay();
+  const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - daysToMonday);
+  
+  // First, try to get remaining days from current week (from today onwards)
+  for (const selectedDay of selectedDays) {
+    if (selectedDay.selected) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + selectedDay.id); // selectedDay.id is 0-6 (Mon-Sun)
+      date.setHours(0, 0, 0, 0);
+      
+      // Only include if the date is today or in the future
+      if (date >= today) {
+        const dayName = selectedDay.name;
+        dates.push({ date, dayName });
+      }
+    }
+  }
+  
+  // If no future dates this week, or we need more dates to complete a training week,
+  // add dates from next week
+  if (dates.length === 0) {
+    // No more training days this week, get next week's selected days
+    const nextMonday = new Date(monday);
+    nextMonday.setDate(monday.getDate() + 7);
+    
+    for (const selectedDay of selectedDays) {
+      if (selectedDay.selected) {
+        const date = new Date(nextMonday);
+        date.setDate(nextMonday.getDate() + selectedDay.id);
+        date.setHours(0, 0, 0, 0);
+        
+        const dayName = selectedDay.name;
+        dates.push({ date, dayName });
+      }
+    }
+  } else {
+    // We have some days this week, but let's also include next week for a full cycle
+    // This ensures users can see the complete pattern
+    const nextMonday = new Date(monday);
+    nextMonday.setDate(monday.getDate() + 7);
+    
+    for (const selectedDay of selectedDays) {
+      if (selectedDay.selected) {
+        const date = new Date(nextMonday);
+        date.setDate(nextMonday.getDate() + selectedDay.id);
+        date.setHours(0, 0, 0, 0);
+        
+        const dayName = selectedDay.name;
+        dates.push({ date, dayName });
+      }
+    }
+  }
+  
+  // Sort by date to maintain chronological order
+  dates.sort((a, b) => a.date.getTime() - b.date.getTime());
+  
+  // Limit to next 7-14 days maximum to avoid too many future dates
+  const maxDates = 14;
+  return dates.slice(0, maxDates);
 }
 
 serve(async (req) => {
@@ -78,8 +154,12 @@ serve(async (req) => {
 
     console.log("Processing request with user profile:", JSON.stringify(userProfile));
     
-    // Generate the dates from today for the next 7 days
-    const nextWeekDates = generateDatesFromToday();
+    // Generate dates based on selected days or fallback to next 7 days
+    const nextWeekDates = userProfile.selectedDays && userProfile.selectedDays.length > 0 
+      ? generateDatesForSelectedDays(userProfile.selectedDays)
+      : generateDatesFromToday();
+    
+    console.log("Selected days from user:", userProfile.selectedDays);
     console.log("Generated dates:", nextWeekDates.map(d => `${d.dayName}: ${d.date.toISOString().split('T')[0]}`));
 
     // 2. Create Supabase client
@@ -107,7 +187,11 @@ serve(async (req) => {
       console.log("Starting RAG process to retrieve relevant training knowledge...");
       
       // Generate embedding for the user's goal and profile
-      const userQuery = `Perfil del corredor: Nombre: ${userProfile.name}, Edad: ${userProfile.age}, Sexo: ${userProfile.gender}, Nivel: ${userProfile.experienceLevel}, Ritmo: ${userProfile.pace}, Distancia máxima: ${userProfile.maxDistance}, Objetivo: ${userProfile.goal}, Lesiones: ${userProfile.injuries || 'Ninguna'}, Frecuencia semanal: ${userProfile.weeklyWorkouts}`;
+      const selectedDaysText = userProfile.selectedDays && userProfile.selectedDays.length > 0 
+        ? userProfile.selectedDays.filter(d => d.selected).map(d => d.name).join(', ')
+        : 'No especificados';
+      
+      const userQuery = `Perfil del corredor: Nombre: ${userProfile.name}, Edad: ${userProfile.age}, Sexo: ${userProfile.gender}, Nivel: ${userProfile.experienceLevel}, Ritmo: ${userProfile.pace}, Distancia máxima: ${userProfile.maxDistance}, Objetivo: ${userProfile.goal}, Lesiones: ${userProfile.injuries || 'Ninguna'}, Frecuencia semanal: ${userProfile.weeklyWorkouts}, Días de entrenamiento específicos: ${selectedDaysText}`;
       
       console.log("User query for embedding generation:", userQuery);
       
@@ -174,6 +258,10 @@ serve(async (req) => {
     const systemPrompt = `Eres un entrenador personal de running experimentado. Debes generar planes de entrenamiento semanales personalizados y seguros, basados en las mejores prácticas.`;
     
     // User profile section
+    const selectedDaysInfo = userProfile.selectedDays && userProfile.selectedDays.length > 0 
+      ? userProfile.selectedDays.filter(d => d.selected).map(d => `${d.name} (${d.date})`).join(', ')
+      : 'No especificados - usar distribución general';
+    
     const userProfileSection = `\nPERFIL DEL USUARIO:
 Nombre: ${userProfile.name}
 Edad: ${userProfile.age || 'No especificada'}
@@ -183,7 +271,8 @@ Ritmo actual: ${userProfile.pace || 'No especificado'} min/km
 Distancia máxima: ${userProfile.maxDistance || 'No especificada'} km
 Objetivo: ${userProfile.goal}
 Lesiones o condiciones: ${userProfile.injuries || 'Ninguna'}
-Frecuencia semanal deseada: ${userProfile.weeklyWorkouts || '3'} entrenamientos por semana\n`;
+Frecuencia semanal deseada: ${userProfile.weeklyWorkouts || '3'} entrenamientos por semana
+Días específicos seleccionados: ${selectedDaysInfo}\n`;
     
     // RAG context section - make sure this part is used!
     const ragSection = contextText ? `\nDOCUMENTOS RELEVANTES PARA REFERENCIA:\n${contextText}\n` : '';
@@ -205,15 +294,29 @@ ${previousWeekResults.workouts.map((w: any) =>
       `${d.dayName} (${d.date.toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'})})`
     ).join(', ');
     
+    // Check if user selected specific days
+    const hasSelectedDays = userProfile.selectedDays && userProfile.selectedDays.length > 0;
+    const trainingDaysText = hasSelectedDays 
+      ? 'ÚNICAMENTE en los días específicos que seleccionó'
+      : 'distribuidas adecuadamente en la semana';
+    
     // Main instruction with dates
+    const todayDate = new Date().toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'});
+    
     const mainInstruction = `\nINSTRUCCIÓN:
-Genera un plan de entrenamiento para los próximos 7 días comenzando desde HOY (${nextWeekDates[0].date.toLocaleDateString('es-ES')}) adecuado para ${userProfile.name}, un corredor ${userProfile.age ? `de ${userProfile.age} años` : ''} con ritmo ${userProfile.pace || 'no especificado'}, cuyo objetivo es ${userProfile.goal}.
+Genera un plan de entrenamiento ${hasSelectedDays ? 'para los días específicos seleccionados por el usuario' : 'para los próximos días'} adecuado para ${userProfile.name}, un corredor ${userProfile.age ? `de ${userProfile.age} años` : ''} con ritmo ${userProfile.pace || 'no especificado'}, cuyo objetivo es ${userProfile.goal}.
 
-Incluye EXACTAMENTE ${userProfile.weeklyWorkouts || 3} sesiones de entrenamiento como indicó, distribuidas adecuadamente en la semana, especificando distancia/tiempo e intensidad de cada sesión.
+HOY ES: ${todayDate}
+
+${hasSelectedDays ? `CRÍTICO: El usuario ha seleccionado días específicos para entrenar. Las fechas proporcionadas son TODAS FUTURAS (hoy o posteriores). Crea entrenamientos SÓLO para estos días: ${datesList}
+
+IMPORTANTE: NO generes entrenamientos para fechas pasadas. TODAS las fechas en la lista están en el futuro y son válidas para entrenar.` : `IMPORTANTE: TODAS las fechas proporcionadas son futuras (desde hoy en adelante). NO generes entrenamientos para fechas pasadas.`}
+
+Incluye EXACTAMENTE ${nextWeekDates.length} sesiones de entrenamiento ${trainingDaysText}, especificando distancia/tiempo e intensidad de cada sesión.
 
 Asegúrate de que el plan sea seguro y progresivo.
 
-Los días de la semana para este período son: ${datesList}
+${hasSelectedDays ? 'DÍAS DE ENTRENAMIENTO FUTUROS SELECCIONADOS:' : 'DÍAS FUTUROS PARA ENTRENAR:'} ${datesList}
 
 IMPORTANTE:
 1. La distancia máxima del usuario es ${userProfile.maxDistance}km - NO crees entrenamientos que excedan esta distancia a menos que el usuario esté entrenando para un maratón y tenga experiencia suficiente.

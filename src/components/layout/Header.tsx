@@ -23,6 +23,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" })
 
   return (
     <div
+      className="no-select"
       style={{
         position: "fixed",
         top: 0,
@@ -50,6 +51,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" })
       }}
     >
       <h1
+        className="no-select"
         style={{
           fontSize: 16,
           fontWeight: 600,
@@ -61,6 +63,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" })
       </h1>
       {subtitle && (
         <p
+          className="no-select"
           style={{
             fontSize: 12,
             fontWeight: 400,

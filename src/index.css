@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* iOS Safe Area Support */
+/* iOS Safe Area Support - Variables disponibles para uso manual */
 :root {
   --sat: env(safe-area-inset-top);
   --sar: env(safe-area-inset-right);
@@ -12,9 +12,8 @@
   --sal: env(safe-area-inset-left);
 }
 
-body {
-  padding: var(--sat) var(--sar) var(--sab) var(--sal);
-}
+/* Eliminamos el padding automático del body para evitar conflictos */
+/* Los componentes manejarán su propio safe area individualmente */
 
 @layer base {
   :root {
@@ -106,4 +105,16 @@ body {
 
 .nav-item.active {
   @apply text-runapp-purple;
+}
+
+/* Prevenir selección de texto en elementos de navegación */
+.nav-item,
+.nav-link,
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }

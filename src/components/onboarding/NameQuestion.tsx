@@ -10,10 +10,24 @@ const NameQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
   const [name, setName] = useState(user.name || "");
   const navigate = useNavigate();
-  const insets = useSafeAreaInsets();
+  const { top, bottom, left, right, isReady } = useSafeAreaInsets();
 
   // Calculate header height: safe area + padding + content
-  const headerHeight = insets.top + 24 + 32; // safe area + py-3 (12px*2) + estimated content height
+  const headerHeight = top + 24 + 32; // safe area + py-3 (12px*2) + estimated content height
+
+  // Si los insets no están listos, mostrar loading simple
+  if (!isReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-runapp-light-purple/30 to-white">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-runapp-light-purple rounded-full flex items-center justify-center mb-4 animate-pulse">
+            <span className="text-xl">🏃</span>
+          </div>
+          <p className="text-runapp-gray">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,9 +42,9 @@ const NameQuestion: React.FC = () => {
       className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
       style={{
         paddingTop: headerHeight,
-        paddingBottom: insets.bottom + 80, // safe area + space for content
-        paddingLeft: Math.max(insets.left, 16),
-        paddingRight: Math.max(insets.right, 16),
+        paddingBottom: bottom + 80, // safe area + space for content
+        paddingLeft: Math.max(left, 16),
+        paddingRight: Math.max(right, 16),
       }}
     >
       <ProgressHeader currentStep={1} totalSteps={10} />

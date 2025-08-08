@@ -21,6 +21,7 @@ const defaultUser: UserProfile = {
   pace: null,
   goal: '',
   weeklyWorkouts: null,
+  selectedDays: [],
   experienceLevel: null,
   injuries: '',
   targetRace: null,

@@ -16,7 +16,7 @@ const BottomNav: React.FC = () => {
 
   return (
     <nav 
-      className="fixed bottom-0 w-full flex justify-between items-center bg-white border-t border-gray-200 px-6 z-50"
+      className="fixed bottom-0 w-full flex justify-between items-center bg-white border-t border-gray-200 px-6 z-50 no-select"
       style={{
         paddingTop: '12px', // 3 en Tailwind (12px)
         paddingBottom: Math.max(insets.bottom + 8, 12), // Safe area + extra padding, mínimo 12px
@@ -28,12 +28,12 @@ const BottomNav: React.FC = () => {
         <Link 
           key={item.path} 
           to={item.path} 
-          className={`flex flex-col items-center text-xs ${
+          className={`nav-link flex flex-col items-center text-xs no-select ${
             currentPath === item.path ? 'text-runapp-purple' : 'text-gray-500'
           }`}
         >
-          <item.icon size={20} />
-          <span className="mt-1">{item.name}</span>
+          <item.icon size={20} className="no-select" />
+          <span className="mt-1 no-select">{item.name}</span>
         </Link>
       ))}
     </nav>
