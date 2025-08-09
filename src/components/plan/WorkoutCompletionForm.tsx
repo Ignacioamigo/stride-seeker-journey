@@ -63,7 +63,8 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         distanceValue,
         durationValue,
         planId, // Plan ID actual
-        weekNumber // Semana del plan actual
+        weekNumber, // Semana del plan actual
+        workout.date // Fecha específica del workout ⭐ CLAVE PARA LA RACHA
       );
 
       console.log("📊 RESULTADO DE saveCompletedWorkout:", savedToNewTable);

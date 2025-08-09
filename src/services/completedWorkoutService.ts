@@ -39,7 +39,8 @@ export const saveCompletedWorkout = async (
   distanciaRecorrida: number | null,
   duracion: string | null,
   planId?: string,
-  weekNumber?: number
+  weekNumber?: number,
+  workoutDate?: string // Nueva: fecha específica del workout (YYYY-MM-DD)
 ): Promise<boolean> => {
   try {
     console.log("[saveCompletedWorkout] === INICIANDO GUARDADO ===");
@@ -49,7 +50,8 @@ export const saveCompletedWorkout = async (
       distanciaRecorrida,
       duracion,
       planId,
-      weekNumber
+      weekNumber,
+      workoutDate
     });
     
     // Asegurar que tenemos una sesión activa
@@ -62,12 +64,16 @@ export const saveCompletedWorkout = async (
       console.log(`[saveCompletedWorkout] Duración convertida: "${duracion}" -> "${duracionInterval}"`);
     }
 
+    // Usar la fecha específica del workout si se proporciona, sino usar hoy
+    const completedDate = workoutDate || new Date().toISOString().split('T')[0];
+    console.log(`[saveCompletedWorkout] Fecha a guardar: ${completedDate} (workout: ${workoutDate}, hoy: ${new Date().toISOString().split('T')[0]})`);
+
     const workoutData = {
       workout_title: workoutTitle,
       workout_type: workoutType,
       distancia_recorrida: distanciaRecorrida,
       duracion: duracionInterval,
-      fecha_completado: new Date().toISOString().split('T')[0],
+      fecha_completado: completedDate,
       plan_id: planId || null,
       week_number: weekNumber || null
       // user_id se establece automáticamente con auth.uid() por defecto
@@ -133,13 +139,14 @@ export const saveCompletedWorkout = async (
     
     // Fallback a localStorage en caso de error
     try {
+      const fallbackDate = workoutDate || new Date().toISOString().split('T')[0];
       const localWorkout = {
         id: Date.now().toString(),
         workoutTitle,
         workoutType,
         distanciaRecorrida,
         duracion,
-        fechaCompletado: new Date().toISOString().split('T')[0],
+        fechaCompletado: fallbackDate, // Usar la fecha correcta
         createdAt: new Date().toISOString()
       };
       

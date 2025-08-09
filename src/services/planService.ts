@@ -509,6 +509,67 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 };
 
 /**
+ * Devuelve todas las sesiones planificadas (training_sessions) del usuario autenticado,
+ * ordenadas por fecha. Útil para cálculos que atraviesan múltiples semanas/planes (ej. racha).
+ */
+export const getAllPlannedSessions = async (): Promise<{ date: string; type: string }[]> => {
+  try {
+    console.log('[getAllPlannedSessions] INICIANDO...');
+    
+    const { data: user } = await supabase.auth.getUser();
+    console.log('[getAllPlannedSessions] Usuario autenticado:', user?.user?.id || 'NO USER');
+    if (!user?.user) return [];
+
+    // Obtener id de perfil
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_auth_id', user.user.id)
+      .single();
+    console.log('[getAllPlannedSessions] Profile query result:', { userProfile, profileError });
+    if (!userProfile?.id) {
+      console.log('[getAllPlannedSessions] ❌ No se encontró perfil de usuario');
+      return [];
+    }
+
+    // Obtener todos los planes del usuario
+    const { data: plans, error: plansError } = await supabase
+      .from('training_plans')
+      .select('id')
+      .eq('user_id', userProfile.id);
+    console.log('[getAllPlannedSessions] Plans query result:', { plans, plansError, userId: userProfile.id });
+    if (!plans || plans.length === 0) {
+      console.log('[getAllPlannedSessions] ❌ No se encontraron planes');
+      return [];
+    }
+
+    const planIds = plans.map(p => p.id);
+    console.log('[getAllPlannedSessions] Plan IDs encontrados:', planIds);
+
+    // Obtener todas las sesiones
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('training_sessions')
+      .select('day_date,type')
+      .in('plan_id', planIds)
+      .order('day_date', { ascending: true });
+    console.log('[getAllPlannedSessions] Sessions query result:', { sessions, sessionsError });
+    if (!sessions) {
+      console.log('[getAllPlannedSessions] ❌ No se encontraron sesiones');
+      return [];
+    }
+
+    const result = sessions
+      .filter(s => s.day_date)
+      .map(s => ({ date: s.day_date as string, type: String(s.type || '') }));
+    console.log('[getAllPlannedSessions] ✅ Resultado final:', result);
+    return result;
+  } catch (e) {
+    console.error('[getAllPlannedSessions] ❌ Error:', e);
+    return [];
+  }
+};
+
+/**
  * Saves completed workout data to the entrenamientos_completados table
  */
 export const saveCompletedWorkout = async (
