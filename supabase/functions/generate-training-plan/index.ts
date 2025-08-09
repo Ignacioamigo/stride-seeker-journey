@@ -21,7 +21,6 @@ interface UserProfile {
   experienceLevel: string | null;
   injuries: string;
   completedOnboarding?: boolean;
-  selectedDays?: any[];
 }
 
 interface RequestBody {
@@ -76,47 +75,61 @@ function generateDatesForSelectedDays(selectedDays: any[]): { date: Date, dayNam
   const monday = new Date(today);
   monday.setDate(today.getDate() - daysToMonday);
   
-  console.log("Hoy es:", today.toISOString().split('T')[0], "- Lunes de esta semana:", monday.toISOString().split('T')[0]);
-  
-  // INCLUIR TODOS LOS DÍAS SELECCIONADOS DE LA SEMANA ACTUAL (incluido hoy si aplica)
-  // No excluir días pasados de esta semana - para evitar perder entrenamientos planificados
+  // First, try to get remaining days from current week (from today onwards)
   for (const selectedDay of selectedDays) {
     if (selectedDay.selected) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + selectedDay.id); // selectedDay.id is 0-6 (Mon-Sun)
       date.setHours(0, 0, 0, 0);
       
-      // INCLUIR TODOS los días de esta semana, aunque hayan pasado
-      // Solo verificar que sea >= hoy para entrenamientos, pero incluir en planificación
-      const dayName = selectedDay.name;
-      dates.push({ date, dayName });
-      console.log(`Día seleccionado: ${dayName} (${date.toISOString().split('T')[0]}) - ${date >= today ? 'FUTURO/HOY' : 'PASADO'}`);
+      // Only include if the date is today or in the future
+      if (date >= today) {
+        const dayName = selectedDay.name;
+        dates.push({ date, dayName });
+      }
     }
   }
   
-  // SIEMPRE agregar también la siguiente semana para crear un patrón completo
-  const nextMonday = new Date(monday);
-  nextMonday.setDate(monday.getDate() + 7);
-  
-  for (const selectedDay of selectedDays) {
-    if (selectedDay.selected) {
-      const date = new Date(nextMonday);
-      date.setDate(nextMonday.getDate() + selectedDay.id);
-      date.setHours(0, 0, 0, 0);
-      
-      const dayName = selectedDay.name;
-      dates.push({ date, dayName });
-      console.log(`Próxima semana: ${dayName} (${date.toISOString().split('T')[0]})`);
+  // If no future dates this week, or we need more dates to complete a training week,
+  // add dates from next week
+  if (dates.length === 0) {
+    // No more training days this week, get next week's selected days
+    const nextMonday = new Date(monday);
+    nextMonday.setDate(monday.getDate() + 7);
+    
+    for (const selectedDay of selectedDays) {
+      if (selectedDay.selected) {
+        const date = new Date(nextMonday);
+        date.setDate(nextMonday.getDate() + selectedDay.id);
+        date.setHours(0, 0, 0, 0);
+        
+        const dayName = selectedDay.name;
+        dates.push({ date, dayName });
+      }
+    }
+  } else {
+    // We have some days this week, but let's also include next week for a full cycle
+    // This ensures users can see the complete pattern
+    const nextMonday = new Date(monday);
+    nextMonday.setDate(monday.getDate() + 7);
+    
+    for (const selectedDay of selectedDays) {
+      if (selectedDay.selected) {
+        const date = new Date(nextMonday);
+        date.setDate(nextMonday.getDate() + selectedDay.id);
+        date.setHours(0, 0, 0, 0);
+        
+        const dayName = selectedDay.name;
+        dates.push({ date, dayName });
+      }
     }
   }
   
   // Sort by date to maintain chronological order
   dates.sort((a, b) => a.date.getTime() - b.date.getTime());
   
-  console.log("Fechas finales generadas:", dates.map(d => `${d.dayName}: ${d.date.toISOString().split('T')[0]}`));
-  
-  // Limit to next 21 days maximum para cubrir 3 semanas
-  const maxDates = 21;
+  // Limit to next 7-14 days maximum to avoid too many future dates
+  const maxDates = 14;
   return dates.slice(0, maxDates);
 }
 
