@@ -21,10 +21,11 @@ interface TrainingPlanDisplayProps {
 const WorkoutCard: React.FC<{ 
   workout: Workout;
   planId: string;
+  weekNumber?: number;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
   expanded: boolean;
   onToggleExpand: () => void;
-}> = ({ workout, planId, onComplete, expanded, onToggleExpand }) => {
+}> = ({ workout, planId, weekNumber, onComplete, expanded, onToggleExpand }) => {
   // No mostrar los entrenamientos de tipo "descanso"
   if (workout.type === 'descanso') {
     return null;
@@ -109,6 +110,7 @@ const WorkoutCard: React.FC<{
         <WorkoutCompletionForm 
           workout={workout} 
           planId={planId}
+          weekNumber={weekNumber}
           onComplete={onComplete}
         />
       )}
@@ -353,6 +355,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
             <WorkoutCard 
               workout={workout} 
               planId={plan.id}
+              weekNumber={plan.weekNumber}
               onComplete={handleCompleteWorkout}
               expanded={expandedWorkoutId === workout.id}
               onToggleExpand={() => setExpandedWorkoutId(

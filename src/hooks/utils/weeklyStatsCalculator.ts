@@ -20,10 +20,12 @@ export const calculateWeeklyData = (workouts: any[]) => {
       return false;
     }
     
-    const workoutDate = new Date(w.fecha_completado);
+    // IMPORTANTE: Forzar fecha local para evitar problemas de timezone
+    const workoutDate = new Date(w.fecha_completado + 'T12:00:00.000');
+    workoutDate.setHours(0, 0, 0, 0); // Resetear a medianoche local
     const isThisWeek = workoutDate >= startOfWeek;
     
-    console.log(`Entrenamiento "${w.workout_title}": ${workoutDate.toLocaleDateString()} - ¿Esta semana? ${isThisWeek}`);
+    console.log(`Entrenamiento "${w.workout_title}": ${w.fecha_completado} → ${workoutDate.toLocaleDateString()} - ¿Esta semana? ${isThisWeek}`);
     
     return isThisWeek;
   });
@@ -41,7 +43,8 @@ export const calculateWeeklyData = (workouts: any[]) => {
   
   // Procesar cada entrenamiento de esta semana
   thisWeekWorkouts.forEach((workout, index) => {
-    const workoutDate = new Date(workout.fecha_completado);
+    // IMPORTANTE: Usar mismo parsing que el filtro
+    const workoutDate = new Date(workout.fecha_completado + 'T12:00:00.000');
     
     // Obtener día de la semana (0 = domingo, 1 = lunes, etc.)
     let jsDay = workoutDate.getDay();

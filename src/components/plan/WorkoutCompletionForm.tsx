@@ -10,12 +10,14 @@ import { useStats } from "@/context/StatsContext";
 interface WorkoutCompletionFormProps {
   workout: Workout;
   planId: string;
+  weekNumber?: number;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
 }
 
 const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({ 
   workout, 
   planId, 
+  weekNumber,
   onComplete
 }) => {
   const [actualDistance, setActualDistance] = useState<string>(workout.actualDistance?.toString() || '');
@@ -45,13 +47,26 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         durationValue
       });
       
-      // Guardar en la base de datos
+      // Guardar en la base de datos (con plan_id y week_number)
+      console.log("🔄 LLAMANDO A saveCompletedWorkout con:", {
+        title: workout.title,
+        type: workout.type,
+        distance: distanceValue,
+        duration: durationValue,
+        planId,
+        weekNumber
+      });
+      
       const savedToNewTable = await saveCompletedWorkout(
         workout.title,
         workout.type,
         distanceValue,
-        durationValue
+        durationValue,
+        planId, // Plan ID actual
+        weekNumber // Semana del plan actual
       );
+
+      console.log("📊 RESULTADO DE saveCompletedWorkout:", savedToNewTable);
 
       if (savedToNewTable) {
         console.log("✅ Guardado exitoso en DB");
@@ -61,13 +76,27 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         
         // FORZAR ACTUALIZACIÓN COMPLETA
         console.log("🔄 FORZANDO ACTUALIZACIÓN CON FORCE UPDATE");
+        console.log("🔄 forceUpdate function:", typeof forceUpdate);
+        console.log("🔄 updateCounter actual:", updateCounter);
+        
+        // Llamar inmediatamente también
+        console.log("🔄 LLAMANDO forceUpdate INMEDIATAMENTE");
+        forceUpdate();
         
         setTimeout(() => {
-          console.log("🔄 Ejecutando forceUpdate");
+          console.log("🔄 TIMEOUT: Ejecutando forceUpdate");
           forceUpdate();
+          console.log("🔄 TIMEOUT: Dispatching events");
           window.dispatchEvent(new CustomEvent('statsUpdated'));
           window.dispatchEvent(new CustomEvent('workoutCompleted'));
+          window.dispatchEvent(new CustomEvent('plan-updated'));
         }, 300);
+        
+        // También intentar después de más tiempo
+        setTimeout(() => {
+          console.log("🔄 SEGUNDO TIMEOUT: Ejecutando forceUpdate");
+          forceUpdate();
+        }, 1000);
         
         toast({
           title: "🎉 ¡Entrenamiento completado!",

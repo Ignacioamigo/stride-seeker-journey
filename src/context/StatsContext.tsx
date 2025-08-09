@@ -18,9 +18,15 @@ export const StatsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const { stats, isLoading, refreshStats, resetStats } = useRunningStats(updateCounter);
 
   const forceUpdate = () => {
-    console.log('StatsContext: FORZANDO ACTUALIZACIÓN con counter:', updateCounter + 1);
-    setUpdateCounter(prev => prev + 1);
+    console.log('🚀 StatsContext: FORZANDO ACTUALIZACIÓN con counter:', updateCounter + 1);
+    console.log('🚀 StatsContext: refreshStats function:', typeof refreshStats);
+    setUpdateCounter(prev => {
+      console.log('🚀 StatsContext: Counter cambia de', prev, 'a', prev + 1);
+      return prev + 1;
+    });
+    console.log('🚀 StatsContext: Llamando refreshStats()');
     refreshStats();
+    console.log('🚀 StatsContext: forceUpdate completado');
   };
 
   return (

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getCompletedWorkouts } from '@/services/completedWorkoutService';
+import { loadLatestPlan } from '@/services/planService';
 import { TimePeriod } from '@/components/stats/PeriodSelector';
+import { WorkoutPlan } from '@/types';
 
 interface PeriodStats {
   totalDistance: number;
@@ -17,28 +19,42 @@ interface PeriodStats {
   }>;
 }
 
-const getDateRangeForPeriod = (period: TimePeriod): { start: Date; end: Date } => {
+const getDateRangeForPeriod = (period: TimePeriod, currentPlan?: WorkoutPlan | null): { start: Date; end: Date } => {
   const today = new Date();
   // Resetear tiempo para comparaciones más limpias
   today.setHours(23, 59, 59, 999);
   
   console.log(`[usePeriodStats] === CALCULANDO RANGO DE FECHAS PARA: ${period} ===`);
   console.log(`[usePeriodStats] Fecha actual: ${today.toLocaleString()}`);
+  console.log(`[usePeriodStats] Plan actual:`, currentPlan ? `Semana ${currentPlan.weekNumber}` : 'No plan');
   
   switch (period) {
     case 'current_week': {
-      const currentDayOfWeek = today.getDay(); // 0 = domingo, 1 = lunes, etc.
-      const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
-      
-      const thisMonday = new Date(today);
-      thisMonday.setDate(today.getDate() - daysToMonday);
-      thisMonday.setHours(0, 0, 0, 0);
-      
-      const thisWeekEnd = new Date(today);
-      thisWeekEnd.setHours(23, 59, 59, 999);
-      
-      console.log(`[usePeriodStats] Esta semana: ${thisMonday.toLocaleString()} → ${thisWeekEnd.toLocaleString()}`);
-      return { start: thisMonday, end: thisWeekEnd };
+      // Si hay un plan activo, usar las fechas del plan en lugar de fechas calendáricas
+      if (currentPlan && currentPlan.createdAt) {
+        const planStartDate = new Date(currentPlan.createdAt);
+        planStartDate.setHours(0, 0, 0, 0);
+        
+        const planEndDate = new Date(today);
+        planEndDate.setHours(23, 59, 59, 999);
+        
+        console.log(`[usePeriodStats] Esta semana del plan ${currentPlan.weekNumber}: ${planStartDate.toLocaleString()} → ${planEndDate.toLocaleString()}`);
+        return { start: planStartDate, end: planEndDate };
+      } else {
+        // Fallback a semana calendárica si no hay plan
+        const currentDayOfWeek = today.getDay(); // 0 = domingo, 1 = lunes, etc.
+        const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+        
+        const thisMonday = new Date(today);
+        thisMonday.setDate(today.getDate() - daysToMonday);
+        thisMonday.setHours(0, 0, 0, 0);
+        
+        const thisWeekEnd = new Date(today);
+        thisWeekEnd.setHours(23, 59, 59, 999);
+        
+        console.log(`[usePeriodStats] Esta semana calendárica: ${thisMonday.toLocaleString()} → ${thisWeekEnd.toLocaleString()}`);
+        return { start: thisMonday, end: thisWeekEnd };
+      }
     }
       
     case 'current_month': {
@@ -155,14 +171,49 @@ export const usePeriodStats = (period: TimePeriod) => {
     ]
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPlan, setCurrentPlan] = useState<WorkoutPlan | null>(null);
 
   const calculatePeriodStats = async () => {
     try {
       console.log(`[usePeriodStats] === INICIANDO CÁLCULO PARA PERÍODO: ${period} ===`);
       setIsLoading(true);
       
-      const workouts = await getCompletedWorkouts();
-      console.log(`[usePeriodStats] Total entrenamientos obtenidos: ${workouts?.length || 0}`);
+      // Cargar el plan actual para "Esta semana"
+      const plan = await loadLatestPlan();
+      setCurrentPlan(plan);
+      
+      // SIEMPRE OBTENER TODOS LOS DATOS PRIMERO (con fallback automático)
+      let allWorkouts = await getCompletedWorkouts();
+      console.log(`[usePeriodStats] Total entrenamientos obtenidos de Supabase: ${allWorkouts?.length || 0}`);
+      
+      // FALLBACK CRÍTICO: Si Supabase está vacío, usar localStorage
+      if (!allWorkouts || allWorkouts.length === 0) {
+        console.log('[usePeriodStats] 🔄 Supabase vacío, usando fallback a localStorage...');
+        const localWorkouts = localStorage.getItem('completedWorkouts');
+        if (localWorkouts) {
+          const parsedWorkouts = JSON.parse(localWorkouts);
+          console.log(`[usePeriodStats] 🔄 Encontrados ${parsedWorkouts.length} entrenamientos en localStorage`);
+          allWorkouts = parsedWorkouts;
+        }
+      }
+      
+      // FILTRAR EN MEMORIA para "Esta semana" por plan_id/week_number
+      let workouts;
+      if (period === 'current_week' && plan && plan.id) {
+        console.log(`[usePeriodStats] Filtrando por plan actual: ${plan.id}, semana: ${plan.weekNumber}`);
+        workouts = allWorkouts?.filter(w => {
+          // Verificar si tiene plan_id y week_number (formato Supabase)
+          if (w.plan_id && w.week_number !== undefined) {
+            return w.plan_id === plan.id && w.week_number === plan.weekNumber;
+          }
+          // Fallback: si no tiene esos campos, incluir todos los de localStorage
+          return true;
+        }) || [];
+        console.log(`[usePeriodStats] Entrenamientos filtrados por plan/semana: ${workouts.length}`);
+      } else {
+        workouts = allWorkouts;
+      }
+      console.log(`[usePeriodStats] Total entrenamientos finales: ${workouts?.length || 0}`);
       
       if (!workouts || workouts.length === 0) {
         console.log('[usePeriodStats] No hay entrenamientos, reseteando estadísticas');
@@ -183,10 +234,26 @@ export const usePeriodStats = (period: TimePeriod) => {
         console.log(`  ${index + 1}. ${w.workout_title} - Fecha: ${w.fecha_completado} - Distancia: ${w.distancia_recorrida}km`);
       });
 
-      const { start, end } = getDateRangeForPeriod(period);
-      
-      console.log('[usePeriodStats] Filtrando entrenamientos por rango de fechas...');
-      const periodWorkouts = workouts.filter(w => {
+      // Para "Esta semana" ya vienen filtrados por plan, para otros períodos filtrar por fechas
+      let periodWorkouts;
+      if (period === 'current_week' && plan && plan.id) {
+        // Ya están filtrados por plan_id y week_number
+        periodWorkouts = workouts.filter(w => {
+          // Solo verificar que tengan datos válidos
+          if (!w.distancia_recorrida || w.distancia_recorrida <= 0) {
+            console.log(`[usePeriodStats] ❌ Entrenamiento inválido: ${w.workout_title} (sin distancia)`);
+            return false;
+          }
+          console.log(`[usePeriodStats] ✅ Entrenamiento de la semana ${plan.weekNumber}: ${w.workout_title} - ${w.distancia_recorrida}km`);
+          return true;
+        });
+        console.log(`[usePeriodStats] Entrenamientos de semana ${plan.weekNumber} del plan:`, periodWorkouts.length);
+      } else {
+        // Filtrar por fechas para otros períodos
+        const { start, end } = getDateRangeForPeriod(period, plan);
+        
+        console.log('[usePeriodStats] Filtrando entrenamientos por rango de fechas...');
+        periodWorkouts = workouts.filter(w => {
         // Asegurar que el entrenamiento tiene datos válidos
         if (!w.fecha_completado || !w.distancia_recorrida || w.distancia_recorrida <= 0) {
           console.log(`[usePeriodStats] ❌ Entrenamiento inválido: ${w.workout_title} (sin fecha o distancia)`);
@@ -202,7 +269,8 @@ export const usePeriodStats = (period: TimePeriod) => {
         console.log(`[usePeriodStats] ${isInRange ? '✅' : '❌'} ${w.workout_title}: ${workoutDate.toLocaleDateString()} ${isInRange ? 'INCLUIDO' : 'EXCLUIDO'}`);
         
         return isInRange;
-      });
+        });
+      }
 
       console.log(`[usePeriodStats] Entrenamientos filtrados para el período: ${periodWorkouts.length}`);
 
@@ -279,5 +347,19 @@ export const usePeriodStats = (period: TimePeriod) => {
     calculatePeriodStats();
   }, [period]);
 
-  return { stats, isLoading, refreshStats: calculatePeriodStats };
+  // Escuchar eventos de actualización de plan
+  useEffect(() => {
+    const handlePlanUpdated = () => {
+      console.log('[usePeriodStats] Plan actualizado - recalculando estadísticas');
+      calculatePeriodStats();
+    };
+
+    window.addEventListener('plan-updated', handlePlanUpdated);
+    
+    return () => {
+      window.removeEventListener('plan-updated', handlePlanUpdated);
+    };
+  }, []);
+
+  return { stats, isLoading, currentPlan, refreshStats: calculatePeriodStats };
 };

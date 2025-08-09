@@ -1,5 +1,6 @@
 import BottomNav from "@/components/layout/BottomNav";
-import WeeklyProgress from "@/components/dashboard/WeeklyProgress";
+// Reemplazamos el banner de progreso semanal por la racha
+import StreakCard from "@/components/stats/StreakCard";
 import { StatsProvider } from "@/context/StatsContext";
 import { useUser } from "@/context/UserContext";
 import Header from "@/components/layout/Header";
@@ -58,12 +59,13 @@ const Stats: React.FC = () => {
   const { user } = useUser();
   const insets = useSafeAreaInsets();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('current_week');
-  const { stats: periodStats, isLoading: periodLoading } = usePeriodStats(selectedPeriod);
+  const { stats: periodStats, isLoading: periodLoading, currentPlan } = usePeriodStats(selectedPeriod);
   
   // Calculate change indicators based on period
   const getDistanceSubtext = (): string => {
     switch (selectedPeriod) {
-      case 'current_week': return 'Esta semana';
+      case 'current_week': 
+        return currentPlan ? `Semana ${currentPlan.weekNumber} del plan` : 'Esta semana';
       case 'current_month': return 'Este mes';
       case '3_months': return 'Últimos 3 meses';
       case 'all_time': return 'Histórico total';
@@ -104,8 +106,8 @@ const Stats: React.FC = () => {
               onPeriodChange={setSelectedPeriod} 
             />
             
-            {/* Weekly Progress Component */}
-            <WeeklyProgress />
+            {/* Streak Banner */}
+            <StreakCard />
             
             {/* Statistics Section */}
             <div className="mb-8">
@@ -113,7 +115,8 @@ const Stats: React.FC = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <StatsCard 
-                  title={selectedPeriod === 'current_week' ? "Distancia Semanal" : 
+                  title={selectedPeriod === 'current_week' ? 
+                          (currentPlan ? `Distancia Semana ${currentPlan.weekNumber}` : "Distancia Semanal") : 
                          selectedPeriod === 'current_month' ? "Distancia Mensual" :
                          selectedPeriod === '3_months' ? "Distancia 3 Meses" : 
                          "Distancia Total"} 

@@ -140,22 +140,89 @@ export const useRunningStats = (updateCounter?: number) => {
 
   const calculateStats = async () => {
     try {
-      console.log(`=== CALCULANDO ESTADÍSTICAS (updateCounter: ${updateCounter}) ===`);
+      console.log(`🔥 === CALCULANDO ESTADÍSTICAS (updateCounter: ${updateCounter}) ===`);
+      console.log(`🔥 useRunningStats: Función calculateStats iniciada`);
       setIsLoading(true);
+      
+      // 🧹 LIMPIEZA AUTOMÁTICA DE DATOS CORRUPTOS
+      const localWorkouts = localStorage.getItem('completedWorkouts');
+      if (localWorkouts) {
+        try {
+          const parsed = JSON.parse(localWorkouts);
+          const hasCorruptData = parsed.some(w => 
+            !w || !w.workout_title || w.fecha_completado === 'undefined' || w.distancia_recorrida === undefined
+          );
+          
+          if (hasCorruptData) {
+            console.log('🧹 DETECTADOS DATOS CORRUPTOS - LIMPIANDO localStorage...');
+            localStorage.removeItem('completedWorkouts');
+            console.log('🧹 localStorage limpiado exitosamente');
+          }
+        } catch (e) {
+          console.log('🧹 Error parsing localStorage - LIMPIANDO...');
+          localStorage.removeItem('completedWorkouts');
+        }
+      }
       
       // Pequeño delay para asegurar que la DB se haya actualizado
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      const workouts = await getCompletedWorkouts();
+      let workouts = await getCompletedWorkouts();
       console.log(`Hook: Entrenamientos obtenidos: ${workouts?.length || 0}`);
       
+      // FALLBACK CRÍTICO: Si Supabase está vacío, usar localStorage
       if (!workouts || workouts.length === 0) {
-        console.log('Hook: No hay entrenamientos, reseteando estadísticas');
+        console.log('🔄 Hook: Supabase vacío, intentando fallback a localStorage...');
+        const localWorkouts = localStorage.getItem('completedWorkouts');
+        if (localWorkouts) {
+          const parsedWorkouts = JSON.parse(localWorkouts);
+          console.log(`🔄 Hook: Encontrados ${parsedWorkouts.length} entrenamientos en localStorage`);
+          
+          // FILTRAR DATOS VÁLIDOS - ELIMINAR CORRUPTOS
+          const validWorkouts = parsedWorkouts.filter(w => {
+            const isValid = w && 
+                           w.workout_title && 
+                           w.fecha_completado && 
+                           w.fecha_completado !== 'undefined' &&
+                           w.distancia_recorrida !== undefined && 
+                           w.distancia_recorrida !== null &&
+                           !isNaN(w.distancia_recorrida);
+            
+            if (!isValid) {
+              console.log(`🗑️ Hook: Eliminando entrenamiento corrupto:`, w);
+            } else {
+              console.log(`✅ Hook: Entrenamiento válido: ${w.workout_title} - ${w.fecha_completado} - ${w.distancia_recorrida}km`);
+            }
+            
+            return isValid;
+          });
+          
+          console.log(`🔄 Hook: Entrenamientos válidos después de filtro: ${validWorkouts.length}`);
+          
+          // LIMPIAR LOCALSTORAGE DE DATOS CORRUPTOS
+          if (validWorkouts.length !== parsedWorkouts.length) {
+            console.log('🧹 Hook: LIMPIANDO localStorage de datos corruptos...');
+            localStorage.setItem('completedWorkouts', JSON.stringify(validWorkouts));
+          }
+          
+          workouts = validWorkouts;
+        }
+      }
+      
+      if (!workouts || workouts.length === 0) {
+        console.log('🔥 Hook: No hay entrenamientos, reseteando estadísticas');
         resetStats();
+        setIsLoading(false);
         return;
       }
 
+      console.log('🔥 Hook: INICIANDO CÁLCULO CON DATOS VÁLIDOS');
+      console.log('🔥 Hook: Workouts recibidos para calcular:', workouts.length);
+      
+      // FORZAR ACTUALIZACIÓN INMEDIATA DE STATS
       calculateStatsFromData(workouts);
+      
+      console.log('🔥 Hook: CÁLCULO COMPLETADO - Stats deberían estar actualizados');
     } catch (error) {
       console.error('Hook: Error calculating stats:', error);
       resetStats();
@@ -163,12 +230,21 @@ export const useRunningStats = (updateCounter?: number) => {
   };
 
   const calculateStatsFromData = (workouts: any[]) => {
+    console.log('🚀 calculateStatsFromData INICIADO');
+    console.log('🚀 Workouts recibidos:', workouts?.length || 0);
+    
     if (!workouts || workouts.length === 0) {
+      console.log('🚀 Sin workouts - reseteando');
       resetStats();
       return;
     }
 
-    console.log('=== HOOK: INICIANDO CÁLCULO DE ESTADÍSTICAS ===');
+    console.log('🚀 INICIANDO CÁLCULO REAL DE ESTADÍSTICAS');
+    console.log('🚀 Datos de workouts:', workouts.map(w => ({ 
+      title: w.workout_title, 
+      fecha: w.fecha_completado, 
+      distancia: w.distancia_recorrida 
+    })));
 
     // USAR LA NUEVA FUNCIÓN PARA DATOS SEMANALES
     const { weeklyData, weeklyDistance } = calculateWeeklyData(workouts);
@@ -381,7 +457,8 @@ export const useRunningStats = (updateCounter?: number) => {
 
   // Efecto principal que se ejecuta cuando cambia updateCounter
   useEffect(() => {
-    console.log(`Hook: useEffect disparado por updateCounter: ${updateCounter}`);
+    console.log(`🔥 Hook: useEffect disparado por updateCounter: ${updateCounter}`);
+    console.log(`🔥 Hook: Ejecutando calculateStats por cambio en updateCounter`);
     calculateStats();
   }, [updateCounter]);
 
@@ -392,7 +469,7 @@ export const useRunningStats = (updateCounter?: number) => {
   }, []);
 
   const refreshStats = () => {
-    console.log('Hook: refreshStats llamado');
+    console.log('🔥 Hook: refreshStats llamado - ejecutando calculateStats');
     calculateStats();
   };
 

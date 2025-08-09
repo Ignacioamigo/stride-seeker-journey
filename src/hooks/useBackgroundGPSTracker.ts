@@ -308,6 +308,7 @@ export const useBackgroundGPSTracker = () => {
         'carrera',
         finalDistance / 1000,
         finalDuration
+        // No tenemos plan_id ni week_number para GPS tracker
       );
 
       if (success) {

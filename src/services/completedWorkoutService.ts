@@ -37,7 +37,9 @@ export const saveCompletedWorkout = async (
   workoutTitle: string,
   workoutType: string,
   distanciaRecorrida: number | null,
-  duracion: string | null
+  duracion: string | null,
+  planId?: string,
+  weekNumber?: number
 ): Promise<boolean> => {
   try {
     console.log("[saveCompletedWorkout] === INICIANDO GUARDADO ===");
@@ -45,7 +47,9 @@ export const saveCompletedWorkout = async (
       workoutTitle,
       workoutType,
       distanciaRecorrida,
-      duracion
+      duracion,
+      planId,
+      weekNumber
     });
     
     // Asegurar que tenemos una sesión activa
@@ -63,7 +67,9 @@ export const saveCompletedWorkout = async (
       workout_type: workoutType,
       distancia_recorrida: distanciaRecorrida,
       duracion: duracionInterval,
-      fecha_completado: new Date().toISOString().split('T')[0]
+      fecha_completado: new Date().toISOString().split('T')[0],
+      plan_id: planId || null,
+      week_number: weekNumber || null
       // user_id se establece automáticamente con auth.uid() por defecto
     };
 
@@ -76,16 +82,38 @@ export const saveCompletedWorkout = async (
 
     if (error) {
       console.error("[saveCompletedWorkout] Error en Supabase:", error);
+      // Intentar autocorregir cuando falta el plan en Supabase (violación de FK)
+      if (error.code === '23503' && planId) {
+        console.warn('[saveCompletedWorkout] Detectada violación FK plan_id. Intentando migrar plan local a Supabase con el mismo ID...');
+        const migrated = await tryMigrateLocalPlanToSupabase(planId);
+        if (migrated) {
+          console.log('[saveCompletedWorkout] ✅ Plan migrado. Reintentando guardar entrenamiento...');
+          const retry = await supabase
+            .from('entrenamientos_completados')
+            .insert(workoutData)
+            .select();
+          if (!retry.error) {
+            console.log('[saveCompletedWorkout] ✅ Guardado exitoso tras migración:', retry.data);
+            return true;
+          } else {
+            console.error('[saveCompletedWorkout] ❌ Falló reintento tras migración:', retry.error);
+          }
+        } else {
+          console.warn('[saveCompletedWorkout] ❌ No se pudo migrar el plan automáticamente');
+        }
+      }
       
-      // Fallback a localStorage
+      // Fallback a localStorage con FORMATO CORRECTO
       const localWorkout = {
         id: Date.now().toString(),
-        workoutTitle,
-        workoutType,
-        distanciaRecorrida,
-        duracion,
-        fechaCompletado: new Date().toISOString().split('T')[0],
-        createdAt: new Date().toISOString()
+        workout_title: workoutTitle,  // ✅ FORMATO CORRECTO
+        workout_type: workoutType,    // ✅ FORMATO CORRECTO  
+        distancia_recorrida: distanciaRecorrida, // ✅ FORMATO CORRECTO
+        duracion: duracion,           // ✅ FORMATO CORRECTO
+        fecha_completado: new Date().toISOString().split('T')[0], // ✅ FORMATO CORRECTO
+        plan_id: planId || null,      // ✅ NUEVO CAMPO
+        week_number: weekNumber || null, // ✅ NUEVO CAMPO
+        created_at: new Date().toISOString()
       };
       
       const existingWorkouts = localStorage.getItem('completedWorkouts');
@@ -93,7 +121,7 @@ export const saveCompletedWorkout = async (
       workouts.push(localWorkout);
       localStorage.setItem('completedWorkouts', JSON.stringify(workouts));
       
-      console.log("[saveCompletedWorkout] Guardado en localStorage como fallback");
+      console.log("[saveCompletedWorkout] ✅ Guardado en localStorage como fallback con formato correcto");
       return true;
     }
 
@@ -130,14 +158,100 @@ export const saveCompletedWorkout = async (
 };
 
 /**
+ * Intenta migrar el plan guardado en localStorage a Supabase con el mismo ID,
+ * incluyendo sus sesiones, para resolver violaciones de FK al insertar entrenamientos.
+ */
+const tryMigrateLocalPlanToSupabase = async (planId: string): Promise<boolean> => {
+  try {
+    // Verificar si ya existe el plan en Supabase
+    const { data: existing } = await supabase
+      .from('training_plans')
+      .select('id')
+      .eq('id', planId)
+      .maybeSingle();
+    if (existing?.id) {
+      return true;
+    }
+
+    const savedPlan = localStorage.getItem('savedPlan');
+    if (!savedPlan) return false;
+
+    const plan = JSON.parse(savedPlan);
+    if (plan.id !== planId) {
+      // No coincide: no migrar
+      return false;
+    }
+
+    // Obtener perfil de usuario
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user) return false;
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_auth_id', user.user.id)
+      .single();
+    if (!userProfile?.id) return false;
+
+    // Insertar training_plans usando el mismo ID
+    const { error: planErr } = await supabase
+      .from('training_plans')
+      .insert({
+        id: plan.id,
+        user_id: userProfile.id,
+        name: plan.name,
+        description: plan.description || '',
+        duration: plan.duration || '7 días',
+        intensity: plan.intensity || 'Moderada',
+        week_number: plan.weekNumber || 1,
+        start_date: (plan.createdAt ? new Date(plan.createdAt) : new Date()).toISOString().split('T')[0]
+      });
+    if (planErr) {
+      console.error('[tryMigrateLocalPlanToSupabase] Error insertando training_plans:', planErr);
+      return false;
+    }
+
+    // Insertar training_sessions
+    const sessions = (plan.workouts || []).map((w: any, idx: number) => ({
+      plan_id: plan.id,
+      day_number: idx + 1,
+      day_date: (w.date ? new Date(w.date) : new Date()).toISOString().split('T')[0],
+      title: w.title,
+      description: w.description || null,
+      type: w.type || 'carrera',
+      planned_distance: w.distance ?? null,
+      planned_duration: w.duration ?? null,
+      target_pace: w.targetPace || null,
+      completed: !!w.completed,
+      actual_distance: w.actualDistance ?? null,
+      actual_duration: w.actualDuration ?? null,
+      completion_date: w.completed ? new Date().toISOString() : null
+    }));
+
+    const { error: sessErr } = await supabase
+      .from('training_sessions')
+      .insert(sessions);
+    if (sessErr) {
+      console.error('[tryMigrateLocalPlanToSupabase] Error insertando training_sessions:', sessErr);
+      return false;
+    }
+
+    console.log('[tryMigrateLocalPlanToSupabase] ✅ Plan y sesiones migrados con éxito');
+    return true;
+  } catch (e) {
+    console.error('[tryMigrateLocalPlanToSupabase] Error inesperado:', e);
+    return false;
+  }
+};
+
+/**
  * Obtiene todos los entrenamientos completados del usuario actual
  */
-export const getCompletedWorkouts = async () => {
+export const getCompletedWorkouts = async (planId?: string, weekNumber?: number) => {
   try {
     // Asegurar que tenemos una sesión activa
     await ensureSession();
 
-    // Cargar desde Supabase
+    // Cargar desde Supabase - SIEMPRE cargar todos para compatibilidad
     const { data, error } = await supabase
       .from('entrenamientos_completados')
       .select('*')
@@ -145,6 +259,18 @@ export const getCompletedWorkouts = async () => {
 
     if (!error && data) {
       console.log("[getCompletedWorkouts] Datos cargados desde Supabase:", data.length);
+      
+      // Filtrar en memoria si se especifican parámetros
+      if (planId || weekNumber !== undefined) {
+        const filtered = data.filter(w => {
+          if (planId && w.plan_id !== planId) return false;
+          if (weekNumber !== undefined && w.week_number !== weekNumber) return false;
+          return true;
+        });
+        console.log(`[getCompletedWorkouts] Filtrados por plan ${planId}, semana ${weekNumber}:`, filtered.length);
+        return filtered;
+      }
+      
       return data;
     } else {
       console.error("[getCompletedWorkouts] Error en Supabase:", error);
