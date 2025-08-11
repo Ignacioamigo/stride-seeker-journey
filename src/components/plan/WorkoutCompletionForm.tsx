@@ -83,19 +83,13 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
         console.log("🔄 LLAMANDO forceUpdate INMEDIATAMENTE");
         forceUpdate();
         
-        // Disparar eventos inmediatamente y después con timeout
-        console.log("🔥 DISPATCHING STREAK EVENTS INMEDIATAMENTE");
-        window.dispatchEvent(new CustomEvent('workoutCompleted'));
-        window.dispatchEvent(new CustomEvent('plan-updated'));
-        window.dispatchEvent(new CustomEvent('statsUpdated'));
-        
         setTimeout(() => {
           console.log("🔄 TIMEOUT: Ejecutando forceUpdate");
           forceUpdate();
-          console.log("🔄 TIMEOUT: Dispatching events SEGUNDA VEZ");
+          console.log("🔄 TIMEOUT: Dispatching events");
+          window.dispatchEvent(new CustomEvent('statsUpdated'));
           window.dispatchEvent(new CustomEvent('workoutCompleted'));
           window.dispatchEvent(new CustomEvent('plan-updated'));
-          window.dispatchEvent(new CustomEvent('statsUpdated'));
         }, 300);
         
         // También intentar después de más tiempo

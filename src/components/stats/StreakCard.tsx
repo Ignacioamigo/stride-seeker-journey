@@ -1,6 +1,5 @@
 import React from 'react';
-import { useStats } from '@/context/StatsContext';
-import { Check } from 'lucide-react';
+import { useStreak } from '@/hooks/useStreak';
 
 const pillColors: Record<string, string> = {
   done: 'bg-orange-500 text-white',
@@ -13,47 +12,31 @@ const pillColors: Record<string, string> = {
 const dayLabel: Record<string, string> = { L: 'L', M: 'M', X: 'X', J: 'J', V: 'V', S: 'S', D: 'D' };
 
 export default function StreakCard() {
-  const { stats, isLoading } = useStats();
-  const weekly = Array.isArray(stats?.weeklyData) ? stats.weeklyData : [];
-
-  // weeklyData viene ordenado de lunes a domingo
-  const completedByDayThisWeek: boolean[] = weekly.map((d: any) => (d?.distance || 0) > 0);
-  const dayLetters = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  const { streakCount, week, isLoading } = useStreak();
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm mb-4 select-none">
-      <div className="flex items-center gap-4 mb-4">
-        <div className="relative w-16 h-16 flex items-center justify-center">
-          <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center">
-            <span className="text-3xl leading-none">🔥</span>
-          </div>
-          <div className="absolute -bottom-1 w-7 h-7 rounded-full bg-white shadow flex items-center justify-center border border-orange-200">
-            <span className="text-orange-600 text-sm font-bold">{isLoading ? '…' : stats.totalRuns}</span>
-          </div>
+    <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+          <span className="text-orange-500 text-lg">🔥</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-runapp-navy font-bold text-xl">Day Streak</span>
-          <span className="text-runapp-gray text-sm">Racha total basada en carreras completadas</span>
+          <span className="text-runapp-gray text-sm no-select">Racha activa</span>
+          <span className="text-runapp-navy text-2xl font-bold no-select">{isLoading ? '...' : streakCount}</span>
         </div>
       </div>
-
-      <div className="flex items-center justify-between gap-2 mb-2">
-        {dayLetters.map((letter, idx) => {
-          const done = completedByDayThisWeek[idx];
-          return (
-            <div key={letter} className="flex flex-col items-center gap-1 w-full">
-              <div className={`w-7 h-7 rounded-full grid place-items-center ${done ? 'bg-orange-500 text-white' : 'bg-gray-100 border border-gray-200 text-gray-400'}`}>
-                {done ? <Check size={16} /> : null}
-              </div>
-              <span className={`text-xs ${done ? 'text-runapp-navy' : 'text-runapp-gray'}`}>{letter}</span>
+      <div className="grid grid-cols-7 gap-2">
+        {week.map((d) => (
+          <div key={d.date} className="flex flex-col items-center gap-1">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${pillColors[d.status]}`}>
+              {d.status === 'done' ? '✓' : ''}
             </div>
-          );
-        })}
+            <span className="text-xs text-runapp-gray no-select">{dayLabel[d.key]}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
-
-
 
 

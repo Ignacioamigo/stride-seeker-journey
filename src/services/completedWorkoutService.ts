@@ -62,22 +62,16 @@ export const saveCompletedWorkout = async (
       console.log(`[saveCompletedWorkout] Duración convertida: "${duracion}" -> "${duracionInterval}"`);
     }
 
-    // Calcular fecha_completado correcta
-    const today = new Date();
-    const fechaCompletado = today.toISOString().split('T')[0]; // YYYY-MM-DD formato
-    
     const workoutData = {
       workout_title: workoutTitle,
       workout_type: workoutType,
       distancia_recorrida: distanciaRecorrida,
       duracion: duracionInterval,
-      fecha_completado: fechaCompletado,
+      fecha_completado: new Date().toISOString().split('T')[0],
       plan_id: planId || null,
       week_number: weekNumber || null
       // user_id se establece automáticamente con auth.uid() por defecto
     };
-    
-    console.log(`[saveCompletedWorkout] 🔥 Guardando entrenamiento con fecha_completado: ${fechaCompletado}`);
 
     console.log("[saveCompletedWorkout] Datos para Supabase:", workoutData);
 
@@ -132,12 +126,6 @@ export const saveCompletedWorkout = async (
     }
 
     console.log("[saveCompletedWorkout] ✅ Guardado exitoso en Supabase:", data);
-    
-    // Disparar eventos para actualizar streak inmediatamente
-    console.log("[saveCompletedWorkout] 🔥 Disparando eventos para actualizar streak...");
-    window.dispatchEvent(new CustomEvent('workoutCompleted'));
-    window.dispatchEvent(new CustomEvent('plan-updated'));
-    
     return true;
     
   } catch (error: any) {
