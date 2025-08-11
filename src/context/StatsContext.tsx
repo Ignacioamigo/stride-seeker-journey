@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, ReactNode, useState } from 'react';
+import React, { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { useRunningStats } from '@/hooks/useRunningStats';
 
 interface StatsContextType {
@@ -28,6 +28,18 @@ export const StatsProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     refreshStats();
     console.log('🚀 StatsContext: forceUpdate completado');
   };
+
+  useEffect(() => {
+    const onReset = () => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[Stats] resetStats event recibido en Context - forzando recalculo');
+      }
+      resetStats();
+      forceUpdate();
+    };
+    window.addEventListener('resetStats', onReset as EventListener);
+    return () => window.removeEventListener('resetStats', onReset as EventListener);
+  }, []);
 
   return (
     <StatsContext.Provider value={{ 

@@ -49,8 +49,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetUser = async () => {
+    let currentAuthId: string | null = null;
     try {
       const currentUserId = user.id;
+      // Capturar auth user id actual para limpiar namespace de localStorage
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        currentAuthId = auth?.user?.id || null;
+      } catch {}
       
       if (currentUserId) {
         console.log('Eliminando entrenamientos del usuario:', currentUserId);
@@ -112,10 +118,28 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Asegurar que siempre se resetee el estado local
       console.log('Reseteando estado local del usuario...');
       setUser(defaultUser);
+      const saved = localStorage.getItem('runAdaptiveUser');
+      const savedUser = saved ? JSON.parse(saved) : null;
+      const prevAuthId = savedUser?.id || null;
       localStorage.removeItem('runAdaptiveUser');
       
       // Limpiar planes guardados para asegurar un inicio limpio
       removeSavedPlan();
+
+      // Limpiar workouts en localStorage (namespaced y legacy)
+      try {
+        if (prevAuthId) {
+          const nsKey = `completedWorkouts:${prevAuthId}`;
+          localStorage.removeItem(nsKey);
+        }
+        if (currentAuthId) {
+          const nsAuthKey = `completedWorkouts:${currentAuthId}`;
+          if (nsAuthKey !== `completedWorkouts:${prevAuthId}`) {
+            localStorage.removeItem(nsAuthKey);
+          }
+        }
+        localStorage.removeItem('completedWorkouts');
+      } catch {}
       
       // Disparar evento personalizado para notificar que se resetean las estadísticas
       window.dispatchEvent(new CustomEvent('resetStats'));
