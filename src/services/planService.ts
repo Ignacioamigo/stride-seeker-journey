@@ -1,7 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
-import { ensureSession } from '@/services/authService';
-import { toYmdUTC, startOfWeekMonday } from '@/utils/dateUtils';
 import { UserProfile, WorkoutPlan, Workout, TrainingPlanRequest, PreviousWeekResults } from '@/types';
 
 // Variable to control connection errors
@@ -513,7 +511,106 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 /**
  * Saves completed workout data to the entrenamientos_completados table
  */
-// Eliminado saveCompletedWorkout duplicado: toda persistencia de completados se gestiona en completedWorkoutService
+export const saveCompletedWorkout = async (
+  workoutTitle: string,
+  workoutType: string,
+  actualDistance: number | null,
+  actualDuration: string | null
+): Promise<boolean> => {
+  try {
+    console.log("[saveCompletedWorkout] INICIANDO - Guardado de workout completado");
+    console.log("[saveCompletedWorkout] Datos:", {
+      workoutTitle,
+      workoutType,
+      actualDistance,
+      actualDuration
+    });
+
+    // Intentar guardar en Supabase usando la tabla entrenamientos_completados
+    console.log("[saveCompletedWorkout] Intentando guardar en entrenamientos_completados...");
+    
+    const workoutData = {
+      workout_title: workoutTitle,
+      workout_type: workoutType,
+      distancia_recorrida: actualDistance,
+      duracion: actualDuration,
+      fecha_completado: new Date().toISOString().split('T')[0]
+    };
+
+    console.log("[saveCompletedWorkout] Datos finales para insertar:", workoutData);
+
+    const { data, error } = await supabase
+      .from('entrenamientos_completados')
+      .insert(workoutData)
+      .select();
+
+    if (error) {
+      console.error("[saveCompletedWorkout] Error en Supabase entrenamientos_completados:", error);
+      
+      // Fallback a localStorage
+      const completedWorkoutRecord = {
+        id: uuidv4(),
+        workoutTitle,
+        workoutType,
+        actualDistance,
+        actualDuration,
+        completedAt: new Date().toISOString()
+      };
+      
+      const existingCompletedWorkouts = localStorage.getItem('completedWorkouts');
+      const completedWorkouts = existingCompletedWorkouts ? JSON.parse(existingCompletedWorkouts) : [];
+      completedWorkouts.push(completedWorkoutRecord);
+      localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
+      
+      console.log("[saveCompletedWorkout] Guardado en localStorage como fallback");
+      return true;
+    }
+
+    console.log("[saveCompletedWorkout] ✅ ÉXITO! Datos guardados en entrenamientos_completados:", data);
+    
+    // También guardar en localStorage para referencia offline
+    const completedWorkoutRecord = {
+      id: data[0].id,
+      workoutTitle,
+      workoutType,
+      actualDistance,
+      actualDuration,
+      completedAt: new Date().toISOString()
+    };
+    
+    const existingCompletedWorkouts = localStorage.getItem('completedWorkouts');
+    const completedWorkouts = existingCompletedWorkouts ? JSON.parse(existingCompletedWorkouts) : [];
+    completedWorkouts.push(completedWorkoutRecord);
+    localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
+    
+    return true;
+  } catch (error: any) {
+    console.error("[saveCompletedWorkout] Error inesperado:", error);
+    
+    // Último recurso: guardar en localStorage
+    try {
+      const completedWorkoutRecord = {
+        id: uuidv4(),
+        workoutTitle,
+        workoutType,
+        actualDistance,
+        actualDuration,
+        completedAt: new Date().toISOString()
+      };
+      
+      const existingCompletedWorkouts = localStorage.getItem('completedWorkouts');
+      const completedWorkouts = existingCompletedWorkouts ? JSON.parse(existingCompletedWorkouts) : [];
+      completedWorkouts.push(completedWorkoutRecord);
+      localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
+      
+      console.log("[saveCompletedWorkout] Guardado en localStorage como último recurso");
+      return true;
+    } catch (localError) {
+      console.error("[saveCompletedWorkout] Error también en localStorage:", localError);
+      return false;
+    }
+  }
+};
 
 /**
  * Updates the results of a specific workout in Supabase and saves to completed_workouts table
@@ -938,80 +1035,5 @@ export const markClosestSessionAsCompleted = async ({
       console.log('[markClosestSessionAsCompleted] Sesión adicional creada:', inserted[0]?.id);
       return inserted[0]?.id;
     }
-  }
-};
-
-/**
- * Obtiene todas las sesiones planificadas (type !== 'descanso') del usuario actual.
- * Devuelve objetos con fechas normalizadas a YYYY-MM-DD (UTC).
- */
-export const getAllPlannedSessions = async (): Promise<Array<{ date: string; type: string; plan_id: string }>> => {
-  try {
-    await ensureSession();
-    const { data: auth } = await supabase.auth.getUser();
-    const userAuthId = auth?.user?.id || '';
-    if (!userAuthId) return [];
-
-    // Obtener perfil
-    const { data: userProfile, error: profileErr } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('user_auth_id', userAuthId)
-      .maybeSingle();
-    if (profileErr || !userProfile?.id) return [];
-
-    // Tomar el plan más reciente
-    const { data: plan } = await supabase
-      .from('training_plans')
-      .select('id')
-      .eq('user_id', userProfile.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!plan?.id) return [];
-
-    const { data: sessions, error } = await supabase
-      .from('training_sessions')
-      .select('day_date, type, plan_id')
-      .eq('plan_id', plan.id)
-      .neq('type', 'descanso')
-      .order('day_date', { ascending: true });
-
-    if (error) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('[PlanService] getAllPlannedSessions error', error);
-      }
-      // Fallback a localStorage 'savedPlan'
-      const saved = localStorage.getItem('savedPlan');
-      if (!saved) return [];
-      const planLocal = JSON.parse(saved);
-      return (planLocal.workouts || [])
-        .filter((w: any) => w.type !== 'descanso')
-        .map((w: any) => ({
-          date: toYmdUTC(new Date(w.date)),
-          type: w.type,
-          plan_id: planLocal.id,
-        }));
-    }
-
-    return (sessions || []).map(s => ({
-      date: toYmdUTC(new Date(s.day_date)),
-      type: s.type,
-      plan_id: s.plan_id,
-    }));
-  } catch (e) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[PlanService] getAllPlannedSessions unexpected', e);
-    }
-    const saved = localStorage.getItem('savedPlan');
-    if (!saved) return [];
-    const planLocal = JSON.parse(saved);
-    return (planLocal.workouts || [])
-      .filter((w: any) => w.type !== 'descanso')
-      .map((w: any) => ({
-        date: toYmdUTC(new Date(w.date)),
-        type: w.type,
-        plan_id: planLocal.id,
-      }));
   }
 };

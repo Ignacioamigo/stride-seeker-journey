@@ -117,31 +117,3 @@ export function getDateLabel(dateString: string): string {
   if (isTomorrow(dateString)) return 'Mañana';
   return formatDateShort(dateString);
 }
-
-// NUEVAS UTILIDADES EN UTC
-/**
- * Normaliza una fecha a formato YYYY-MM-DD en UTC.
- */
-export function toYmdUTC(date: Date): string {
-  // Crear una fecha en UTC descartando la parte de tiempo local
-  const y = date.getUTCFullYear();
-  const m = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-  const d = date.getUTCDate().toString().padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-/**
- * Devuelve el lunes de la semana de la fecha dada, normalizado a 00:00 UTC.
- */
-export function startOfWeekMonday(date: Date): Date {
-  const utcYear = date.getUTCFullYear();
-  const utcMonth = date.getUTCMonth();
-  const utcDate = date.getUTCDate();
-  const tmp = new Date(Date.UTC(utcYear, utcMonth, utcDate, 0, 0, 0));
-  const day = tmp.getUTCDay(); // 0=Domingo, 1=Lunes, ...
-  const diff = day === 0 ? -6 : 1 - day; // mover a lunes
-  tmp.setUTCDate(tmp.getUTCDate() + diff);
-  // Asegurar 00:00 UTC
-  tmp.setUTCHours(0, 0, 0, 0);
-  return tmp;
-}

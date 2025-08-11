@@ -1,6 +1,4 @@
 import { supabase, ensureSession } from './authService';
-import { getUserProfileId } from './planService';
-import { toYmdUTC } from '@/utils/dateUtils';
 
 /**
  * Convierte duración de texto a formato PostgreSQL interval
@@ -44,31 +42,24 @@ export const saveCompletedWorkout = async (
   weekNumber?: number
 ): Promise<boolean> => {
   try {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[CompletedService] === INICIANDO GUARDADO ===');
-      console.log('[CompletedService] Parámetros recibidos:', {
-        workoutTitle,
-        workoutType,
-        distanciaRecorrida,
-        duracion,
-        planId,
-        weekNumber
-      });
-    }
+    console.log("[saveCompletedWorkout] === INICIANDO GUARDADO ===");
+    console.log("[saveCompletedWorkout] Parámetros recibidos:", {
+      workoutTitle,
+      workoutType,
+      distanciaRecorrida,
+      duracion,
+      planId,
+      weekNumber
+    });
     
     // Asegurar que tenemos una sesión activa
     await ensureSession();
-    const { data: auth } = await supabase.auth.getUser();
-    const userAuthId = auth?.user?.id || 'unknown';
-    const userProfileId = await getUserProfileId();
     
     // Convertir duración a formato PostgreSQL interval
     let duracionInterval = null;
     if (duracion && duracion.trim()) {
       duracionInterval = convertDurationToInterval(duracion);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`[CompletedService] Duración convertida: "${duracion}" -> "${duracionInterval}"`);
-      }
+      console.log(`[saveCompletedWorkout] Duración convertida: "${duracion}" -> "${duracionInterval}"`);
     }
 
     const workoutData = {
@@ -76,15 +67,13 @@ export const saveCompletedWorkout = async (
       workout_type: workoutType,
       distancia_recorrida: distanciaRecorrida,
       duracion: duracionInterval,
-      fecha_completado: toYmdUTC(new Date()),
+      fecha_completado: new Date().toISOString().split('T')[0],
       plan_id: planId || null,
       week_number: weekNumber || null
       // user_id se establece automáticamente con auth.uid() por defecto
     };
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[CompletedService] Datos para Supabase:', workoutData, 'userAuthId:', userAuthId, 'userProfileId:', userProfileId);
-    }
+    console.log("[saveCompletedWorkout] Datos para Supabase:", workoutData);
 
     const { data, error } = await supabase
       .from('entrenamientos_completados')
@@ -92,27 +81,25 @@ export const saveCompletedWorkout = async (
       .select();
 
     if (error) {
-      console.error('[CompletedService] Error en Supabase:', error);
+      console.error("[saveCompletedWorkout] Error en Supabase:", error);
       // Intentar autocorregir cuando falta el plan en Supabase (violación de FK)
       if (error.code === '23503' && planId) {
-        console.warn('[CompletedService] Detectada violación FK plan_id. Intentando migrar plan local a Supabase con el mismo ID...');
+        console.warn('[saveCompletedWorkout] Detectada violación FK plan_id. Intentando migrar plan local a Supabase con el mismo ID...');
         const migrated = await tryMigrateLocalPlanToSupabase(planId);
         if (migrated) {
-          console.log('[CompletedService] ✅ Plan migrado. Reintentando guardar entrenamiento...');
+          console.log('[saveCompletedWorkout] ✅ Plan migrado. Reintentando guardar entrenamiento...');
           const retry = await supabase
             .from('entrenamientos_completados')
             .insert(workoutData)
             .select();
           if (!retry.error) {
-            console.log('[CompletedService] ✅ Guardado exitoso tras migración:', retry.data);
-            window.dispatchEvent(new CustomEvent('workoutCompleted'));
-            window.dispatchEvent(new CustomEvent('plan-updated'));
+            console.log('[saveCompletedWorkout] ✅ Guardado exitoso tras migración:', retry.data);
             return true;
           } else {
-            console.error('[CompletedService] ❌ Falló reintento tras migración:', retry.error);
+            console.error('[saveCompletedWorkout] ❌ Falló reintento tras migración:', retry.error);
           }
         } else {
-          console.warn('[CompletedService] ❌ No se pudo migrar el plan automáticamente');
+          console.warn('[saveCompletedWorkout] ❌ No se pudo migrar el plan automáticamente');
         }
       }
       
@@ -123,81 +110,48 @@ export const saveCompletedWorkout = async (
         workout_type: workoutType,    // ✅ FORMATO CORRECTO  
         distancia_recorrida: distanciaRecorrida, // ✅ FORMATO CORRECTO
         duracion: duracion,           // ✅ FORMATO CORRECTO
-        fecha_completado: toYmdUTC(new Date()), // ✅ FORMATO CORRECTO
+        fecha_completado: new Date().toISOString().split('T')[0], // ✅ FORMATO CORRECTO
         plan_id: planId || null,      // ✅ NUEVO CAMPO
         week_number: weekNumber || null, // ✅ NUEVO CAMPO
-        created_at: new Date().toISOString(),
-        user_id: userProfileId || null,
-        user_auth_id: userAuthId
+        created_at: new Date().toISOString()
       };
-
-      // Migración desde clave global si existe
-      const legacyKey = 'completedWorkouts';
-      const nsKey = `completedWorkouts:${userAuthId}`;
-      const legacy = localStorage.getItem(legacyKey);
-      if (legacy) {
-        try {
-          const parsed = JSON.parse(legacy);
-          localStorage.setItem(nsKey, JSON.stringify(parsed));
-          localStorage.removeItem(legacyKey);
-          if (process.env.NODE_ENV !== 'production') {
-            console.log('[CompletedService] Migración de clave global a namespaced:', nsKey);
-          }
-        } catch {}
-      }
-
-      const existingWorkouts = localStorage.getItem(nsKey);
+      
+      const existingWorkouts = localStorage.getItem('completedWorkouts');
       const workouts = existingWorkouts ? JSON.parse(existingWorkouts) : [];
       workouts.push(localWorkout);
-      localStorage.setItem(nsKey, JSON.stringify(workouts));
+      localStorage.setItem('completedWorkouts', JSON.stringify(workouts));
       
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[CompletedService] ✅ Guardado en localStorage fallback', { key: nsKey, count: workouts.length });
-      }
-      window.dispatchEvent(new CustomEvent('workoutCompleted'));
+      console.log("[saveCompletedWorkout] ✅ Guardado en localStorage como fallback con formato correcto");
       return true;
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[CompletedService] ✅ Guardado exitoso en Supabase:', data);
-    }
-    window.dispatchEvent(new CustomEvent('workoutCompleted'));
-    window.dispatchEvent(new CustomEvent('plan-updated'));
+    console.log("[saveCompletedWorkout] ✅ Guardado exitoso en Supabase:", data);
     return true;
     
   } catch (error: any) {
-    console.error('[CompletedService] ❌ Error inesperado:', error);
+    console.error("[saveCompletedWorkout] ❌ Error inesperado:", error);
     
     // Fallback a localStorage en caso de error
     try {
-      const { data: auth } = await supabase.auth.getUser();
-      const userAuthId = auth?.user?.id || 'unknown';
-      const userProfileId = await getUserProfileId();
       const localWorkout = {
         id: Date.now().toString(),
-        workout_title: workoutTitle,
-        workout_type: workoutType,
-        distancia_recorrida: distanciaRecorrida,
+        workoutTitle,
+        workoutType,
+        distanciaRecorrida,
         duracion,
-        fecha_completado: toYmdUTC(new Date()),
-        created_at: new Date().toISOString(),
-        user_id: userProfileId || null,
-        user_auth_id: userAuthId
+        fechaCompletado: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString()
       };
       
-      const nsKey = `completedWorkouts:${userAuthId}`;
-      const existingWorkouts = localStorage.getItem(nsKey);
+      const existingWorkouts = localStorage.getItem('completedWorkouts');
       const workouts = existingWorkouts ? JSON.parse(existingWorkouts) : [];
       workouts.push(localWorkout);
-      localStorage.setItem(nsKey, JSON.stringify(workouts));
+      localStorage.setItem('completedWorkouts', JSON.stringify(workouts));
       
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[CompletedService] Guardado en localStorage como último recurso', { key: nsKey });
-      }
-      window.dispatchEvent(new CustomEvent('workoutCompleted'));
+      console.log("[saveCompletedWorkout] Guardado en localStorage como último recurso");
       return true;
     } catch (localError) {
-      console.error('[CompletedService] Error también en localStorage:', localError);
+      console.error("[saveCompletedWorkout] Error también en localStorage:", localError);
       return false;
     }
   }
@@ -296,34 +250,15 @@ export const getCompletedWorkouts = async (planId?: string, weekNumber?: number)
   try {
     // Asegurar que tenemos una sesión activa
     await ensureSession();
-    const { data: auth } = await supabase.auth.getUser();
-    const userAuthId = auth?.user?.id || 'unknown';
-    const userProfileId = await getUserProfileId();
 
     // Cargar desde Supabase - SIEMPRE cargar todos para compatibilidad
-    // Intento 1: filtrar por user_id = userProfileId (si la tabla referencia perfil)
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('entrenamientos_completados')
       .select('*')
-      .eq('user_id', userProfileId || '')
       .order('fecha_completado', { ascending: false });
 
-    // Si no hay resultados y no error, intentar por auth uid (algunas tablas guardan auth.uid())
-    if (!error && (data?.length ?? 0) === 0 && userAuthId) {
-      const retry = await supabase
-        .from('entrenamientos_completados')
-        .select('*')
-        .eq('user_id', userAuthId)
-        .order('fecha_completado', { ascending: false });
-      if (!retry.error) {
-        data = retry.data || [];
-      }
-    }
-
     if (!error && data) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[CompletedService] [getCompletedWorkouts] Supabase OK', { userProfileId, count: data.length });
-      }
+      console.log("[getCompletedWorkouts] Datos cargados desde Supabase:", data.length);
       
       // Filtrar en memoria si se especifican parámetros
       if (planId || weekNumber !== undefined) {
@@ -332,47 +267,27 @@ export const getCompletedWorkouts = async (planId?: string, weekNumber?: number)
           if (weekNumber !== undefined && w.week_number !== weekNumber) return false;
           return true;
         });
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[CompletedService] [getCompletedWorkouts] Filtro memoria', { planId, weekNumber, count: filtered.length });
-        }
+        console.log(`[getCompletedWorkouts] Filtrados por plan ${planId}, semana ${weekNumber}:`, filtered.length);
         return filtered;
       }
       
       return data;
     } else {
-      console.error('[CompletedService] [getCompletedWorkouts] Error en Supabase:', error);
+      console.error("[getCompletedWorkouts] Error en Supabase:", error);
     }
 
     // Fallback a localStorage
-    const nsKey = `completedWorkouts:${userAuthId}`;
-    // Migración de clave global si existe
-    const legacyKey = 'completedWorkouts';
-    const legacy = localStorage.getItem(legacyKey);
-    if (legacy) {
-      try {
-        localStorage.setItem(nsKey, legacy);
-        localStorage.removeItem(legacyKey);
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[CompletedService] Migrada clave global a', nsKey);
-        }
-      } catch {}
-    }
-    const existingWorkouts = localStorage.getItem(nsKey);
+    const existingWorkouts = localStorage.getItem('completedWorkouts');
     const workouts = existingWorkouts ? JSON.parse(existingWorkouts) : [];
     
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[CompletedService] [getCompletedWorkouts] localStorage', { key: nsKey, count: workouts.length });
-    }
+    console.log("[getCompletedWorkouts] Datos cargados desde localStorage:", workouts.length);
     return workouts;
     
   } catch (error: any) {
-    console.error('[CompletedService] [getCompletedWorkouts] Error inesperado:', error);
+    console.error("[getCompletedWorkouts] Error inesperado:", error);
     
     // Último recurso: localStorage
-    const { data: auth } = await supabase.auth.getUser();
-    const userAuthId = auth?.user?.id || 'unknown';
-    const nsKey = `completedWorkouts:${userAuthId}`;
-    const existingWorkouts = localStorage.getItem(nsKey);
+    const existingWorkouts = localStorage.getItem('completedWorkouts');
     const workouts = existingWorkouts ? JSON.parse(existingWorkouts) : [];
     return workouts;
   }
