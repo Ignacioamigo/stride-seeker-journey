@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getCompletedWorkouts } from '@/services/completedWorkoutService';
+import { supabase } from '@/integrations/supabase/client';
 import { calculateWeeklyData } from './utils/weeklyStatsCalculator';
 
 interface RunningStats {
@@ -173,7 +174,16 @@ export const useRunningStats = (updateCounter?: number) => {
       // FALLBACK CRÍTICO: Si Supabase está vacío, usar localStorage
       if (!workouts || workouts.length === 0) {
         console.log('🔄 Hook: Supabase vacío, intentando fallback a localStorage...');
-        const localWorkouts = localStorage.getItem('completedWorkouts');
+        const { data: auth } = await supabase.auth.getUser();
+        const userAuthId = auth?.user?.id || 'unknown';
+        const nsKey = `completedWorkouts:${userAuthId}`;
+        // Migración si existe clave global
+        const legacyKey = 'completedWorkouts';
+        const legacy = localStorage.getItem(legacyKey);
+        if (legacy) {
+          try { localStorage.setItem(nsKey, legacy); localStorage.removeItem(legacyKey); } catch {}
+        }
+        const localWorkouts = localStorage.getItem(nsKey);
         if (localWorkouts) {
           const parsedWorkouts = JSON.parse(localWorkouts);
           console.log(`🔄 Hook: Encontrados ${parsedWorkouts.length} entrenamientos en localStorage`);
@@ -202,7 +212,7 @@ export const useRunningStats = (updateCounter?: number) => {
           // LIMPIAR LOCALSTORAGE DE DATOS CORRUPTOS
           if (validWorkouts.length !== parsedWorkouts.length) {
             console.log('🧹 Hook: LIMPIANDO localStorage de datos corruptos...');
-            localStorage.setItem('completedWorkouts', JSON.stringify(validWorkouts));
+            localStorage.setItem(nsKey, JSON.stringify(validWorkouts));
           }
           
           workouts = validWorkouts;
@@ -261,12 +271,12 @@ export const useRunningStats = (updateCounter?: number) => {
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     const thisMonthWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.fecha_completado);
+      const workoutDate = new Date(w.fecha_completado + 'T00:00:00Z');
       return workoutDate >= startOfMonth;
     });
 
     const lastMonthWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.fecha_completado);
+      const workoutDate = new Date(w.fecha_completado + 'T00:00:00Z');
       return workoutDate >= startOfLastMonth && workoutDate <= endOfLastMonth;
     });
 
@@ -466,6 +476,17 @@ export const useRunningStats = (updateCounter?: number) => {
   useEffect(() => {
     console.log('Hook: useEffect inicial');
     calculateStats();
+
+    const onReset = () => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[Stats] resetStats event recibido');
+      }
+      resetStats();
+    };
+    window.addEventListener('resetStats', onReset as EventListener);
+    return () => {
+      window.removeEventListener('resetStats', onReset as EventListener);
+    };
   }, []);
 
   const refreshStats = () => {
