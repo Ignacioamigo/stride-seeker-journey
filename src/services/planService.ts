@@ -509,6 +509,46 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
 };
 
 /**
+ * Obtiene todas las sesiones planificadas del usuario autenticado
+ * con sus fechas, tipos y plan_id, ordenadas por fecha ascendente.
+ */
+export const getAllPlannedSessions = async (): Promise<{ date: string; type: string; plan_id?: string }[]> => {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user) return [];
+
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_auth_id', user.user.id)
+      .single();
+    if (!userProfile?.id) return [];
+
+    const { data: plans } = await supabase
+      .from('training_plans')
+      .select('id')
+      .eq('user_id', userProfile.id);
+    if (!plans || plans.length === 0) return [];
+
+    const planIds = plans.map(p => p.id);
+
+    const { data: sessions } = await supabase
+      .from('training_sessions')
+      .select('day_date,type,plan_id')
+      .in('plan_id', planIds)
+      .order('day_date', { ascending: true });
+    if (!sessions) return [];
+
+    return sessions
+      .filter(s => s.day_date)
+      .map(s => ({ date: String(s.day_date), type: String(s.type || ''), plan_id: s.plan_id }));
+  } catch (e) {
+    console.error('[getAllPlannedSessions] Error:', e);
+    return [];
+  }
+};
+
+/**
  * Saves completed workout data to the entrenamientos_completados table
  */
 export const saveCompletedWorkout = async (
