@@ -117,3 +117,67 @@ export interface TrainingPlanRequest {
   customPrompt?: string;
   previousWeekResults?: PreviousWeekResults;
 }
+
+// Nuevos tipos para actividades publicadas
+export interface PublishedActivity {
+  id: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  runSession: RunSession;
+  publishedAt: Date;
+  isPublic: boolean;
+  likes?: number;
+  comments?: number;
+  userProfile: {
+    name: string;
+    avatar?: string;
+  };
+  syncStatus?: 'local' | 'pending' | 'synced';
+}
+
+export interface WorkoutPublishData {
+  title: string;
+  description: string;
+  image?: File;
+  runSession: RunSession;
+  isPublic: boolean;
+}
+
+export interface WorkoutMetrics {
+  totalDistance: number;
+  totalDuration: string;
+  averageSpeed: number;
+  averagePace: string;
+  elevationGain?: number;
+  calories?: number;
+  splitTimes: SplitTime[];
+}
+
+export interface SplitTime {
+  kilometer: number;
+  time: string;
+  pace: string;
+  speed: number;
+}
+
+export interface RunSession {
+  id: string;
+  startTime: Date;
+  endTime?: Date;
+  distance: number;
+  duration: string;
+  isActive: boolean;
+  isPaused: boolean;
+  gpsPoints: GPSPoint[];
+  avgPace?: string;
+}
+
+export interface GPSPoint {
+  latitude: number;
+  longitude: number;
+  altitude?: number;
+  accuracy?: number;
+  speed?: number;
+  timestamp: Date;
+}

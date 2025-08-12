@@ -118,3 +118,67 @@
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Prevenir zoom en iOS cuando se enfocan inputs/textareas */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+textarea,
+select {
+  font-size: 16px !important;
+  transform-origin: center;
+}
+
+/* Específico para Webkit (Safari/iOS) */
+@supports (-webkit-appearance: none) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  textarea,
+  select {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Estilo para campos de formulario en móvil */
+.form-input {
+  font-size: 16px !important;
+  -webkit-text-size-adjust: 100%;
+  transform-origin: center;
+}
+
+/* Prevenir zoom en textarea específicamente */
+textarea.resize-none {
+  resize: none;
+  font-size: 16px !important;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Camera input específico para mejor UX */
+input[type="file"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Loading spinner personalizado */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

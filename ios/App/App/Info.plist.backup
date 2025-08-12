@@ -60,14 +60,6 @@
 		<string>Esta app necesita acceso preciso a tu ubicación para hacer tracking de tus carreras.</string>
 	</dict>
 	
-	<!-- Permisos de cámara para subir fotos de entrenamientos -->
-	<key>NSCameraUsageDescription</key>
-	<string>Esta app necesita acceso a la cámara para que puedas tomar fotos de tus entrenamientos y añadirlas a tus actividades.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Esta app necesita acceso a tu biblioteca de fotos para que puedas seleccionar imágenes para tus entrenamientos.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Esta app necesita permiso para guardar fotos de tus entrenamientos en tu biblioteca de fotos.</string>
-	
 	<!-- Background modes para GPS tracking -->
 	<key>UIBackgroundModes</key>
 	<array>

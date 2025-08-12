@@ -19,6 +19,8 @@ import Train from "@/pages/Train";
 import Stats from "@/pages/Stats";
 import Profile from "@/pages/Profile";
 import EditProfile from "@/pages/EditProfile";
+import Activities from "@/pages/Activities";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
 
@@ -73,11 +75,12 @@ const App = () => (
                   <Route path="/stats" element={<Stats />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/edit-profile" element={<EditProfile />} />
+                  <Route path="/activities" element={<Activities />} />
+                  <Route path="/settings" element={<Settings />} />
                   <Route path="/admin" element={<Admin />} />
                   
                   {/* Mobile setup routes */}
                   <Route path="/permissions" element={<PermissionsScreen />} />
-                  <Route path="/settings" element={<SettingsScreen />} />
                   
                   {/* Onboarding Routes */}
                   <Route path="/onboarding/name" element={<NameQuestion />} />

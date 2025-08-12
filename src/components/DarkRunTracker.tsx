@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Square, MapPin } from 'lucide-react';
 import { useSimpleGPSTracker } from '@/hooks/useSimpleGPSTracker';
 import SimpleMapView from '@/components/SimpleMapView';
+import WorkoutSummaryScreen from '@/components/training/WorkoutSummaryScreen';
+import ActivityDetailsScreen from '@/components/training/ActivityDetailsScreen';
+import { publishActivity } from '@/services/activityService';
+import { WorkoutPublishData, PublishedActivity, RunSession } from '@/types';
+import { toast } from '@/hooks/use-toast';
+
+type ScreenState = 'pre-run' | 'running' | 'summary' | 'details';
 
 const DarkRunTracker: React.FC = () => {
   const {
@@ -14,9 +21,13 @@ const DarkRunTracker: React.FC = () => {
     startRun,
     pauseRun,
     resumeRun,
-    finishRun,
+    finishRun: originalFinishRun,
     requestPermissions
   } = useSimpleGPSTracker();
+
+  const [screenState, setScreenState] = useState<ScreenState>('pre-run');
+  const [completedSession, setCompletedSession] = useState<RunSession | null>(null);
+  const [publishedActivity, setPublishedActivity] = useState<PublishedActivity | null>(null);
 
   const formatDistance = (meters: number): string => {
     if (meters < 1000) {
@@ -25,25 +36,72 @@ const DarkRunTracker: React.FC = () => {
     return `${(meters / 1000).toFixed(2)}`;
   };
 
-  const formatPace = (): string => {
-    if (!runSession || runSession.distance === 0) return "--:--";
-    
-    const durationParts = runSession.duration.split(':');
-    const totalMinutes = parseInt(durationParts[0]) * 60 + parseInt(durationParts[1]) + parseInt(durationParts[2]) / 60;
-    const kmDistance = runSession.distance / 1000;
-    
-    if (kmDistance === 0) return "--:--";
-    
-    const paceMinutes = totalMinutes / kmDistance;
-    const minutes = Math.floor(paceMinutes);
-    const seconds = Math.floor((paceMinutes - minutes) * 60);
-    
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
   const formatSpeed = (): string => {
     if (!currentLocation?.speed || currentLocation.speed <= 0) return "0,00";
     return (currentLocation.speed * 3.6).toFixed(2);
+  };
+
+  const handleStartRun = () => {
+    startRun();
+    setScreenState('running');
+  };
+
+  const handleFinishRun = () => {
+    if (runSession) {
+      // Crear una copia completa de la sesión antes de limpiarla
+      const sessionCopy: RunSession = {
+        ...runSession,
+        endTime: new Date(),
+        isActive: false
+      };
+      
+      setCompletedSession(sessionCopy);
+      originalFinishRun();
+      setScreenState('summary');
+    }
+  };
+
+  const handlePublishActivity = async (workoutData: WorkoutPublishData) => {
+    try {
+      const activityId = await publishActivity(workoutData);
+      
+      const publishedActivity: PublishedActivity = {
+        id: activityId,
+        title: workoutData.title,
+        description: workoutData.description,
+        imageUrl: workoutData.image ? URL.createObjectURL(workoutData.image) : undefined,
+        runSession: workoutData.runSession,
+        publishedAt: new Date(),
+        isPublic: workoutData.isPublic,
+        likes: 0,
+        comments: 0,
+        userProfile: {
+          name: 'Usuario' // This should come from user context
+        }
+      };
+      
+      setPublishedActivity(publishedActivity);
+      setScreenState('details');
+      
+      toast({
+        title: "¡Actividad publicada!",
+        description: "Tu entrenamiento ha sido guardado exitosamente.",
+      });
+    } catch (error) {
+      console.error('Error publishing activity:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo publicar la actividad. Se guardó localmente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBackFromDetails = () => {
+    // Reset to initial state
+    setScreenState('pre-run');
+    setCompletedSession(null);
+    setPublishedActivity(null);
   };
 
   // Mostrar pantalla de permisos solo si fueron explícitamente denegados
@@ -71,8 +129,28 @@ const DarkRunTracker: React.FC = () => {
     );
   }
 
+  // PANTALLA RESUMEN POST-ENTRENAMIENTO (SIN OPCIÓN SALTAR)
+  if (screenState === 'summary' && completedSession) {
+    return (
+      <WorkoutSummaryScreen
+        runSession={completedSession}
+        onPublish={handlePublishActivity}
+      />
+    );
+  }
+
+  // PANTALLA DETALLES DE ACTIVIDAD
+  if (screenState === 'details' && publishedActivity) {
+    return (
+      <ActivityDetailsScreen
+        activity={publishedActivity}
+        onBack={handleBackFromDetails}
+      />
+    );
+  }
+
   // PANTALLA 1: Solo mapa + botón INICIAR (antes de empezar a correr)
-  if (!isTracking) {
+  if (screenState === 'pre-run' || !isTracking) {
     return (
       <div className="h-full flex flex-col bg-gray-50">
         {/* Mapa pantalla completa */}
@@ -80,14 +158,14 @@ const DarkRunTracker: React.FC = () => {
           <SimpleMapView 
             points={runSession?.gpsPoints || []} 
             currentLocation={currentLocation} 
-            isTracking={isTracking} 
+            isTracking={false} 
           />
         </div>
 
         {/* Botón INICIAR estilo rectangular como en la imagen */}
         <div className="absolute bottom-28 left-4 right-4">
           <Button 
-            onClick={startRun}
+            onClick={handleStartRun}
             className="bg-black hover:bg-gray-800 text-white font-bold w-full h-16 rounded-xl text-xl shadow-lg flex items-center justify-between px-6"
           >
             <div className="flex items-center space-x-3">
@@ -158,7 +236,7 @@ const DarkRunTracker: React.FC = () => {
               <Play className="w-6 h-6" />
             </Button>
             <Button 
-              onClick={finishRun}
+              onClick={handleFinishRun}
               className="bg-runapp-gray hover:bg-gray-600 text-white font-bold w-20 h-20 rounded-full shadow-lg"
             >
               <Square className="w-6 h-6" />
@@ -173,7 +251,7 @@ const DarkRunTracker: React.FC = () => {
               <Pause className="w-6 h-6" />
             </Button>
             <Button 
-              onClick={finishRun}
+              onClick={handleFinishRun}
               className="bg-runapp-gray hover:bg-gray-600 text-white font-bold w-20 h-20 rounded-full shadow-lg"
             >
               <Square className="w-6 h-6" />
