@@ -65,62 +65,50 @@ function generateDatesForSelectedDays(selectedDays: any[]): { date: Date, dayNam
     return generateDatesFromToday();
   }
   
+  console.log("Selected days received:", selectedDays);
+  
   const dates = [];
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+  today.setHours(0, 0, 0, 0);
   
-  // Get current week Monday
-  const currentDayOfWeek = today.getDay();
-  const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - daysToMonday);
+  // Filter only selected days
+  const actualSelectedDays = selectedDays.filter(day => day.selected);
+  console.log("Actually selected days:", actualSelectedDays);
   
-  // First, try to get remaining days from current week (from today onwards)
-  for (const selectedDay of selectedDays) {
-    if (selectedDay.selected) {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + selectedDay.id); // selectedDay.id is 0-6 (Mon-Sun)
-      date.setHours(0, 0, 0, 0);
-      
-      // Only include if the date is today or in the future
-      if (date >= today) {
-        const dayName = selectedDay.name;
-        dates.push({ date, dayName });
-      }
-    }
+  if (actualSelectedDays.length === 0) {
+    return generateDatesFromToday();
   }
   
-  // If no future dates this week, or we need more dates to complete a training week,
-  // add dates from next week
-  if (dates.length === 0) {
-    // No more training days this week, get next week's selected days
-    const nextMonday = new Date(monday);
-    nextMonday.setDate(monday.getDate() + 7);
-    
-    for (const selectedDay of selectedDays) {
-      if (selectedDay.selected) {
-        const date = new Date(nextMonday);
-        date.setDate(nextMonday.getDate() + selectedDay.id);
-        date.setHours(0, 0, 0, 0);
-        
-        const dayName = selectedDay.name;
-        dates.push({ date, dayName });
+  // Get dates for the next 4 weeks to ensure we have enough training dates
+  for (let week = 0; week < 4; week++) {
+    for (const selectedDay of actualSelectedDays) {
+      const dayId = selectedDay.id; // 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
+      
+      // Calculate the date for this day in the current week iteration
+      const targetDate = new Date(today);
+      
+      // Find the next occurrence of this day of the week
+      const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      
+      // Convert dayId (0=Mon, 1=Tue, etc.) to JavaScript day format (0=Sun, 1=Mon, etc.)
+      const jsTargetDay = dayId === 6 ? 0 : dayId + 1; // Convert: 6(Sunday) -> 0, others -> +1
+      
+      // Calculate days to add to get to the target day
+      let daysToAdd = jsTargetDay - currentDayOfWeek;
+      if (daysToAdd < 0) {
+        daysToAdd += 7; // Move to next week if the day has already passed
       }
-    }
-  } else {
-    // We have some days this week, but let's also include next week for a full cycle
-    // This ensures users can see the complete pattern
-    const nextMonday = new Date(monday);
-    nextMonday.setDate(monday.getDate() + 7);
-    
-    for (const selectedDay of selectedDays) {
-      if (selectedDay.selected) {
-        const date = new Date(nextMonday);
-        date.setDate(nextMonday.getDate() + selectedDay.id);
-        date.setHours(0, 0, 0, 0);
-        
+      
+      // Add the week offset
+      daysToAdd += (week * 7);
+      
+      targetDate.setDate(today.getDate() + daysToAdd);
+      targetDate.setHours(0, 0, 0, 0);
+      
+      // Only include future dates
+      if (targetDate >= today) {
         const dayName = selectedDay.name;
-        dates.push({ date, dayName });
+        dates.push({ date: new Date(targetDate), dayName });
       }
     }
   }
@@ -128,9 +116,10 @@ function generateDatesForSelectedDays(selectedDays: any[]): { date: Date, dayNam
   // Sort by date to maintain chronological order
   dates.sort((a, b) => a.date.getTime() - b.date.getTime());
   
-  // Limit to next 7-14 days maximum to avoid too many future dates
-  const maxDates = 14;
-  return dates.slice(0, maxDates);
+  console.log("Generated dates:", dates.map(d => ({ date: d.date.toISOString().split('T')[0], dayName: d.dayName })));
+  
+  // Return the first 14 dates
+  return dates.slice(0, 14);
 }
 
 serve(async (req) => {
@@ -154,13 +143,15 @@ serve(async (req) => {
 
     console.log("Processing request with user profile:", JSON.stringify(userProfile));
     
+    // Log user selected days for debugging
+    console.log("User selected days:", userProfile.selectedDays);
+    
     // Generate dates based on selected days or fallback to next 7 days
     const nextWeekDates = userProfile.selectedDays && userProfile.selectedDays.length > 0 
       ? generateDatesForSelectedDays(userProfile.selectedDays)
       : generateDatesFromToday();
     
-    console.log("Selected days from user:", userProfile.selectedDays);
-    console.log("Generated dates:", nextWeekDates.map(d => `${d.dayName}: ${d.date.toISOString().split('T')[0]}`));
+    console.log("Generated dates result:", nextWeekDates.map(d => `${d.dayName}: ${d.date.toISOString().split('T')[0]}`));
 
     // 2. Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');

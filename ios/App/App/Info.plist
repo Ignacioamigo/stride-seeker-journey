@@ -74,5 +74,9 @@
 	<string>Esta app necesita acceso a tus datos de salud para guardar tus entrenamientos y calcular estadísticas.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Esta app necesita permiso para guardar tus entrenamientos en la app Salud.</string>
+
+	<!-- Google Maps API Key -->
+	<key>GMSApiKey</key>
+	<string>AIzaSyC84gYKVr3KaSXKoujFTMEEx7fk0iHuEzQ</string>
 </dict>
 </plist>

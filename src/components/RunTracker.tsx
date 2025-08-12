@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Play, Pause, Square, MapPin, Clock, Route, Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useBackgroundGPSTracker } from '@/hooks/useBackgroundGPSTracker';
+import SimpleMapView from '@/components/SimpleMapView';
 
 const RunTracker: React.FC = () => {
   const {
@@ -63,6 +64,13 @@ const RunTracker: React.FC = () => {
 
   return (
     <div className="space-y-4 w-full">
+      {/* Mapa en vivo */}
+      <SimpleMapView 
+        points={runSession?.gpsPoints || []} 
+        currentLocation={currentLocation} 
+        isTracking={isTracking} 
+      />
+
       {/* Estado del GPS */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

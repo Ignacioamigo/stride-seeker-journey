@@ -41,7 +41,7 @@ export const useBackgroundGPSTracker = () => {
   const [isTracking, setIsTracking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<GPSPoint | null>(null);
-  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null); // null = checking, true = granted, false = denied
   const watcherIdRef = useRef<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -179,7 +179,7 @@ export const useBackgroundGPSTracker = () => {
           }
 
           if (location) {
-            if (location.accuracy && location.accuracy > 20) {
+            if (location.accuracy && location.accuracy > 10) {
               console.log('Lectura descartada por baja precisión:', location.accuracy);
               return;
             }
@@ -206,8 +206,9 @@ export const useBackgroundGPSTracker = () => {
                 const lastPoint = prev.gpsPoints[prev.gpsPoints.length - 1];
                 const segmentDistance = calculateDistance(lastPoint, newPoint);
                 
-                if (segmentDistance > 2 && segmentDistance < 50 && 
-                    newPoint.accuracy && newPoint.accuracy <= 20) {
+                // Solo sumar distancia si el movimiento es significativo y preciso
+                if (segmentDistance > 5 && segmentDistance < 100 && 
+                    newPoint.accuracy && newPoint.accuracy <= 10) {
                   newDistance += segmentDistance;
                 }
               }
@@ -382,11 +383,28 @@ export const useBackgroundGPSTracker = () => {
           console.log('Estado actual de permisos:', permissions);
           
           if (permissions.location === 'granted') {
-            console.log('Permisos ya concedidos, actualizando estado...');
+            console.log('Permisos ya concedidos, obteniendo ubicación inicial...');
             setPermissionGranted(true);
+            // Obtener ubicación inicial
+            try {
+              const position = await Geolocation.getCurrentPosition({
+                enableHighAccuracy: true,
+                timeout: 10000
+              });
+              const newPoint: GPSPoint = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                altitude: position.coords.altitude || undefined,
+                accuracy: position.coords.accuracy,
+                speed: position.coords.speed || undefined,
+                timestamp: new Date()
+              };
+              setCurrentLocation(newPoint);
+            } catch (error) {
+              console.error('Error obteniendo ubicación inicial:', error);
+            }
           } else if (permissions.location === 'prompt-with-rationale') {
             console.log('Permisos en estado prompt-with-rationale');
-            // En iOS, esto puede significar que los permisos están concedidos pero necesitan confirmación
             setPermissionGranted(true);
           } else {
             console.log('Permisos no concedidos:', permissions.location);
@@ -397,9 +415,18 @@ export const useBackgroundGPSTracker = () => {
           console.log('Verificando permisos de ubicación en web...');
           if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-              () => {
-                console.log('Permisos concedidos en web');
+              (position) => {
+                console.log('Permisos concedidos en web, obteniendo ubicación...');
                 setPermissionGranted(true);
+                const newPoint: GPSPoint = {
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude,
+                  altitude: position.coords.altitude || undefined,
+                  accuracy: position.coords.accuracy,
+                  speed: position.coords.speed || undefined,
+                  timestamp: new Date()
+                };
+                setCurrentLocation(newPoint);
               },
               (error) => {
                 console.log('Permisos no concedidos en web:', error.message);
