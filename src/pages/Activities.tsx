@@ -9,7 +9,7 @@ import Header from '@/components/layout/Header';
 import SimpleMapView from '@/components/SimpleMapView';
 import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
 
-const HEADER_HEIGHT = 56;
+const HEADER_HEIGHT = 44;
 
 const Activities: React.FC = () => {
   const [activities, setActivities] = useState<PublishedActivity[]>([]);
@@ -31,10 +31,7 @@ const Activities: React.FC = () => {
       setActivities(userActivities);
     } catch (error) {
       console.error('❌ [Activities] Error loading activities:', error);
-      
-      // Show user-friendly error
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-      // TODO: Add toast notification here
       console.error('Error para mostrar al usuario:', errorMessage);
     } finally {
       setLoading(false);
@@ -51,43 +48,28 @@ const Activities: React.FC = () => {
   const formatDate = (date: Date): string => {
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
     if (diffInHours < 24) {
-      return date.toLocaleTimeString('es-ES', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     } else {
-      return date.toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit'
-      });
+      return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
     }
   };
 
   const getTimeAgo = (date: Date): string => {
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffInHours < 1) {
-      return 'Hace unos minutos';
-    } else if (diffInHours < 24) {
-      return `Hace ${Math.floor(diffInHours)} horas`;
-    } else if (diffInHours < 48) {
-      return 'Ayer';
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `Hace ${diffInDays} días`;
-    }
+    if (diffInHours < 1) return 'Hace unos minutos';
+    if (diffInHours < 24) return `Hace ${Math.floor(diffInHours)} horas`;
+    if (diffInHours < 48) return 'Ayer';
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `Hace ${diffInDays} días`;
   };
 
   const calculateAverageSpeed = (activity: PublishedActivity): string => {
     const durationParts = activity.runSession.duration.split(':');
     const totalMinutes = parseInt(durationParts[0]) * 60 + parseInt(durationParts[1]) + parseInt(durationParts[2]) / 60;
     const kmDistance = activity.runSession.distance / 1000;
-    
     if (totalMinutes === 0) return "--,--";
-    
     const speed = (kmDistance / totalMinutes) * 60; // km/h
     return speed.toFixed(1);
   };
@@ -96,13 +78,10 @@ const Activities: React.FC = () => {
     const durationParts = activity.runSession.duration.split(':');
     const totalMinutes = parseInt(durationParts[0]) * 60 + parseInt(durationParts[1]) + parseInt(durationParts[2]) / 60;
     const kmDistance = activity.runSession.distance / 1000;
-    
     if (kmDistance === 0) return "--:--";
-    
     const paceMinutes = totalMinutes / kmDistance;
     const minutes = Math.floor(paceMinutes);
     const seconds = Math.floor((paceMinutes - minutes) * 60);
-    
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
@@ -112,12 +91,8 @@ const Activities: React.FC = () => {
         <div className="text-center max-w-xs">
           <div className="w-16 h-16 border-4 border-runapp-purple border-t-transparent rounded-full animate-spin mb-6"></div>
           <h3 className="text-lg font-semibold text-runapp-navy mb-2">📱 Cargando actividades</h3>
-          <p className="text-sm text-runapp-gray">
-            Obteniendo tus entrenamientos locales...
-          </p>
-          <div className="mt-4 text-xs text-runapp-gray">
-            💾 Local • 🔄 Auto-sync • 📱 Siempre disponible
-          </div>
+          <p className="text-sm text-runapp-gray">Obteniendo tus entrenamientos locales...</p>
+          <div className="mt-4 text-xs text-runapp-gray">💾 Local • 🔄 Auto-sync • 📱 Siempre disponible</div>
         </div>
       </div>
     );
@@ -125,9 +100,18 @@ const Activities: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header - let it handle its own fixed positioning */}
       <Header title="Actividades" />
       
-      <div className="container max-w-md mx-auto p-4" style={{ paddingTop: headerHeight }}>
+      {/* Content area with proper spacing */}
+      <div 
+        className="container max-w-md mx-auto p-4 pb-20"
+        style={{ 
+          paddingTop: insets.top + HEADER_HEIGHT + 16,
+          paddingLeft: Math.max(insets.left, 16),
+          paddingRight: Math.max(insets.right, 16),
+        }}
+      >
         {/* Back Button */}
         <Button 
           variant="ghost" 
@@ -142,15 +126,8 @@ const Activities: React.FC = () => {
           <div className="text-center py-12">
             <Activity className="w-16 h-16 text-runapp-gray mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold text-runapp-navy mb-2">No hay actividades</h3>
-            <p className="text-runapp-gray mb-6">
-              Completa tu primer entrenamiento para ver tus actividades aquí.
-            </p>
-            <Button 
-              onClick={() => navigate('/train')}
-              className="bg-runapp-purple hover:bg-runapp-deep-purple text-white"
-            >
-              Ir a entrenar
-            </Button>
+            <p className="text-runapp-gray mb-6">Completa tu primer entrenamiento para ver tus actividades aquí.</p>
+            <Button onClick={() => navigate('/train')} className="bg-runapp-purple hover:bg-runapp-deep-purple text-white">Ir a entrenar</Button>
           </div>
         ) : (
           <div className="space-y-6">
@@ -165,55 +142,39 @@ const Activities: React.FC = () => {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-runapp-navy">{activity.userProfile.name}</h4>
                           <div className="flex items-center space-x-2">
-                            <h4 className="font-semibold text-runapp-navy">{activity.userProfile.name}</h4>
-                            {activity.syncStatus && (
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                activity.syncStatus === 'synced' 
-                                  ? 'bg-green-100 text-green-700' 
-                                  : activity.syncStatus === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}>
-                                {activity.syncStatus === 'synced' && '☁️ Sincronizado'}
-                                {activity.syncStatus === 'pending' && '🔄 Sincronizando'}
-                                {activity.syncStatus === 'local' && '📱 Local'}
-                              </span>
+                            {/* Strava badge */}
+                            {(activity as any).imported_from_strava && (
+                              <div className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-medium">
+                                🏃‍♂️ Strava
+                              </div>
                             )}
+                            <p className="text-xs text-runapp-gray">{getTimeAgo(activity.publishedAt)}</p>
                           </div>
-                          <p className="text-xs text-runapp-gray">{getTimeAgo(activity.publishedAt)}</p>
                         </div>
                         <p className="text-xs text-runapp-gray">{formatDate(activity.publishedAt)}</p>
                       </div>
                     </div>
-                    
                     <h3 className="font-bold text-runapp-navy text-lg mb-2">{activity.title}</h3>
-                    {activity.description && (
-                      <p className="text-sm text-runapp-gray mb-3">{activity.description}</p>
-                    )}
+                    {activity.description && (<p className="text-sm text-runapp-gray mb-3">{activity.description}</p>)}
                   </div>
 
-                  {/* Large Stats Display - Similar to reference images */}
+                  {/* Large Stats Display */}
                   <div className="px-4 pb-4">
-                    <div className="bg-black text-white rounded-xl p-6">
-                      <div className="grid grid-cols-3 gap-6 text-center">
-                        <div>
-                          <p className="text-white text-3xl font-bold mb-1">
-                            {formatDistance(activity.runSession.distance)}
-                          </p>
-                          <p className="text-gray-300 text-sm">Distancia (km)</p>
+                    <div className="bg-black text-white rounded-2xl p-4">
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <p className="text-white text-2xl font-bold leading-snug whitespace-nowrap mb-1">{formatDistance(activity.runSession.distance)}</p>
+                          <p className="text-gray-300 text-xs">Distancia (km)</p>
                         </div>
-                        <div>
-                          <p className="text-white text-3xl font-bold mb-1">
-                            {activity.runSession.duration}
-                          </p>
-                          <p className="text-gray-300 text-sm">Duración</p>
+                        <div className="flex flex-col items-center justify-center">
+                          <p className="text-white text-2xl font-bold leading-snug whitespace-nowrap font-mono mb-1">{activity.runSession.duration}</p>
+                          <p className="text-gray-300 text-xs">Duración</p>
                         </div>
-                        <div>
-                          <p className="text-white text-3xl font-bold mb-1">
-                            {calculatePace(activity)}
-                          </p>
-                          <p className="text-gray-300 text-sm">Ritmo medio</p>
+                        <div className="flex flex-col items-center justify-center">
+                          <p className="text-white text-xl font-semibold leading-snug whitespace-nowrap mb-1">{calculatePace(activity)}</p>
+                          <p className="text-gray-300 text-xs">Ritmo medio</p>
                         </div>
                       </div>
                     </div>
@@ -235,11 +196,7 @@ const Activities: React.FC = () => {
                   {/* Activity Image */}
                   {activity.imageUrl && (
                     <div className="mx-4 mb-4">
-                      <img 
-                        src={activity.imageUrl} 
-                        alt="Foto del entrenamiento"
-                        className="w-full h-64 object-cover rounded-lg"
-                      />
+                      <img src={activity.imageUrl} alt="Foto del entrenamiento" className="w-full h-64 object-cover rounded-lg" />
                     </div>
                   )}
 
@@ -270,9 +227,7 @@ const Activities: React.FC = () => {
                       </Button>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-runapp-gray">
-                        {activity.isPublic ? 'Público' : 'Privado'}
-                      </p>
+                      <p className="text-xs text-runapp-gray">{activity.isPublic ? 'Público' : 'Privado'}</p>
                     </div>
                   </div>
                 </CardContent>

@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ExternalLink, Shield, FileText, Info } from 'lucide-react';
+import { ExternalLink, Shield, FileText, Info, Link as LinkIcon, CheckCircle2 } from 'lucide-react';
 import BottomNav from '@/components/layout/BottomNav';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 
 const SettingsScreen: React.FC = () => {
   const openPrivacyPolicy = () => {
@@ -28,6 +29,63 @@ const SettingsScreen: React.FC = () => {
     );
   };
 
+  const [isStravaLinked, setIsStravaLinked] = useState(false);
+  const [checkingStrava, setCheckingStrava] = useState(true);
+
+  const checkStravaLink = useCallback(async () => {
+    try {
+      setCheckingStrava(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsStravaLinked(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('strava_tokens')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (error) {
+        setIsStravaLinked(false);
+        return;
+      }
+      setIsStravaLinked(!!data);
+    } finally {
+      setCheckingStrava(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkStravaLink();
+  }, [checkStravaLink]);
+
+  const connectStrava = useCallback(async () => {
+    const clientId = import.meta.env.VITE_STRAVA_CLIENT_ID as string;
+    if (!clientId) {
+      alert('Configura VITE_STRAVA_CLIENT_ID en tu .env');
+      return;
+    }
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) {
+      alert('Debes iniciar sesión para conectar Strava');
+      return;
+    }
+    const supabaseUrl = (supabase as any).supabaseUrl || SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+    
+    // Detectar si estamos en móvil iOS (Capacitor)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isCapacitor = !!(window as any).Capacitor;
+    
+    const redirectBack = (isIOS && isCapacitor) 
+      ? 'stride://strava-callback' 
+      : `${window.location.origin}/settings`;
+    
+    const edgeCallback = `${supabaseUrl}/functions/v1/strava-auth?redirect_to=${encodeURIComponent(redirectBack)}`;
+    const authorizeUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(edgeCallback)}&approval_prompt=auto&scope=read,activity:read_all&state=${accessToken}`;
+    window.location.href = authorizeUrl;
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="flex-1">
@@ -36,6 +94,31 @@ const SettingsScreen: React.FC = () => {
         </div>
 
         <div className="p-4 space-y-4">
+          {/* Integraciones */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <LinkIcon className="w-5 h-5 text-runapp-purple mr-2" />
+                Integraciones
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Strava</p>
+                  <p className="text-sm text-gray-600">Conecta tu cuenta para importar actividades.</p>
+                </div>
+                {isStravaLinked ? (
+                  <span className="flex items-center text-green-600 text-sm">
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Conectado
+                  </span>
+                ) : (
+                  <Button onClick={connectStrava} disabled={checkingStrava}>Conectar</Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Privacidad y Datos */}
           <Card>
             <CardHeader>

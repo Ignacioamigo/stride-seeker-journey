@@ -1,18 +1,32 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+
+// Cache global para evitar recálculos entre componentes
+let globalInsets: { top: number; right: number; bottom: number; left: number } | null = null;
+let globalReady = false;
 
 /**
  * Hook para obtener los insets seguros usando CSS env() en web (iOS notch).
+ * Completamente optimizado para iOS con cache global y estabilidad total.
  * Devuelve { top, right, bottom, left } en px, además de isReady para indicar si los valores están listos.
  */
 export function useSafeAreaInsets() {
-  const [isReady, setIsReady] = useState(false);
+  const [insets, setInsets] = useState(() => globalInsets || { top: 0, right: 0, bottom: 0, left: 0 });
+  const [isReady, setIsReady] = useState(globalReady);
+  const calculatedRef = useRef(globalReady);
 
   // Solo funciona en navegador
   const getInset = (name: string) => {
     if (typeof window === "undefined") return 0;
     
     try {
-      // Crea un elemento temporal para leer el valor de env()
+      // Usar CSS custom properties directamente si están disponibles
+      const style = getComputedStyle(document.documentElement);
+      const value = style.getPropertyValue(`--${name.replace('safe-area-inset-', 'sa')}`);
+      if (value && value !== '') {
+        return parseInt(value) || 0;
+      }
+      
+      // Fallback: crear elemento temporal
       const el = document.createElement("div");
       el.style.cssText = `position: absolute; visibility: hidden; top: 0; left: 0; width: 0; height: 0; padding-top: env(${name}, 0px);`;
       document.body.appendChild(el);
@@ -25,28 +39,60 @@ export function useSafeAreaInsets() {
     }
   };
 
-  const insets = useMemo(
-    () => ({
+  const calculateInsets = () => {
+    if (calculatedRef.current && globalInsets) return; // Ya calculado
+    
+    const newInsets = {
       top: getInset("safe-area-inset-top"),
       right: getInset("safe-area-inset-right"),
       bottom: getInset("safe-area-inset-bottom"),
       left: getInset("safe-area-inset-left"),
-    }),
-    []
-  );
+    };
+    
+    // Actualizar cache global
+    globalInsets = newInsets;
+    globalReady = true;
+    
+    setInsets(newInsets);
+    setIsReady(true);
+    calculatedRef.current = true;
+  };
 
   useEffect(() => {
-    // Marcar como listo después de que el DOM esté completamente cargado
-    // y los insets se hayan calculado
-    const timer = setTimeout(() => {
+    // Si ya tenemos valores globales, úsalos inmediatamente
+    if (globalInsets && globalReady) {
+      setInsets(globalInsets);
       setIsReady(true);
-    }, 100);
+      calculatedRef.current = true;
+      return;
+    }
 
-    return () => clearTimeout(timer);
-  }, []);
+    // Solo calcular una vez por sesión
+    if (!calculatedRef.current) {
+      // Ejecutar inmediatamente o tras un micro-delay
+      if (document.readyState === 'complete') {
+        calculateInsets();
+      } else {
+        const timer = setTimeout(calculateInsets, 16); // Un frame
+        return () => clearTimeout(timer);
+      }
+    }
 
-  return {
+    // Solo recalcular en cambios de orientación (importante para iPad)
+    const handleOrientationChange = () => {
+      globalInsets = null; // Reset cache
+      globalReady = false;
+      calculatedRef.current = false;
+      setTimeout(calculateInsets, 100);
+    };
+    
+    window.addEventListener('orientationchange', handleOrientationChange);
+    return () => window.removeEventListener('orientationchange', handleOrientationChange);
+  }, []); // Dependencias vacías - solo ejecutar al montar
+
+  // Memoizar el resultado para evitar re-renders innecesarios
+  return useMemo(() => ({
     ...insets,
     isReady
-  };
+  }), [insets.top, insets.right, insets.bottom, insets.left, isReady]);
 } 

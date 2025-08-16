@@ -1,5 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* ESTILOS CRÍTICOS ANTES DE TAILWIND PARA iOS */
+html, body {
+  background-color: #f9fafb !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,8 +19,41 @@
   --sal: env(safe-area-inset-left);
 }
 
-/* Eliminamos el padding automático del body para evitar conflictos */
-/* Los componentes manejarán su propio safe area individualmente */
+/* Configuración estándar iOS - Simple y efectiva */
+html {
+  height: 100%;
+  height: -webkit-fill-available;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  /* Prevenir cambios de layout al entrar/salir de background */
+  transform: translateZ(0);
+}
+
+body {
+  height: 100%;
+  height: -webkit-fill-available;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background-color: #f9fafb;
+  position: fixed;
+  width: 100%;
+}
+
+#root {
+  height: 100%;
+  height: -webkit-fill-available;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  background-color: #f9fafb !important;
+  position: relative;
+  /* Crítico para iOS: asegurar que cubra toda la pantalla */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
 
 @layer base {
   :root {
@@ -55,7 +95,8 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply text-foreground font-sans;
+    /* NO aplicar bg-background aquí - usamos background-color fijo arriba */
   }
 }
 
@@ -97,6 +138,10 @@
 
 .bottom-nav {
   @apply fixed bottom-0 w-full flex justify-between items-center bg-white border-t border-gray-200 px-6 py-2 z-50;
+  /* Asegurar que ocupe toda la zona inferior en iOS */
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  min-height: calc(64px + env(safe-area-inset-bottom, 0px));
+  background: white !important;
 }
 
 .nav-item {
@@ -117,6 +162,28 @@
   user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* CRÍTICO: Asegurar que no hay espacios negros en iOS */
+* {
+  box-sizing: border-box;
+}
+
+@supports (-webkit-appearance: none) {
+  html, body, #root {
+    background-color: #f9fafb !important;
+  }
+  
+  /* Específico para WebKit (iOS Safari/Capacitor) */
+  body {
+    min-height: 100vh !important;
+    min-height: -webkit-fill-available !important;
+  }
+  
+  #root {
+    min-height: 100vh !important;
+    min-height: -webkit-fill-available !important;
+  }
 }
 
 /* Prevenir zoom en iOS cuando se enfocan inputs/textareas */

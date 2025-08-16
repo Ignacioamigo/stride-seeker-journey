@@ -29,7 +29,6 @@
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
-		<string>healthkit</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -47,28 +46,28 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	
-	<!-- Permisos de ubicación para GPS tracking -->
+	<!-- Permisos de ubicación GPS -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Esta app necesita acceso a tu ubicación para hacer tracking de tus carreras y calcular distancia y ritmo.</string>
+	<string>Stride Seeker necesita acceso a tu ubicación para rastrear tus carreras y calcular distancia, ritmo y ruta.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Esta app necesita acceso continuo a tu ubicación para hacer tracking de tus carreras incluso cuando la app está en segundo plano.</string>
+	<string>Stride Seeker necesita acceso a tu ubicación para rastrear tus carreras en segundo plano y calcular distancia, ritmo y ruta.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Esta app necesita acceso continuo a tu ubicación para hacer tracking de tus carreras incluso cuando la app está en segundo plano.</string>
+	<string>Stride Seeker necesita acceso a tu ubicación para rastrear tus carreras en segundo plano.</string>
 	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
 	<dict>
-		<key>WorkoutTracking</key>
-		<string>Esta app necesita acceso preciso a tu ubicación para hacer tracking de tus carreras.</string>
+		<key>ExampleUsageDescription</key>
+		<string>Stride Seeker necesita acceso temporal a tu ubicación para rastrear tu carrera.</string>
 	</dict>
 	
-	<!-- Permisos de cámara para subir fotos de entrenamientos -->
+	<!-- Permisos de cámara y fotos -->
 	<key>NSCameraUsageDescription</key>
-	<string>Esta app necesita acceso a la cámara para que puedas tomar fotos de tus entrenamientos y añadirlas a tus actividades.</string>
+	<string>Stride Seeker puede usar la cámara para tomar fotos de tus entrenamientos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Esta app necesita acceso a tu biblioteca de fotos para que puedas seleccionar imágenes para tus entrenamientos.</string>
+	<string>Stride Seeker puede acceder a tu galería para seleccionar fotos de tus entrenamientos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Esta app necesita permiso para guardar fotos de tus entrenamientos en tu biblioteca de fotos.</string>
+	<string>Stride Seeker puede guardar fotos de tus entrenamientos en tu galería.</string>
 	
-	<!-- Background modes para GPS tracking -->
+	<!-- Modos de fondo -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
@@ -76,15 +75,22 @@
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
-
-	<!-- HealthKit permissions -->
-	<key>NSHealthShareUsageDescription</key>
-	<string>Esta app necesita acceso a tus datos de salud para guardar tus entrenamientos y calcular estadísticas.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Esta app necesita permiso para guardar tus entrenamientos en la app Salud.</string>
-
+	
 	<!-- Google Maps API Key -->
 	<key>GMSApiKey</key>
-	<string>AIzaSyC84gYKVr3KaSXKoujFTMEEx7fk0iHuEzQ</string>
+	<string>AIzaSyBvOkBo0jlJ9sGnRRCOpIqAB7u6Tv4pGQE</string>
+	
+	<!-- URL Schemes para Strava -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>stride.seeker.strava</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>stride</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

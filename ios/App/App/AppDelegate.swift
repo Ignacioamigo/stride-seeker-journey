@@ -1,6 +1,5 @@
 import UIKit
 import Capacitor
-import GoogleMaps
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -8,15 +7,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Configure Google Maps API Key from Info.plist if available (only once)
-        if let apiKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String, !apiKey.isEmpty {
-            // Check if already configured to prevent "provideAPIKey: should be called at most once" error
-            if !GMSServices.openSourceLicenseInfo().isEmpty {
-                // Already configured, skip
-            } else {
-                GMSServices.provideAPIKey(apiKey)
-            }
-        }
         // Override point for customization after application launch.
         return true
     }

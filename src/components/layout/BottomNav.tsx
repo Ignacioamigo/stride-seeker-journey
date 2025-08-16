@@ -16,12 +16,15 @@ const BottomNav: React.FC = () => {
 
   return (
     <nav 
-      className="fixed bottom-0 w-full flex justify-between items-center bg-white border-t border-gray-200 px-6 z-50 no-select"
+      className="fixed bottom-0 left-0 right-0 flex justify-between items-center bg-white border-t border-gray-200 z-50 no-select"
       style={{
-        paddingTop: '12px', // 3 en Tailwind (12px)
-        paddingBottom: Math.max(insets.bottom + 8, 12), // Safe area + extra padding, mínimo 12px
-        paddingLeft: Math.max(insets.left + 24, 24), // px-6 (24px) + safe area
-        paddingRight: Math.max(insets.right + 24, 24), // px-6 (24px) + safe area
+        paddingTop: 12,
+        paddingBottom: `max(${insets.bottom}px + 12px, calc(env(safe-area-inset-bottom, 0px) + 12px))`,
+        paddingLeft: Math.max(insets.left + 24, 24),
+        paddingRight: Math.max(insets.right + 24, 24),
+        minHeight: `calc(64px + ${insets.bottom}px)`,
+        background: 'white',
+        boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
       }}
     >
       {navItems.map((item) => (

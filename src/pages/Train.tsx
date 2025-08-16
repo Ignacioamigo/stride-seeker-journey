@@ -14,7 +14,7 @@ const Train: React.FC = () => {
         paddingTop: insets.top,
         paddingLeft: Math.max(insets.left, 0),
         paddingRight: Math.max(insets.right, 0),
-        paddingBottom: Math.max(insets.bottom, 0),
+        paddingBottom: 0, // BottomNav maneja su propio safe area
       }}
     >
       {/* Full screen training interface */}

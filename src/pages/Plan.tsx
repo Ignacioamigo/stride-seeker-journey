@@ -13,7 +13,7 @@ import AppHeader from "@/components/layout/AppHeader";
 import Header from "@/components/layout/Header";
 import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
-const HEADER_HEIGHT = 56;
+const HEADER_HEIGHT = 44;
 
 const Plan: React.FC = () => {
   const { user } = useUser();
@@ -222,21 +222,18 @@ const Plan: React.FC = () => {
     const insets = useSafeAreaInsets();
     
     return (
-      <div 
-        className="bg-gray-50 flex flex-col h-screen overflow-hidden"
-        style={{
-          paddingTop: insets.top,
-          paddingLeft: Math.max(insets.left, 0),
-          paddingRight: Math.max(insets.right, 0),
-        }}
-      >
+      <div className="bg-gray-50 min-h-screen">
+        {/* Header - let it handle its own fixed positioning */}
         <Header title="Plan de entrenamiento" subtitle="Tu semana personalizada" />
         
-        {/* Scrollable content area */}
+        {/* Content area with proper spacing */}
         <div 
-          className="flex-1 overflow-y-auto pb-20"
+          className="pb-20"
           style={{ 
-            paddingTop: HEADER_HEIGHT + 16, // Header height + spacing
+            paddingTop: insets.top + HEADER_HEIGHT + 16, // Safe area + Header height + spacing
+            paddingBottom: `calc(64px + ${insets.bottom}px + 16px)`, // BottomNav + safe area + margin
+            paddingLeft: Math.max(insets.left, 0),
+            paddingRight: Math.max(insets.right, 0),
           }}
         >
           <div className="container max-w-md mx-auto px-4">

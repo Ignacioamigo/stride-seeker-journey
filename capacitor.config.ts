@@ -19,6 +19,20 @@ const config: CapacitorConfig = {
       iconColor: "#488AFF",
       sound: "beep.wav",
     },
+    Geolocation: {
+      permissions: ["location"]
+    },
+    App: {
+      handleUrlOpen: true
+    },
+    Browser: {
+      presentationStyle: "popover"
+    }
+  },
+  ios: {
+    scheme: "stride",
+    contentInset: "never",
+    backgroundColor: "#f9fafb"
   },
 };
 

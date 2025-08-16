@@ -1,5 +1,5 @@
 import React from "react";
-import { User, Activity, Settings, ChevronRight } from "lucide-react";
+import { User, Activity, Settings, ChevronRight, Zap } from "lucide-react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
 import { useNavigate } from "react-router-dom";
@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import Header from "@/components/layout/Header";
 import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
-const HEADER_HEIGHT = 56;
+const HEADER_HEIGHT = 44;
 
 const Profile: React.FC = () => {
   const { user } = useUser();
@@ -17,23 +17,37 @@ const Profile: React.FC = () => {
   const headerHeight = insets.top + HEADER_HEIGHT;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header with Settings Button */}
-      <div className="bg-white shadow-sm sticky top-0 z-10" style={{ paddingTop: insets.top }}>
-        <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-xl font-bold text-runapp-navy">Perfil</h1>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header with Settings Button - usando Header component */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <Header title="Perfil" />
+        {/* Settings Button overlay */}
+        <div 
+          className="absolute top-0 right-0 flex items-center justify-center"
+          style={{
+            top: insets.top,
+            right: 16,
+            height: HEADER_HEIGHT,
+          }}
+        >
           <Button 
             variant="ghost" 
             size="sm"
-            onClick={() => navigate('/settings')}
-            className="text-runapp-navy"
+            onClick={() => navigate('/configuration')}
+            className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm rounded-full p-2"
           >
             <Settings className="w-5 h-5" />
           </Button>
         </div>
       </div>
 
-      <div className="container max-w-md mx-auto p-4" style={{ paddingTop: 16 }}>
+      <div 
+        className="container max-w-md mx-auto p-4"
+        style={{ 
+          paddingTop: insets.top + HEADER_HEIGHT + 16,
+          paddingBottom: `calc(64px + ${insets.bottom}px + 16px)`, // BottomNav + safe area + margin
+        }}
+      >
         {/* User Profile Card */}
         <Card className="mb-6">
           <CardContent className="p-6">
@@ -115,35 +129,17 @@ const Profile: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Stats & Progress */}
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/stats')}>
+          {/* Integrations */}
+          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/settings')}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <Activity className="w-6 h-6 text-green-600" />
+                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <Zap className="w-6 h-6 text-orange-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-runapp-navy">Estadísticas</h3>
-                    <p className="text-sm text-runapp-gray">Ver tu progreso y métricas</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-runapp-gray" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Training Plan */}
-          <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/plan')}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Activity className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-runapp-navy">Plan de Entrenamiento</h3>
-                    <p className="text-sm text-runapp-gray">Gestiona tu plan actual</p>
+                    <h3 className="font-semibold text-runapp-navy">Integraciones</h3>
+                    <p className="text-sm text-runapp-gray">Conecta con Strava y otras apps</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-runapp-gray" />

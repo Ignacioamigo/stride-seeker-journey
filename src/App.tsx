@@ -21,6 +21,7 @@ import Profile from "@/pages/Profile";
 import EditProfile from "@/pages/EditProfile";
 import Activities from "@/pages/Activities";
 import Settings from "@/pages/Settings";
+import Configuration from "@/pages/Configuration";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
 
@@ -77,6 +78,7 @@ const App = () => (
                   <Route path="/edit-profile" element={<EditProfile />} />
                   <Route path="/activities" element={<Activities />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/configuration" element={<Configuration />} />
                   <Route path="/admin" element={<Admin />} />
                   
                   {/* Mobile setup routes */}

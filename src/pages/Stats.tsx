@@ -10,7 +10,7 @@ import { usePeriodStats } from "@/hooks/usePeriodStats";
 import { useState } from "react";
 import { BarChart2, Clock } from "lucide-react";
 
-const HEADER_HEIGHT = 56;
+const HEADER_HEIGHT = 44;
 
 // StatsCard component matching the original design
 interface StatsCardProps {
@@ -82,21 +82,18 @@ const Stats: React.FC = () => {
   
   return (
     <StatsProvider>
-      <div 
-        className="bg-gray-50 flex flex-col h-screen overflow-hidden"
-        style={{
-          paddingTop: insets.top,
-          paddingLeft: Math.max(insets.left, 0),
-          paddingRight: Math.max(insets.right, 0),
-        }}
-      >
+      <div className="bg-gray-50 min-h-screen">
+        {/* Header - let it handle its own fixed positioning */}
         <Header title="Estadísticas" subtitle={`Hola, ${user.name} 👋 | Tu progreso detallado`} />
         
         {/* Content area with proper spacing */}
         <div 
-          className="flex-1 overflow-y-auto pb-20"
+          className="pb-20"
           style={{ 
-            paddingTop: HEADER_HEIGHT + 16, // Header height + spacing
+            paddingTop: insets.top + HEADER_HEIGHT + 16, // Safe area + Header height + spacing
+            paddingBottom: `calc(64px + ${insets.bottom}px + 16px)`, // BottomNav + safe area + margin
+            paddingLeft: Math.max(insets.left, 0),
+            paddingRight: Math.max(insets.right, 0),
           }}
         >
           <div className="container max-w-md mx-auto px-4">

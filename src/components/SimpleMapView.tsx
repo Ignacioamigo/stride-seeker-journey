@@ -50,10 +50,18 @@ const SimpleMapView: React.FC<SimpleMapViewProps> = ({ points, currentLocation, 
   useEffect(() => {
     if (!isLoaded || !mapRef.current || googleMapRef.current) return;
 
-    // Esperar a tener ubicación real antes de crear el mapa
-    if (!currentLocation) return;
-
-    const center = new window.google.maps.LatLng(currentLocation.latitude, currentLocation.longitude);
+    // Determinar el centro del mapa
+    let center;
+    if (currentLocation) {
+      // Usar ubicación actual si está disponible (durante tracking)
+      center = new window.google.maps.LatLng(currentLocation.latitude, currentLocation.longitude);
+    } else if (points.length > 0) {
+      // Usar primer punto del recorrido si no hay ubicación actual (vista de actividad completada)
+      center = new window.google.maps.LatLng(points[0].latitude, points[0].longitude);
+    } else {
+      // Fallback a coordenadas por defecto (Madrid)
+      center = new window.google.maps.LatLng(40.4168, -3.7038);
+    }
 
     const map = new window.google.maps.Map(mapRef.current, {
       center,
@@ -67,10 +75,10 @@ const SimpleMapView: React.FC<SimpleMapViewProps> = ({ points, currentLocation, 
     });
 
     googleMapRef.current = map;
-  }, [isLoaded, currentLocation]);
+  }, [isLoaded, currentLocation, points]);
 
   useEffect(() => {
-    if (!googleMapRef.current || !isLoaded || !currentLocation) return;
+    if (!googleMapRef.current || !isLoaded) return;
 
     const map = googleMapRef.current;
 
@@ -97,14 +105,14 @@ const SimpleMapView: React.FC<SimpleMapViewProps> = ({ points, currentLocation, 
       polyline.setMap(map);
       polylineRef.current = polyline;
 
-      // Add start marker
+      // Add start marker (verde)
       const startMarker = new window.google.maps.Marker({
         position: path[0],
         map,
         title: 'Inicio',
         icon: {
           path: window.google.maps.SymbolPath.CIRCLE,
-          fillColor: '#48bb78', // runapp-success
+          fillColor: '#48bb78', // verde
           fillOpacity: 1,
           strokeColor: '#FFFFFF',
           strokeWeight: 2,
@@ -112,14 +120,37 @@ const SimpleMapView: React.FC<SimpleMapViewProps> = ({ points, currentLocation, 
         }
       });
 
+      // Add end marker (rojo) si hay más de un punto
+      if (path.length > 1) {
+        const endMarker = new window.google.maps.Marker({
+          position: path[path.length - 1],
+          map,
+          title: 'Final',
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            fillColor: '#f56565', // rojo
+            fillOpacity: 1,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 2,
+            scale: 8
+          }
+        });
+      }
+
       startMarkerRef.current = startMarker;
 
-      // Center on last point
-      const lastPoint = path[path.length - 1];
-      map.setCenter(lastPoint);
-      map.setZoom(17);
-    } else {
-      // Mostrar marcador de ubicación actual (pantalla inicial)
+      // Ajustar zoom para mostrar todo el recorrido
+      const bounds = new window.google.maps.LatLngBounds();
+      path.forEach(point => bounds.extend(point));
+      map.fitBounds(bounds);
+      
+      // Asegurar zoom mínimo para evitar que se aleje demasiado
+      const listener = window.google.maps.event.addListener(map, 'idle', () => {
+        if (map.getZoom() > 18) map.setZoom(18);
+        window.google.maps.event.removeListener(listener);
+      });
+    } else if (currentLocation) {
+      // Mostrar marcador de ubicación actual (durante tracking)
       const currentPosition = new window.google.maps.LatLng(currentLocation.latitude, currentLocation.longitude);
       
       const currentMarker = new window.google.maps.Marker({
@@ -151,7 +182,7 @@ const SimpleMapView: React.FC<SimpleMapViewProps> = ({ points, currentLocation, 
         style={{ width: '100%', height: '100%' }}
         className="bg-gray-100"
       />
-      {(!isLoaded || !currentLocation) && (
+      {(!isLoaded || (!currentLocation && points.length === 0)) && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-runapp-gray">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-runapp-purple mx-auto mb-2"></div>
