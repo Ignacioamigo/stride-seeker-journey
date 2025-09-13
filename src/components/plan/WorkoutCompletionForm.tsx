@@ -30,15 +30,17 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    console.log("=== INICIANDO SUBMIT DEL FORMULARIO ===");
-    console.log("Counter antes del submit:", updateCounter);
+    console.log("🚨 === INICIANDO SUBMIT DEL FORMULARIO === 🚨");
+    console.log("🚨 handleSubmit EJECUTÁNDOSE!");
+    console.log("🚨 Event:", event);
+    console.log("🚨 Counter antes del submit:", updateCounter);
     
     setIsSubmitting(true);
     try {
       const distanceValue = actualDistance && actualDistance.trim() ? parseFloat(actualDistance) : null;
       const durationValue = actualDuration && actualDuration.trim() ? actualDuration.trim() : null;
       
-      console.log("WorkoutCompletionForm: Guardando entrenamiento:", {
+      console.log("🚨 WorkoutCompletionForm: Guardando entrenamiento:", {
         workoutId: workout.id,
         workoutTitle: workout.title,
         workoutType: workout.type,
@@ -48,7 +50,7 @@ const WorkoutCompletionForm: React.FC<WorkoutCompletionFormProps> = ({
       });
       
       // Guardar en la base de datos (con plan_id y week_number)
-      console.log("🔄 LLAMANDO A saveCompletedWorkout con:", {
+      console.log("🚨🔄 LLAMANDO A saveCompletedWorkout con:", {
         title: workout.title,
         type: workout.type,
         distance: distanceValue,

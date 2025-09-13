@@ -85,7 +85,7 @@ const WorkoutSummaryScreen: React.FC<WorkoutSummaryScreenProps> = ({
       if (!user) return;
 
       const { data: tokenData } = await supabase
-        .from('strava_tokens')
+        .from('strava_connections')
         .select('user_id')
         .eq('user_id', user.id)
         .maybeSingle();

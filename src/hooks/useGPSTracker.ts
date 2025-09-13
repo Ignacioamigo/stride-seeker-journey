@@ -121,9 +121,17 @@ export const useGPSTracker = () => {
   // Crear nuevo entrenamiento en la base de datos
   const createWorkout = async (): Promise<string | null> => {
     try {
+      // Obtener user_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No hay usuario autenticado para crear workout');
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('entrenamientos_completados')
         .insert({
+          user_id: user.id, // Añadir user_id
           workout_title: 'Carrera con GPS',
           workout_type: 'carrera',
           fecha_completado: new Date().toISOString().split('T')[0]

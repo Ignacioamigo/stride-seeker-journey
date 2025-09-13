@@ -155,3 +155,4 @@ Verifica que los Bundle IDs son correctos:
 - 🔄 No necesitas hacer nada manual
 
 ¡Disfruta corriendo con tu Apple Watch! 🏃‍♂️⌚
+

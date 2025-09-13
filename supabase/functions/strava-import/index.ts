@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.1';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
 serve(async (req) => {
@@ -12,11 +13,30 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
+    console.log('🚀 STRAVA-IMPORT - Iniciando importación V2 PÚBLICA');
+    console.log('📝 Method:', req.method);
+    console.log('🔗 Headers:', Object.fromEntries(req.headers.entries()));
+    
+    // NUEVO SISTEMA PÚBLICO: Obtener user_id del body
+    const requestBody = await req.text();
+    console.log('📄 Request body:', requestBody);
+    
+    let user_id;
+    try {
+      const parsed = JSON.parse(requestBody);
+      user_id = parsed.user_id;
+    } catch (parseError) {
+      console.error('❌ Error parsing JSON:', parseError);
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    
+    if (!user_id) {
+      return new Response(
+        JSON.stringify({ error: 'Missing user_id in request body' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
@@ -32,81 +52,63 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get user from token
-    const token = authHeader.replace('Bearer ', '');
-    const { data: userResult, error: userError } = await supabaseAdmin.auth.getUser(token);
-    if (userError || !userResult?.user) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid token' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
-    }
-    const userId = userResult.user.id;
+    console.log(`🔍 Manual import requested for user: ${user_id}`);
 
-    console.log(`🔍 Manual import requested for user: ${userId}`);
-
-    // Get Strava tokens
+    // Get user's Strava tokens
     const { data: tokenData, error: tokenError } = await supabaseAdmin
-      .from('strava_tokens')
+      .from('strava_connections')
       .select('access_token, refresh_token, expires_at, athlete_id')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', user_id)
+      .single();
 
     if (tokenError || !tokenData) {
+      console.error('❌ No Strava connection found for user:', user_id);
       return new Response(
-        JSON.stringify({ error: 'Strava not connected', needsConnection: true }),
+        JSON.stringify({ error: 'No Strava connection found. Please connect your Strava account first.' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
-    console.log(`🔑 Found tokens for athlete: ${tokenData.athlete_id}`);
-
-    // Check if token needs refresh
     let accessToken = tokenData.access_token;
-    if (Date.now() / 1000 > tokenData.expires_at) {
-      console.log('🔄 Refreshing expired token...');
+
+    // Check if token is expired and refresh if needed
+    if (tokenData.expires_at && Date.now() >= tokenData.expires_at * 1000) {
+      console.log('🔄 Token expired, refreshing...');
       
-      const STRAVA_CLIENT_ID = Deno.env.get('STRAVA_CLIENT_ID');
-      const STRAVA_CLIENT_SECRET = Deno.env.get('STRAVA_CLIENT_SECRET');
-
-      if (!STRAVA_CLIENT_ID || !STRAVA_CLIENT_SECRET) {
-        return new Response(
-          JSON.stringify({ error: 'Strava credentials not configured' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
-
       const refreshRes = await fetch('https://www.strava.com/oauth/token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          client_id: STRAVA_CLIENT_ID,
-          client_secret: STRAVA_CLIENT_SECRET,
+          client_id: Deno.env.get('STRAVA_CLIENT_ID'),
+          client_secret: Deno.env.get('STRAVA_CLIENT_SECRET'),
           grant_type: 'refresh_token',
           refresh_token: tokenData.refresh_token,
         }),
       });
 
       if (!refreshRes.ok) {
+        console.error('❌ Failed to refresh token:', refreshRes.status);
         return new Response(
-          JSON.stringify({ error: 'Failed to refresh Strava token' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 502 }
+          JSON.stringify({ error: 'Failed to refresh Strava token. Please reconnect your account.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         );
       }
 
       const refreshData = await refreshRes.json();
       accessToken = refreshData.access_token;
 
-      // Update tokens in database
+      // Update tokens in NEW TABLE
       await supabaseAdmin
-        .from('strava_tokens')
+        .from('strava_connections')
         .update({
           access_token: refreshData.access_token,
           refresh_token: refreshData.refresh_token,
           expires_at: refreshData.expires_at,
           updated_at: new Date().toISOString(),
         })
-        .eq('user_id', userId);
+        .eq('user_id', user_id);
 
       console.log('✅ Token refreshed successfully');
     }
@@ -121,8 +123,12 @@ serve(async (req) => {
 
     if (!activitiesRes.ok) {
       console.error(`❌ Failed to fetch activities: ${activitiesRes.status}`);
+      const errorText = await activitiesRes.text();
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch activities from Strava' }),
+        JSON.stringify({ 
+          error: `Failed to fetch activities from Strava: ${activitiesRes.status}`,
+          details: errorText
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 502 }
       );
     }
@@ -151,46 +157,62 @@ serve(async (req) => {
         continue;
       }
 
-      console.log(`📝 Importing activity: ${activity.name} (${activity.id})`);
+      console.log(`�� Importing activity: ${activity.name} (${activity.id})`);
 
       try {
-        // Create completed workout record
+        // Create published activity directly (no need for entrenamientos_completados)
         const durationInSeconds = activity.elapsed_time || activity.moving_time || 0;
         const hours = Math.floor(durationInSeconds / 3600);
         const minutes = Math.floor((durationInSeconds % 3600) / 60);
         const seconds = durationInSeconds % 60;
         const durationString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-        const { data: workoutData, error: workoutError } = await supabaseAdmin
-          .from('entrenamientos_completados')
-          .insert({
-            user_id: userId,
-            workout_title: activity.name || 'Carrera desde Strava',
-            workout_type: 'carrera',
-            distancia_recorrida: activity.distance || 0,
-            duracion: durationString,
-            fecha_completado: new Date(activity.start_date).toISOString(),
-          })
-          .select()
-          .single();
-
-        if (workoutError) {
-          console.error(`❌ Error creating workout: ${workoutError.message}`);
-          continue;
-        }
-
-        // Create published activity
-        await supabaseAdmin
+        // Create published activity with ALL required fields
+        const { error: publishError } = await supabaseAdmin
           .from('published_activities')
           .insert({
-            user_id: userId,
-            entrenamiento_id: workoutData.id,
+            user_id: user_id,
             title: activity.name || 'Carrera desde Strava',
             description: activity.description || '',
+            distance: activity.distance || 0,
+            duration: durationString,
+            activity_date: new Date(activity.start_date).toISOString(),
             is_public: !activity.private,
             strava_activity_id: activity.id,
             imported_from_strava: true,
+            gps_points: [], // Will be populated below if available
           });
+
+        if (publishError) {
+          console.error(`❌ Error creating published activity: ${publishError.message}`);
+          continue;
+        }
+
+        // Try to get GPS data if available
+        if (activity.has_kudoed === false) { // This indicates the activity has GPS data
+          try {
+            const gpsRes = await fetch(`https://www.strava.com/api/v3/activities/${activity.id}/export_gpx`, {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+              },
+            });
+
+            if (gpsRes.ok) {
+              const gpxData = await gpsRes.text();
+              // Update the activity with GPS data
+              await supabaseAdmin
+                .from('published_activities')
+                .update({ 
+                  gps_points: gpxData,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('strava_activity_id', activity.id);
+              console.log(`✅ GPS data added for activity ${activity.id}`);
+            }
+          } catch (gpsError) {
+            console.log(`⚠️ Could not fetch GPS data for activity ${activity.id}:`, gpsError);
+          }
+        }
 
         importedCount++;
         console.log(`✅ Imported: ${activity.name}`);
@@ -205,8 +227,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        imported: importedCount,
-        skipped: skippedCount,
+        imported_count: importedCount,
+        skipped_count: skippedCount,
         total: activities.length
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -215,7 +237,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Import error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: (error as Error).message }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }

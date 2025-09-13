@@ -21,6 +21,7 @@ import Profile from "@/pages/Profile";
 import EditProfile from "@/pages/EditProfile";
 import Activities from "@/pages/Activities";
 import Settings from "@/pages/Settings";
+import ProfileSettings from "@/pages/ProfileSettings";
 import Configuration from "@/pages/Configuration";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
@@ -71,6 +72,7 @@ const App = () => (
                   <Route path="/" element={<SmartRedirect />} />
                   
                   {/* Main Routes */}
+                  <Route path="/welcome" element={<WelcomePage />} />
                   <Route path="/plan" element={<Plan />} />
                   <Route path="/train" element={<Train />} />
                   <Route path="/stats" element={<Stats />} />
@@ -78,6 +80,7 @@ const App = () => (
                   <Route path="/edit-profile" element={<EditProfile />} />
                   <Route path="/activities" element={<Activities />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/profile-settings" element={<ProfileSettings />} />
                   <Route path="/configuration" element={<Configuration />} />
                   <Route path="/admin" element={<Admin />} />
                   

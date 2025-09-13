@@ -7,6 +7,7 @@ import Header from "@/components/layout/Header";
 import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 import PeriodSelector, { TimePeriod } from "@/components/stats/PeriodSelector";
 import { usePeriodStats } from "@/hooks/usePeriodStats";
+import { useLayoutStability } from "@/hooks/useLayoutStability";
 import { useState } from "react";
 import { BarChart2, Clock } from "lucide-react";
 
@@ -61,6 +62,9 @@ const Stats: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('current_week');
   const { stats: periodStats, isLoading: periodLoading, currentPlan } = usePeriodStats(selectedPeriod);
   
+  // 🔥 HOOK ANTI-DESCUADRE
+  useLayoutStability();
+  
   // Calculate change indicators based on period
   const getDistanceSubtext = (): string => {
     switch (selectedPeriod) {
@@ -86,17 +90,19 @@ const Stats: React.FC = () => {
         {/* Header - let it handle its own fixed positioning */}
         <Header title="Estadísticas" subtitle={`Hola, ${user.name} 👋 | Tu progreso detallado`} />
         
-        {/* Content area with proper spacing */}
+        {/* Content area with perfect alignment */}
         <div 
-          className="pb-20"
+          className="w-full flex justify-center"
           style={{ 
             paddingTop: insets.top + HEADER_HEIGHT + 16, // Safe area + Header height + spacing
-            paddingBottom: `calc(64px + ${insets.bottom}px + 16px)`, // BottomNav + safe area + margin
-            paddingLeft: Math.max(insets.left, 0),
-            paddingRight: Math.max(insets.right, 0),
+            paddingBottom: `calc(90px + ${insets.bottom}px)`, // Más espacio para el bottom nav
+            paddingLeft: Math.max(insets.left, 16),
+            paddingRight: Math.max(insets.right, 16),
+            height: '100vh',
+            overflow: 'auto',
           }}
         >
-          <div className="container max-w-md mx-auto px-4">
+          <div className="w-full max-w-md mx-auto px-4">
             {/* Period Selector */}
             <PeriodSelector 
               selectedPeriod={selectedPeriod} 

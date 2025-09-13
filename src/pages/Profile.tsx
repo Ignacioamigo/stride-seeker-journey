@@ -18,57 +18,53 @@ const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header with Settings Button - usando Header component */}
-      <div className="fixed top-0 left-0 right-0 z-50">
-        <Header title="Perfil" />
-        {/* Settings Button overlay */}
-        <div 
-          className="absolute top-0 right-0 flex items-center justify-center"
-          style={{
-            top: insets.top,
-            right: 16,
-            height: HEADER_HEIGHT,
-          }}
-        >
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => navigate('/configuration')}
-            className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm rounded-full p-2"
-          >
-            <Settings className="w-5 h-5" />
-          </Button>
-        </div>
-      </div>
+      {/* Header */}
+      <Header title="Perfil" />
 
       <div 
-        className="container max-w-md mx-auto p-4"
+        className="w-full flex justify-center"
         style={{ 
           paddingTop: insets.top + HEADER_HEIGHT + 16,
-          paddingBottom: `calc(64px + ${insets.bottom}px + 16px)`, // BottomNav + safe area + margin
+          paddingBottom: `calc(90px + ${insets.bottom}px)`, // Más espacio para el bottom nav
+          paddingLeft: Math.max(insets.left, 16),
+          paddingRight: Math.max(insets.right, 16),
+          height: '100vh',
+          overflow: 'auto',
         }}
       >
+        <div className="w-full max-w-md mx-auto p-4">
         {/* User Profile Card */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="w-16 h-16 bg-runapp-light-purple rounded-full flex items-center justify-center">
-                <User size={32} className="text-runapp-purple" />
-              </div>
-              <div className="ml-4 flex-1">
-                <h2 className="text-xl font-bold text-runapp-navy">{user.name}</h2>
-                <p className="text-runapp-gray">
-                  {user.experienceLevel ? 
-                    user.experienceLevel.charAt(0).toUpperCase() + user.experienceLevel.slice(1) : 
-                    'Corredor'
-                  }
-                </p>
-                {user.goal && (
-                  <p className="text-sm text-runapp-purple font-medium mt-1">
-                    {user.goal}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-16 h-16 bg-runapp-light-purple rounded-full flex items-center justify-center">
+                  <User size={32} className="text-runapp-purple" />
+                </div>
+                <div className="ml-4 flex-1">
+                  <h2 className="text-xl font-bold text-runapp-navy">{user.name}</h2>
+                  <p className="text-runapp-gray">
+                    {user.experienceLevel ? 
+                      user.experienceLevel.charAt(0).toUpperCase() + user.experienceLevel.slice(1) : 
+                      'Corredor'
+                    }
                   </p>
-                )}
+                  {user.goal && (
+                    <p className="text-sm text-runapp-purple font-medium mt-1">
+                      {user.goal}
+                    </p>
+                  )}
+                </div>
               </div>
+              {/* Settings Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/profile-settings')}
+                className="text-runapp-gray hover:text-runapp-purple hover:bg-runapp-light-purple/20 rounded-full p-2 h-10 w-10"
+              >
+                <span className="text-lg">⚙️</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -154,6 +150,7 @@ const Profile: React.FC = () => {
             Stride Seeker v1.0
           </p>
         </div>
+              </div>
       </div>
 
       <BottomNav />

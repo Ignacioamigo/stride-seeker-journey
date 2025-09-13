@@ -25,6 +25,12 @@ const BottomNav: React.FC = () => {
         minHeight: `calc(64px + ${insets.bottom}px)`,
         background: 'white',
         boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
+        transform: 'translate3d(0, 0, 0)',
+        WebkitTransform: 'translate3d(0, 0, 0)',
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+        contain: 'layout style paint',
       }}
     >
       {navItems.map((item) => (

@@ -68,13 +68,22 @@ export function useStreak(): StreakState {
           return;
         }
 
-        // 2) Obtener completados del plan
+        // 2) Obtener completados del plan (ya adaptados automáticamente)
         const allCompleted = await getCompletedWorkouts(plan.id);
+        console.log('[useStreak] Entrenamientos completados obtenidos:', allCompleted?.length || 0);
+        
         const completedDateSet = new Set<string>(
           (allCompleted || [])
-            .map((w: any) => w.fecha_completado || w.day_date)
+            .map((w: any) => {
+              // Los datos ya vienen adaptados, usar fecha_completado
+              const fecha = w.fecha_completado || w.day_date || w.completed_date;
+              console.log('[useStreak] Fecha entrenamiento:', w.workout_title, '→', fecha);
+              return fecha;
+            })
             .filter(Boolean)
         );
+        
+        console.log('[useStreak] Fechas completadas detectadas:', Array.from(completedDateSet));
 
         // 3) Construir lista de días planificados (no descanso) con su fecha (YYYY-MM-DD)
         const plannedDays = plan.workouts

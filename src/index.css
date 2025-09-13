@@ -19,14 +19,21 @@ html, body {
   --sal: env(safe-area-inset-left);
 }
 
-/* Configuración estándar iOS - Simple y efectiva */
+/* 🔥 SOLUCIÓN DEFINITIVA ANTI-DESCUADRE */
 html {
   height: 100%;
   height: -webkit-fill-available;
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
-  /* Prevenir cambios de layout al entrar/salir de background */
-  transform: translateZ(0);
+  /* GPU Layer forzado */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  /* Máxima estabilidad */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  perspective: 1000px;
+  contain: layout style paint;
+  will-change: auto;
 }
 
 body {
@@ -38,6 +45,13 @@ body {
   background-color: #f9fafb;
   position: fixed;
   width: 100%;
+  /* MÁXIMA ESTABILIDAD */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: layout style paint;
+  will-change: auto;
 }
 
 #root {
@@ -48,6 +62,13 @@ body {
   overflow-x: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
+  /* 🔥 ANTI-DESCUADRE MÁXIMO */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: auto;
+  contain: layout style paint;
   background-color: #f9fafb !important;
   position: relative;
   /* Crítico para iOS: asegurar que cubra toda la pantalla */
@@ -183,6 +204,14 @@ body {
   #root {
     min-height: 100vh !important;
     min-height: -webkit-fill-available !important;
+  }
+  
+  /* Forzar estabilidad de elementos fixed en cambios de estado iOS */
+  .no-select[style*="position: fixed"] {
+    will-change: transform !important;
+    transform: translateZ(0) !important;
+    -webkit-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
   }
 }
 

@@ -5,7 +5,7 @@ import { useSimpleGPSTracker } from '@/hooks/useSimpleGPSTracker';
 import SimpleMapView from '@/components/SimpleMapView';
 import WorkoutSummaryScreen from '@/components/training/WorkoutSummaryScreen';
 import ActivityDetailsScreen from '@/components/training/ActivityDetailsScreen';
-import { publishActivity } from '@/services/activityService';
+import { publishActivityUltraSimple } from '@/services/ultraSimpleActivityService';
 import { WorkoutPublishData, PublishedActivity, RunSession } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
@@ -63,7 +63,8 @@ const DarkRunTracker: React.FC = () => {
 
   const handlePublishActivity = async (workoutData: WorkoutPublishData) => {
     try {
-      const activityId = await publishActivity(workoutData);
+      console.log('🚀 [DARK RUN TRACKER] Publicando actividad con servicio ULTRA SIMPLE...');
+      const activityId = await publishActivityUltraSimple(workoutData);
       
       const publishedActivity: PublishedActivity = {
         id: activityId,

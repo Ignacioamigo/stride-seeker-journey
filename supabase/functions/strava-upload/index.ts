@@ -60,7 +60,7 @@ serve(async (req) => {
 
     // Get Strava tokens
     const { data: tokenData, error: tokenError } = await supabaseAdmin
-      .from('strava_tokens')
+      .from('strava_connections')
       .select('access_token, refresh_token, expires_at')
       .eq('user_id', userId)
       .maybeSingle();
@@ -109,7 +109,7 @@ serve(async (req) => {
 
       // Update tokens in database
       await supabaseAdmin
-        .from('strava_tokens')
+        .from('strava_connections')
         .update({
           access_token: refreshData.access_token,
           refresh_token: refreshData.refresh_token,

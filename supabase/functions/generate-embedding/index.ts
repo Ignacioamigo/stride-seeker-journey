@@ -78,15 +78,66 @@ serve(async (req) => {
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
         );
         
-        // Split text into chunks of approximately 1000 characters
-        const chunkSize = 1000;
-        const textChunks = [];
+        // Intelligent text chunking with semantic boundaries
+        const textChunks = intelligentChunking(text, metadata);
         
-        for (let i = 0; i < text.length; i += chunkSize) {
-          const chunk = text.substring(i, i + chunkSize);
-          if (chunk.trim()) {
-            textChunks.push(chunk);
+        function intelligentChunking(text: string, metadata: any): string[] {
+          const chunks: string[] = [];
+          const maxChunkSize = 800; // Optimal size for Gemini embeddings
+          const minChunkSize = 200;
+          const overlapSize = 100; // Overlap between chunks for context preservation
+          
+          // First, try to split by semantic boundaries
+          const sections = text.split(/\n(?=#+\s|\*\*|##|\d+\.)/); // Headers, bold text, numbered lists
+          
+          for (const section of sections) {
+            if (section.trim().length === 0) continue;
+            
+            if (section.length <= maxChunkSize) {
+              // Section fits in one chunk
+              chunks.push(section.trim());
+            } else {
+              // Section needs to be split further
+              const sentences = section.split(/(?<=[.!?])\s+/);
+              let currentChunk = '';
+              
+              for (const sentence of sentences) {
+                const testChunk = currentChunk + (currentChunk ? ' ' : '') + sentence;
+                
+                if (testChunk.length <= maxChunkSize) {
+                  currentChunk = testChunk;
+                } else {
+                  // Current chunk is ready, start new one
+                  if (currentChunk.length >= minChunkSize) {
+                    chunks.push(currentChunk.trim());
+                  }
+                  
+                  // Add overlap from previous chunk if available
+                  const words = currentChunk.split(' ');
+                  const overlap = words.slice(-Math.floor(overlapSize / 6)).join(' '); // ~15-20 words overlap
+                  
+                  currentChunk = overlap + (overlap ? ' ' : '') + sentence;
+                }
+              }
+              
+              // Add remaining content
+              if (currentChunk.trim().length >= minChunkSize) {
+                chunks.push(currentChunk.trim());
+              }
+            }
           }
+          
+          // Fallback: if no semantic chunking worked, use character-based
+          if (chunks.length === 0) {
+            for (let i = 0; i < text.length; i += maxChunkSize - overlapSize) {
+              const chunk = text.substring(i, i + maxChunkSize);
+              if (chunk.trim()) {
+                chunks.push(chunk.trim());
+              }
+            }
+          }
+          
+          return chunks.filter(chunk => chunk.length >= minChunkSize);
         }
         
         // Generate and store embeddings for each chunk
@@ -140,13 +191,42 @@ serve(async (req) => {
         }
         
         console.log(`Stored ${textChunks.length} fragments with embeddings`);
+        
+        return new Response(
+          JSON.stringify({ 
+            embedding,
+            success: true,
+            fragmentsCreated: textChunks.length,
+            message: `Successfully stored ${textChunks.length} fragments`
+          }),
+          { 
+            headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+          }
+        );
       } catch (dbError) {
         console.error("Error storing embeddings in database:", dbError);
+        return new Response(
+          JSON.stringify({ 
+            embedding,
+            success: false,
+            error: dbError.message,
+            fragmentsCreated: 0
+          }),
+          { 
+            status: 500,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+          }
+        );
       }
     }
 
     return new Response(
-      JSON.stringify({ embedding }),
+      JSON.stringify({ 
+        embedding,
+        success: true,
+        fragmentsCreated: 0,
+        message: "Embedding generated without storage (no metadata provided)"
+      }),
       { 
         headers: { 'Content-Type': 'application/json', ...corsHeaders } 
       }

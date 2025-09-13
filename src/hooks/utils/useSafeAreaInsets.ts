@@ -78,16 +78,41 @@ export function useSafeAreaInsets() {
       }
     }
 
-    // Solo recalcular en cambios de orientación (importante para iPad)
-    const handleOrientationChange = () => {
+    // Recalcular en cambios de orientación y regreso del background
+    const handleLayoutChange = () => {
       globalInsets = null; // Reset cache
       globalReady = false;
       calculatedRef.current = false;
       setTimeout(calculateInsets, 100);
     };
     
-    window.addEventListener('orientationchange', handleOrientationChange);
-    return () => window.removeEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('orientationchange', handleLayoutChange);
+    window.addEventListener('resize', handleLayoutChange);
+    
+    // Listener para regreso del background (solo si Capacitor está disponible)
+    let backgroundListener: any = null;
+    if (typeof window !== 'undefined' && (window as any).Capacitor) {
+      try {
+        const { App } = (window as any).Capacitor.Plugins;
+        if (App && App.addListener) {
+          backgroundListener = App.addListener('appStateChange', (state: any) => {
+            if (state.isActive) {
+              handleLayoutChange();
+            }
+          });
+        }
+      } catch (e) {
+        // Capacitor no disponible o error
+      }
+    }
+    
+    return () => {
+      window.removeEventListener('orientationchange', handleLayoutChange);
+      window.removeEventListener('resize', handleLayoutChange);
+      if (backgroundListener && backgroundListener.remove) {
+        backgroundListener.remove();
+      }
+    };
   }, []); // Dependencias vacías - solo ejecutar al montar
 
   // Memoizar el resultado para evitar re-renders innecesarios

@@ -32,6 +32,20 @@ export const publishActivity = async (data: WorkoutPublishData): Promise<string>
     if (!userError && user) {
       console.log('✅ [SUPABASE] User authenticated:', user.id);
       
+      // Get user profile ID
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_auth_id', user.id)
+        .single();
+      
+      if (!userProfile) {
+        console.error('❌ [SUPABASE] User profile not found for auth user:', user.id);
+        throw new Error('User profile not found');
+      }
+      
+      console.log('✅ [SUPABASE] User profile found:', userProfile.id);
+      
       // Handle image upload if provided
       let imageUrl = null;
       if (data.image) {
@@ -64,7 +78,7 @@ export const publishActivity = async (data: WorkoutPublishData): Promise<string>
       
       // Prepare data for Supabase
       const supabaseData = {
-        user_id: user.id,
+        user_id: userProfile.id,
         title: data.title.trim(),
         description: data.description?.trim() || null,
         image_url: imageUrl,
@@ -188,9 +202,23 @@ async function syncWithSupabaseInBackground(activityData: any) {
     
     console.log('✅ [SYNC] User authenticated:', user.id);
     
+    // Get user profile ID
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_auth_id', user.id)
+      .single();
+    
+    if (!userProfile) {
+      console.error('❌ [SYNC] User profile not found for auth user:', user.id);
+      return false;
+    }
+    
+    console.log('✅ [SYNC] User profile found:', userProfile.id);
+    
     // Prepare data for Supabase
     const supabaseData = {
-      user_id: user.id,
+      user_id: userProfile.id,
       title: activityData.title,
       description: activityData.description,
       image_url: activityData.image_url,
@@ -247,16 +275,52 @@ async function syncWithSupabaseInBackground(activityData: any) {
 }
 
 export const getUserActivities = async (): Promise<PublishedActivity[]> => {
-  console.log('📱 [SUPABASE-FIRST] Loading user activities...');
+  console.log('📱 [NEW-SYSTEM] Loading user activities...');
   
   try {
-    // 1. TRY SUPABASE FIRST (PRIMARY)
-    console.log('☁️ [SUPABASE] Attempting to load from cloud...');
-    
+    // 🔥 USAR SUPABASE AUTH COMO FUENTE ÚNICA DE VERDAD
     const { data: { user }, error: userError } = await supabase.auth.getUser();
+    let userId: string | null = null;
     
     if (!userError && user) {
-      console.log('✅ [SUPABASE] User authenticated:', user.id);
+      // Get user profile ID
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_auth_id', user.id)
+        .single();
+      
+      if (userProfile) {
+        userId = userProfile.id;
+        console.log('✅ [SUPABASE-AUTH] Using user profile ID:', userId);
+        
+        // Sincronizar con localStorage para compatibilidad
+        localStorage.setItem('stride_user_id', userId);
+      } else {
+        console.error('❌ [SUPABASE-AUTH] User profile not found for auth user:', user.id);
+        // Fallback al comportamiento anterior
+        userId = localStorage.getItem('stride_user_id');
+        if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+          userId = crypto.randomUUID();
+          localStorage.setItem('stride_user_id', userId);
+        }
+      }
+    } else {
+      // Fallback a localStorage solo si no hay autenticación
+      userId = localStorage.getItem('stride_user_id');
+      if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+        console.log('🔄 Generando nuevo UUID para activities (fallback)');
+        userId = crypto.randomUUID();
+        localStorage.setItem('stride_user_id', userId);
+      }
+      console.log('📝 [FALLBACK] Using localStorage user ID:', userId);
+    }
+    
+    // 1. TRY SUPABASE FIRST (PRIMARY) - CON USUARIO CORRECTO
+    console.log('☁️ [SUPABASE] Attempting to load from cloud...');
+    
+    if (userId) {
+      console.log('✅ [SUPABASE] User ID found:', userId);
       
       const { data: supabaseActivities, error: fetchError } = await supabase
         .from('published_activities')
@@ -274,7 +338,7 @@ export const getUserActivities = async (): Promise<PublishedActivity[]> => {
           likes,
           comments
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
       
       if (!fetchError && supabaseActivities) {
@@ -322,7 +386,7 @@ export const getUserActivities = async (): Promise<PublishedActivity[]> => {
         console.warn('⚠️ [SUPABASE] Failed to load from cloud, falling back to local:', fetchError);
       }
     } else {
-      console.log('⚠️ [SUPABASE] No authenticated user, falling back to local');
+      console.log('⚠️ [SUPABASE] No user ID found, falling back to local');
     }
     
   } catch (supabaseError) {

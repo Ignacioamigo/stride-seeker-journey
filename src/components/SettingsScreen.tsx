@@ -41,7 +41,7 @@ const SettingsScreen: React.FC = () => {
         return;
       }
       const { data, error } = await supabase
-        .from('strava_tokens')
+        .from('strava_connections')
         .select('user_id')
         .eq('user_id', user.id)
         .maybeSingle();

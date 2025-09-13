@@ -69,24 +69,24 @@ serve(async (req) => {
 
       const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-      // Find user by Strava athlete ID
-      console.log(`🔍 Looking for user with Strava athlete ID: ${event.owner_id}`);
+      // Find user by Strava athlete ID - USANDO NUEVA TABLA
+      console.log(`🔍 [V2] Looking for user with Strava athlete ID: ${event.owner_id}`);
       const { data: tokenData, error: tokenError } = await supabaseAdmin
-        .from('strava_tokens')
-        .select('user_id, access_token, refresh_token, expires_at')
-        .eq('athlete_id', event.owner_id)
+        .from('strava_connections')
+        .select('user_id, access_token, refresh_token, expires_at, strava_user_id')
+        .eq('strava_user_id', event.owner_id)
         .maybeSingle();
 
       if (tokenError) {
-        console.log(`❌ Error querying strava_tokens: ${tokenError.message}`);
+        console.log(`❌ [V2] Error querying strava_connections: ${tokenError.message}`);
         return new Response('OK', { status: 200 });
       }
 
       if (!tokenData) {
-        console.log(`❌ No user found for Strava athlete ${event.owner_id}`);
+        console.log(`❌ [V2] No user found for Strava athlete ${event.owner_id}`);
         console.log('💡 This means either:');
         console.log('   1. User never connected Strava');
-        console.log('   2. athlete_id is missing/incorrect in strava_tokens table');
+        console.log('   2. strava_user_id is missing/incorrect in strava_connections table');
         return new Response('OK', { status: 200 });
       }
 
@@ -123,9 +123,9 @@ serve(async (req) => {
         const refreshData = await refreshRes.json();
         accessToken = refreshData.access_token;
 
-        // Update tokens
+        // Update tokens - USANDO NUEVA TABLA
         await supabaseAdmin
-          .from('strava_tokens')
+          .from('strava_connections')
           .update({
             access_token: refreshData.access_token,
             refresh_token: refreshData.refresh_token,

@@ -26,18 +26,26 @@ const Settings: React.FC = () => {
     try {
       setCheckingStrava(true);
       
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      // Get the same userId we use for connection
+      let userId = localStorage.getItem('stride_user_id');
       
-      if (authError || !authUser) {
-        console.log('No authenticated user found:', authError);
+      // FORCE REGENERATE if current ID is not a valid UUID
+      if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+        console.log('🔄 Generating new UUID for check (old format detected)');
+        userId = crypto.randomUUID();
+        localStorage.setItem('stride_user_id', userId);
+        console.log('✅ New UUID generated for check:', userId);
+      }
+      
+      if (!userId) {
         setIsStravaLinked(false);
         return;
       }
 
       const { data, error } = await supabase
-        .from('strava_tokens')
+        .from('strava_connections')
         .select('user_id')
-        .eq('user_id', authUser.id)
+        .eq('user_id', userId)
         .maybeSingle();
       
       if (error) {
@@ -71,25 +79,36 @@ const Settings: React.FC = () => {
         return;
       }
 
-      // Get access token for auth state
-      const { data: session } = await supabase.auth.getSession();
-      const accessToken = session.session?.access_token;
+      // Generate a UUID-compatible user identifier for this session
+      // This is a temporary solution until we implement proper auth
+      let userId = localStorage.getItem('stride_user_id');
       
-      if (!accessToken) {
-        toast({
-          title: "Error",
-          description: "No se pudo obtener el token de sesión",
-          variant: "destructive"
-        });
-        return;
+      // FORCE REGENERATE if current ID is not a valid UUID
+      if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+        console.log('🔄 Generating new UUID (old format detected)');
+        // Generate a valid UUID v4
+        userId = crypto.randomUUID();
+        localStorage.setItem('stride_user_id', userId);
+        console.log('✅ New UUID generated:', userId);
       }
+      
+      console.log('Using user ID for Strava connection:', userId);
 
       // Build Strava OAuth URL with proper parameters
       const stravaClientId = "172613";
-      const redirectUri = `${SUPABASE_URL}/functions/v1/strava-auth`;
+      const redirectUri = `${SUPABASE_URL}/functions/v1/strava-public`;
+      const redirectBack = window.location.href; // Current page URL
       const scope = "read,activity:read,activity:read_all";
       
-      const stravaConnectUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=${scope}&state=${accessToken}`;
+      console.log('Strava auth parameters:', {
+        stravaClientId,
+        redirectUri,
+        redirectBack,
+        scope,
+        userId
+      });
+      
+      const stravaConnectUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&redirect_to=${encodeURIComponent(redirectBack)}&approval_prompt=force&scope=${scope}&state=${userId}`;
       
       console.log('Strava Connect URL:', stravaConnectUrl);
       
@@ -120,35 +139,98 @@ const Settings: React.FC = () => {
     try {
       setImportingStrava(true);
       
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) {
-        alert('❌ Error: No estás autenticado');
+      let userId = localStorage.getItem('stride_user_id');
+      
+      // FORCE REGENERATE if current ID is not a valid UUID
+      if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+        console.log('🔄 Generating new UUID for import (old format detected)');
+        userId = crypto.randomUUID();
+        localStorage.setItem('stride_user_id', userId);
+        console.log('✅ New UUID generated for import:', userId);
+      }
+      
+      if (!userId) {
+        toast({
+          title: "Error",
+          description: "No se encontró ID de usuario",
+          variant: "destructive"
+        });
         return;
       }
+
+      console.log('🚀 Iniciando importación de Strava para usuario:', userId);
 
       const response = await fetch(`${SUPABASE_URL}/functions/v1/strava-import`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
         },
-        body: JSON.stringify({ user_id: authUser.id })
+        body: JSON.stringify({ user_id: userId })
       });
 
+      console.log('📡 Respuesta del servidor:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error HTTP:', response.status, errorText);
+        
+        let errorMessage = 'Error del servidor';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          errorMessage = `Error ${response.status}: ${errorText}`;
+        }
+        
+        toast({
+          title: "Error de Importación",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        return;
+      }
+
       const result = await response.json();
+      console.log('📊 Resultado de importación:', result);
       
-      if (response.ok && result.success) {
-        alert(`✅ Importadas ${result.imported_count} actividades de Strava`);
+      if (result.success) {
+        const message = `✅ Importadas ${result.imported_count || result.imported || 0} actividades de Strava`;
+        console.log(message);
+        
+        toast({
+          title: "Importación Exitosa",
+          description: message,
+          variant: "default"
+        });
+        
+        // Refresh the Strava connection status
+        setTimeout(() => {
+          checkStravaLink();
+        }, 1000);
       } else {
-        alert(`❌ Error importando: ${result.error}`);
+        const errorMessage = result.error || 'Error desconocido en la importación';
+        console.error('❌ Error en resultado:', errorMessage);
+        
+        toast({
+          title: "Error de Importación",
+          description: errorMessage,
+          variant: "destructive"
+        });
       }
     } catch (error) {
-      console.error('Import error:', error);
-      alert('❌ Error inesperado importando actividades');
+      console.error('💥 Error inesperado importando actividades:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Error inesperado';
+      toast({
+        title: "Error Inesperado",
+        description: `Error al importar: ${errorMessage}`,
+        variant: "destructive"
+      });
     } finally {
       setImportingStrava(false);
     }
-  }, []);
+  }, [checkStravaLink]);
 
   return (
     <div className="bg-gray-50 min-h-screen">

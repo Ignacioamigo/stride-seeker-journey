@@ -20,7 +20,15 @@ export const isOfflineMode = (): boolean => {
 };
 
 /**
- * Function to upload a training document for RAG
+ * Function to 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * upload a training document for RAG
  */
 export const uploadTrainingDocument = async (file: File): Promise<boolean> => {
   try {
@@ -68,6 +76,13 @@ const ensureUserProfileInSupabase = async (userProfile: UserProfile): Promise<st
       return null;
     }
 
+    // Get authenticated user
+    const { data: user } = await supabase.auth.getUser();
+    if (!user || !user.user) {
+      console.error("[ensureUserProfileInSupabase] No hay usuario autenticado");
+      return null;
+    }
+
     // Verificar si el perfil ya existe en Supabase
     const { data: existingProfile, error: selectError } = await supabase
       .from('user_profiles')
@@ -90,6 +105,7 @@ const ensureUserProfileInSupabase = async (userProfile: UserProfile): Promise<st
       .from('user_profiles')
       .insert({
         id: userProfile.id,
+        user_auth_id: user.user.id,  // ¡FALTABA ESTO!
         name: userProfile.name,
         age: userProfile.age,
         gender: userProfile.gender,
@@ -526,15 +542,56 @@ export const saveCompletedWorkout = async (
       actualDuration
     });
 
+    // Obtener user_id para el entrenamiento
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("[saveCompletedWorkout] No hay usuario autenticado");
+      return false;
+    }
+
+    // Get user profile ID
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_auth_id', user.id)
+      .single();
+    
+    if (!userProfile) {
+      console.error("[saveCompletedWorkout] No se encontró perfil de usuario");
+      return false;
+    }
+
     // Intentar guardar en Supabase usando la tabla entrenamientos_completados
     console.log("[saveCompletedWorkout] Intentando guardar en entrenamientos_completados...");
     
+    // Convertir duración de string a minutos (int4)
+    let duracionMinutos = null;
+    if (actualDuration && actualDuration.trim()) {
+      const parts = actualDuration.split(':').map(p => parseInt(p) || 0);
+      if (parts.length === 3) {
+        // HH:MM:SS
+        duracionMinutos = parts[0] * 60 + parts[1] + parts[2] / 60;
+      } else if (parts.length === 2) {
+        // MM:SS
+        duracionMinutos = parts[0] + parts[1] / 60;
+      } else {
+        // Solo minutos
+        duracionMinutos = parseInt(actualDuration) || null;
+      }
+      duracionMinutos = Math.round(duracionMinutos);
+    }
+
     const workoutData = {
-      workout_title: workoutTitle,
-      workout_type: workoutType,
-      distancia_recorrida: actualDistance,
-      duracion: actualDuration,
-      fecha_completado: new Date().toISOString().split('T')[0]
+      user_id: userProfile.id, // Usar user_profile.id
+      tipo: workoutType || 'carrera', // Campo correcto
+      distancia: actualDistance, // Campo correcto
+      duracion: duracionMinutos, // Campo correcto como int4
+      fecha: new Date().toISOString().split('T')[0], // Campo correcto
+      workout_id: crypto.randomUUID(), // Generar workout_id único
+      satisfaccion: 4, // Valor por defecto
+      dificultad: 3, // Valor por defecto
+      condiciones_climaticas: 'Soleado', // Valor por defecto
+      notas: workoutTitle || 'Entrenamiento completado' // Usar el título como notas
     };
 
     console.log("[saveCompletedWorkout] Datos finales para insertar:", workoutData);
@@ -629,15 +686,56 @@ export const updateWorkoutResults = async (
       actualDuration 
     });
 
+    // Obtener user_id para el entrenamiento
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("[updateWorkoutResults] No hay usuario autenticado");
+      return null;
+    }
+
+    // Get user profile ID
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_auth_id', user.id)
+      .single();
+    
+    if (!userProfile) {
+      console.error("[updateWorkoutResults] No se encontró perfil de usuario");
+      return null;
+    }
+
     // PASO 1: Guardar en la tabla entrenamientos_completados
     console.log("[updateWorkoutResults] PASO 1: Guardando en entrenamientos_completados...");
     
+    // Convertir duración de string a minutos (int4)
+    let duracionMinutos = null;
+    if (actualDuration && actualDuration.trim()) {
+      const parts = actualDuration.split(':').map(p => parseInt(p) || 0);
+      if (parts.length === 3) {
+        // HH:MM:SS
+        duracionMinutos = parts[0] * 60 + parts[1] + parts[2] / 60;
+      } else if (parts.length === 2) {
+        // MM:SS
+        duracionMinutos = parts[0] + parts[1] / 60;
+      } else {
+        // Solo minutos
+        duracionMinutos = parseInt(actualDuration) || null;
+      }
+      duracionMinutos = Math.round(duracionMinutos);
+    }
+
     const workoutData = {
-      workout_title: `Entrenamiento ${workoutId}`,
-      workout_type: 'carrera',
-      distancia_recorrida: actualDistance,
-      duracion: actualDuration,
-      fecha_completado: new Date().toISOString().split('T')[0]
+      user_id: userProfile.id, // Usar user_profile.id
+      workout_id: workoutId, // UUID del workout
+      tipo: 'carrera', // Campo correcto
+      distancia: actualDistance, // Campo correcto
+      duracion: duracionMinutos, // Campo correcto como int4
+      fecha: new Date().toISOString().split('T')[0], // Campo correcto
+      satisfaccion: 4, // Valor por defecto
+      dificultad: 3, // Valor por defecto
+      condiciones_climaticas: 'Soleado', // Valor por defecto
+      notas: `Entrenamiento ${workoutId}` // Usar como notas
     };
 
     const { data: completedData, error: completedError } = await supabase

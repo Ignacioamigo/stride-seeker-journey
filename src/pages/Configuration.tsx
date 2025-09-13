@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Mail, Calendar, Ruler, Weight, Target, ChevronLeft, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@/context/UserContext';
+import { toast } from '@/components/ui/use-toast';
 import Header from '@/components/layout/Header';
 import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
 
@@ -146,7 +147,15 @@ const Configuration: React.FC = () => {
               </Button>
               
               <Button
-                onClick={resetUser}
+                onClick={() => {
+                  resetUser();
+                  toast({
+                    title: "Onboarding reiniciado",
+                    description: "Te redirigiremos al proceso de configuración inicial.",
+                    variant: "default"
+                  });
+                  navigate('/welcome');
+                }}
                 variant="destructive"
                 className="w-full"
               >

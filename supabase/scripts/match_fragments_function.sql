@@ -1,9 +1,9 @@
 
--- Function to match fragments by vector similarity
+-- Function to match fragments by vector similarity (optimized for Gemini embeddings)
 CREATE OR REPLACE FUNCTION match_fragments(
-  query_embedding vector(1536),
-  match_threshold float DEFAULT 0.6,
-  match_count int DEFAULT 5
+  query_embedding vector(768),
+  match_threshold float DEFAULT 0.7,
+  match_count int DEFAULT 8
 )
 RETURNS TABLE (
   id text,

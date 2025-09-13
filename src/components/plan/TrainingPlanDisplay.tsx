@@ -99,7 +99,21 @@ const WorkoutCard: React.FC<{
       
       <div className="flex justify-end">
         <button 
-          onClick={onToggleExpand}
+          onClick={() => {
+            onToggleExpand();
+            // Si se está expandiendo, hacer scroll después de un pequeño delay para que el contenido se renderice
+            if (!expanded) {
+              setTimeout(() => {
+                const element = document.getElementById(`workout-${workout.id}`);
+                if (element) {
+                  element.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' // Centrar el elemento en la vista
+                  });
+                }
+              }, 100);
+            }
+          }}
           className="text-xs text-runapp-purple hover:underline"
         >
           {expanded ? 'Ocultar formulario' : 'Meter datos entrenamiento'}
@@ -266,7 +280,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   };
   
   return (
-    <div className="mb-8">
+    <div className="mb-24">
       {offlineMode && (
         <Alert className="mb-4 bg-amber-50 border-amber-200">
           <WifiOff className="h-4 w-4 text-amber-600" />
@@ -349,7 +363,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
         )}
       </div>
       
-      <div className="space-y-1">
+      <div className="space-y-1 pb-24">
         {sortedWorkouts.map((workout) => (
           <div key={workout.id} id={`workout-${workout.id}`}>
             <WorkoutCard 

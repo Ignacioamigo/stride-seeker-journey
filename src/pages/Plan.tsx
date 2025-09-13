@@ -12,12 +12,16 @@ import { Button } from "@/components/ui/button";
 import AppHeader from "@/components/layout/AppHeader";
 import Header from "@/components/layout/Header";
 import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
+import { useLayoutStability } from "@/hooks/useLayoutStability";
 
 const HEADER_HEIGHT = 44;
 
 const Plan: React.FC = () => {
   const { user } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // 🔥 HOOK ANTI-DESCUADRE
+  useLayoutStability();
   const [isLoading, setIsLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<WorkoutPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -226,17 +230,19 @@ const Plan: React.FC = () => {
         {/* Header - let it handle its own fixed positioning */}
         <Header title="Plan de entrenamiento" subtitle="Tu semana personalizada" />
         
-        {/* Content area with proper spacing */}
+        {/* Content area with perfect alignment */}
         <div 
-          className="pb-20"
+          className="w-full flex justify-center"
           style={{ 
             paddingTop: insets.top + HEADER_HEIGHT + 16, // Safe area + Header height + spacing
-            paddingBottom: `calc(64px + ${insets.bottom}px + 16px)`, // BottomNav + safe area + margin
-            paddingLeft: Math.max(insets.left, 0),
-            paddingRight: Math.max(insets.right, 0),
+            paddingBottom: `calc(400px + ${insets.bottom}px)`, // Muchísimo más espacio para scroll completo
+            paddingLeft: Math.max(insets.left, 16),
+            paddingRight: Math.max(insets.right, 16),
+            height: '100vh',
+            overflow: 'auto',
           }}
         >
-          <div className="container max-w-md mx-auto px-4">
+          <div className="w-full max-w-md mx-auto px-4">
           {/* Connection status indicator */}
           {!connectionStatus && (
             <Alert className="mb-4 bg-amber-50 border-amber-200">

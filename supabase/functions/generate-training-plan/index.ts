@@ -170,22 +170,28 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // 3. Prepare RAG context
+    // 3. Advanced RAG Context Retrieval
     let contextText = '';
     let ragActive = false;
+    let ragStrategy = 'none';
     
     try {
-      console.log("Starting RAG process to retrieve relevant training knowledge...");
+      console.log("Starting advanced RAG process...");
       
-      // Generate embedding for the user's goal and profile
+      // Enhanced user query construction
       const selectedDaysText = userProfile.selectedDays && userProfile.selectedDays.length > 0 
         ? userProfile.selectedDays.filter(d => d.selected).map(d => d.name).join(', ')
         : 'No especificados';
       
-      const userQuery = `Perfil del corredor: Nombre: ${userProfile.name}, Edad: ${userProfile.age}, Sexo: ${userProfile.gender}, Nivel: ${userProfile.experienceLevel}, Ritmo: ${userProfile.pace}, Distancia máxima: ${userProfile.maxDistance}, Objetivo: ${userProfile.goal}, Lesiones: ${userProfile.injuries || 'Ninguna'}, Frecuencia semanal: ${userProfile.weeklyWorkouts}, Días de entrenamiento específicos: ${selectedDaysText}`;
+      // Multi-layered query construction for better context retrieval
+      const baseQuery = `${userProfile.goal} ${userProfile.experienceLevel} ${userProfile.pace}`;
+      const contextualQuery = `Entrenamiento para ${userProfile.goal.toLowerCase()} nivel ${userProfile.experienceLevel} ritmo ${userProfile.pace} distancia máxima ${userProfile.maxDistance}km`;
+      const detailedQuery = `Corredor ${userProfile.experienceLevel} de ${userProfile.age} años, objetivo: ${userProfile.goal}, ritmo actual: ${userProfile.pace}, máximo ${userProfile.maxDistance}km, ${userProfile.weeklyWorkouts} entrenamientos/semana`;
       
-      console.log("User query for embedding generation:", userQuery);
+      console.log("Multi-query RAG approach:", {baseQuery, contextualQuery, detailedQuery});
       
+      // Strategy 1: Contextual search (most specific)
+      let fragments = [];
       const embeddingRes = await fetch(
         `${supabaseUrl}/functions/v1/generate-embedding`,
         {
@@ -194,55 +200,167 @@ serve(async (req) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${supabaseKey}`
           },
-          body: JSON.stringify({ text: userQuery })
+          body: JSON.stringify({ text: contextualQuery })
         }
       );
       
-      if (!embeddingRes.ok) {
-        throw new Error(`Error generating embedding: ${await embeddingRes.text()}`);
+      if (embeddingRes.ok) {
+        const embeddingData = await embeddingRes.json();
+        if (embeddingData.embedding && Array.isArray(embeddingData.embedding)) {
+          console.log("Embedding generated successfully with dimensions:", embeddingData.embedding.length);
+          
+          // Extract distance goal from objective
+          let distanceGoal = '';
+          if (userProfile.goal.toLowerCase().includes('5k')) distanceGoal = '5k';
+          else if (userProfile.goal.toLowerCase().includes('10k')) distanceGoal = '10k';
+          else if (userProfile.goal.toLowerCase().includes('21k') || userProfile.goal.toLowerCase().includes('media maratón')) distanceGoal = '21k';
+          else if (userProfile.goal.toLowerCase().includes('42k') || userProfile.goal.toLowerCase().includes('maratón')) distanceGoal = '42k';
+          
+          // Try contextual search first (best strategy)
+          const { data: contextualFragments, error: contextualError } = await supabase.rpc('contextual_search_fragments', {
+            query_embedding: embeddingData.embedding,
+            user_level: userProfile.experienceLevel || '',
+            workout_type: baseQuery.toLowerCase(),
+            distance_goal: distanceGoal,
+            match_threshold: 0.6,
+            match_count: 10
+          });
+          
+          if (!contextualError && contextualFragments && contextualFragments.length > 0) {
+            fragments = contextualFragments;
+            ragStrategy = 'contextual';
+            console.log(`RAG Strategy: Contextual - Found ${fragments.length} relevant fragments`);
+          } else {
+            // Fallback to hybrid search
+            const { data: hybridFragments, error: hybridError } = await supabase.rpc('hybrid_search_fragments', {
+              query_embedding: embeddingData.embedding,
+              query_text: baseQuery,
+              match_threshold: 0.55,
+              match_count: 8
+            });
+            
+            if (!hybridError && hybridFragments && hybridFragments.length > 0) {
+              fragments = hybridFragments;
+              ragStrategy = 'hybrid';
+              console.log(`RAG Strategy: Hybrid - Found ${fragments.length} relevant fragments`);
+            } else {
+              // Final fallback to basic semantic search
+              const { data: basicFragments, error: basicError } = await supabase.rpc('match_fragments', {
+                query_embedding: embeddingData.embedding,
+                match_threshold: 0.5,
+                match_count: 6
+              });
+              
+              if (!basicError && basicFragments && basicFragments.length > 0) {
+                fragments = basicFragments;
+                ragStrategy = 'basic';
+                console.log(`RAG Strategy: Basic - Found ${fragments.length} relevant fragments`);
+              }
+            }
+          }
+        }
       }
       
-      const embeddingData = await embeddingRes.json();
-      if (!embeddingData.embedding || !Array.isArray(embeddingData.embedding)) {
-        throw new Error('Invalid embedding response');
-      }
-      
-      console.log("Embedding generated successfully with dimensions:", embeddingData.embedding.length);
-      
-      // Log dimension and type of user embedding
-      console.log("User embedding length:", embeddingData.embedding.length, "Type:", typeof embeddingData.embedding[0]);
-      // Log dimension and type of a fragment embedding
-      const { data: sampleFragment } = await supabase.from('fragments').select('embedding').limit(1).single();
-      if (sampleFragment) {
-        console.log("Fragment embedding length:", sampleFragment.embedding.length, "Type:", typeof sampleFragment.embedding[0]);
-      } else {
-        console.log("No sample fragment found for embedding comparison");
-      }
-      
-      // Call the match_fragments function with the correct parameter names
-      const { data: fragments, error } = await supabase.rpc('match_fragments', {
-        query_embedding: embeddingData.embedding,
-        match_threshold: 0.6,
-        match_count: 5
-      });
-      
-      if (error) {
-        console.error("Error in match_fragments RPC:", error);
-        throw error;
-      }
-      
+      // Process and rank retrieved fragments
       if (fragments && fragments.length > 0) {
         ragActive = true;
-        contextText = fragments.map((f, i) => `Fragmento ${i+1}:\n${f.content}`).join('\n\n');
-        console.log("RAG Context retrieved successfully:", fragments.length, "fragments");
-        console.log("First fragment content snippet:", fragments[0].content.substring(0, 100) + "...");
+        
+        // Intelligent fragment reranking and selection
+        const rankedFragments = fragments
+          .map((f, i) => ({
+            ...f,
+            priority: calculateFragmentPriority(f, userProfile),
+            originalIndex: i
+          }))
+          .sort((a, b) => b.priority - a.priority)
+          .slice(0, 6); // Take top 6 most relevant
+        
+        // Create rich context with metadata
+        contextText = rankedFragments.map((f, i) => {
+          const source = f.metadata?.filename || 'Documento especializado';
+          const level = extractLevel(source);
+          const distance = extractDistance(source);
+          const phase = extractPhase(source);
+          
+          let header = `**FRAGMENTO ${i+1}**`;
+          if (level) header += ` [${level}]`;
+          if (distance) header += ` [${distance}]`;
+          if (phase) header += ` [${phase}]`;
+          header += `:`;
+          
+          return `${header}\n${f.content}`;
+        }).join('\n\n');
+        
+        console.log(`RAG active with ${ragStrategy} strategy:`, {
+          fragmentsFound: fragments.length,
+          fragmentsUsed: rankedFragments.length,
+          contextLength: contextText.length,
+          topFragmentScore: rankedFragments[0]?.final_score || rankedFragments[0]?.similarity || 'N/A'
+        });
       } else {
-        console.log("No relevant fragments found for RAG");
+        console.log("No relevant fragments found across all strategies");
       }
+      
     } catch (ragError) {
-      console.error("Error during RAG processing:", ragError);
-      // Continue without RAG context if there's an error
+      console.error("Error during advanced RAG processing:", ragError);
       contextText = "";
+      ragStrategy = 'error';
+    }
+    
+    // Helper functions for fragment processing
+    function calculateFragmentPriority(fragment: any, profile: any): number {
+      let score = fragment.final_score || fragment.combined_score || fragment.similarity || 0;
+      
+      // Boost based on user profile alignment
+      if (fragment.metadata?.filename) {
+        const filename = fragment.metadata.filename.toLowerCase();
+        
+        // Level alignment boost
+        if (profile.experienceLevel) {
+          if (profile.experienceLevel.includes('principiante') && filename.includes('-p-')) score += 0.15;
+          if (profile.experienceLevel.includes('intermedio') && filename.includes('-int-')) score += 0.15;
+          if (profile.experienceLevel.includes('avanzado') && filename.includes('-adv-')) score += 0.15;
+        }
+        
+        // Goal alignment boost
+        if (profile.goal) {
+          const goal = profile.goal.toLowerCase();
+          if (goal.includes('5k') && filename.includes('5k-')) score += 0.2;
+          if (goal.includes('10k') && filename.includes('10k-')) score += 0.2;
+          if ((goal.includes('21k') || goal.includes('media')) && filename.includes('21k-')) score += 0.2;
+          if ((goal.includes('42k') || goal.includes('maratón')) && filename.includes('42k-')) score += 0.2;
+        }
+        
+        // Content relevance boost
+        const content = fragment.content.toLowerCase();
+        if (content.includes('tempo') || content.includes('intervalos') || content.includes('fartlek')) score += 0.1;
+        if (content.includes('recuperación') || content.includes('descanso')) score += 0.05;
+      }
+      
+      return score;
+    }
+    
+    function extractLevel(filename: string): string {
+      if (filename.includes('-P-')) return 'Principiante';
+      if (filename.includes('-INT-')) return 'Intermedio';
+      if (filename.includes('-ADV-')) return 'Avanzado';
+      return '';
+    }
+    
+    function extractDistance(filename: string): string {
+      if (filename.includes('5K-')) return '5K';
+      if (filename.includes('10K-')) return '10K';
+      if (filename.includes('21K-')) return '21K';
+      if (filename.includes('42K-')) return '42K';
+      return '';
+    }
+    
+    function extractPhase(filename: string): string {
+      if (filename.includes('-BASE-')) return 'Base';
+      if (filename.includes('-CONSTRUCCION-')) return 'Construcción';
+      if (filename.includes('-PICO-')) return 'Pico';
+      if (filename.includes('-TAPERING-')) return 'Tapering';
+      return '';
     }
 
     // 4. Prepare the prompt with or without RAG context
@@ -265,8 +383,8 @@ Lesiones o condiciones: ${userProfile.injuries || 'Ninguna'}
 Frecuencia semanal deseada: ${userProfile.weeklyWorkouts || '3'} entrenamientos por semana
 Días específicos seleccionados: ${selectedDaysInfo}\n`;
     
-    // RAG context section - make sure this part is used!
-    const ragSection = contextText ? `\nDOCUMENTOS RELEVANTES PARA REFERENCIA:\n${contextText}\n` : '';
+    // Enhanced RAG context section with strategy information
+    const ragSection = contextText ? `\nCONOCIMIENTO ESPECIALIZADO GANI (Estrategia: ${ragStrategy.toUpperCase()}):\n\nUtiliza este conocimiento profesional de entrenamiento para crear un plan más preciso y especializado. Los fragmentos están ordenados por relevancia para el perfil del usuario:\n\n${contextText}\n\nIMPORTANTE: Integra las técnicas, metodologías y principios de entrenamiento de estos fragmentos en tu plan. No copies literalmente, sino adapta el conocimiento al perfil específico del usuario.\n` : '\nNOTA: Generando plan con conocimiento base (RAG no disponible).\n';
     
     // Previous week results section if available
     let previousResultsSection = '';
@@ -407,16 +525,47 @@ IMPORTANTE:
       
       try {
         // First, check if we have a user profile in the database
-        let userProfileId = userProfile.id;
+        let userProfileId = null;
         
-        // If not, create a profile from the provided data
+        // Get the authenticated user (if any)
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Check if profile already exists in database for authenticated user
+          const { data: existingProfile } = await supabase
+            .from('user_profiles')
+            .select('id')
+            .eq('user_auth_id', user.id)
+            .single();
+          
+          if (existingProfile) {
+            userProfileId = existingProfile.id;
+            console.log("Using existing user profile:", userProfileId);
+          }
+        }
+        
+        // If no profile exists, create one (works for both authenticated and anonymous users)
         if (!userProfileId) {
+          console.log("Creating new user profile. User authenticated:", !!user);
+          
+          console.log("Attempting to insert user profile with data:", {
+            user_auth_id: user?.id || null,
+            name: userProfile.name,
+            age: userProfile.age,
+            gender: userProfile.gender,
+            height: userProfile.height,
+            weight: userProfile.weight
+          });
+          
           const { data: userProfileData, error: userProfileError } = await supabase
             .from('user_profiles')
             .insert({
+              user_auth_id: user?.id || null,  // user_auth_id (null para usuarios anónimos)
               name: userProfile.name,
               age: userProfile.age,
               gender: userProfile.gender,
+              height: userProfile.height,  // ¡AÑADIR height!
+              weight: userProfile.weight,  // ¡AÑADIR weight!
               max_distance: userProfile.maxDistance,
               pace: userProfile.pace,
               goal: userProfile.goal,
@@ -428,63 +577,87 @@ IMPORTANTE:
             .single();
           
           if (userProfileError) {
-            console.error("Error saving user profile:", userProfileError);
+            console.error("❌ ERROR saving user profile:", userProfileError);
+            console.error("Error details:", JSON.stringify(userProfileError, null, 2));
           } else {
-            console.log("User profile saved successfully:", userProfileData);
+            console.log("✅ User profile saved successfully:", userProfileData);
             userProfileId = userProfileData.id;
           }
         }
         
-        // Save the training plan
-        const { data: trainingPlanData, error: trainingPlanError } = await supabase
-          .from('training_plans')
-          .insert({
+        // Ensure we have a valid userProfileId before saving training plan
+        if (!userProfileId) {
+          console.error("❌ CRITICAL: Cannot save training plan - userProfileId is null");
+          console.log("🔍 Debug info:", {
+            userAuthenticated: !!user,
+            userAuthId: user?.id || 'null',
+            profileCreationAttempted: true
+          });
+        } else {
+          console.log("✅ About to save training plan with userProfileId:", userProfileId);
+          console.log("📋 Training plan data:", {
             user_id: userProfileId,
             name: plan.name,
-            description: plan.description,
-            duration: plan.duration,
-            intensity: plan.intensity,
-            week_number: previousWeekResults?.weekNumber ? previousWeekResults.weekNumber + 1 : 1,
-            start_date: new Date().toISOString().split('T')[0]
-          })
-          .select()
-          .single();
-        
-        if (trainingPlanError) {
-          console.error("Error saving training plan:", trainingPlanError);
-        } else {
-          console.log("Training plan saved successfully:", trainingPlanData);
-          
-          // Save each workout session
-          const sessionsToInsert = plan.workouts.map((workout: any, index: number) => {
-            // Ensure we have a valid date from the workout or calculate it
-            let workoutDate = workout.date ? new Date(workout.date) : new Date();
-            if (!workout.date) {
-              workoutDate.setDate(new Date().getDate() + index);
-            }
-            
-            return {
-              plan_id: trainingPlanData.id,
-              day_number: index + 1,
-              day_date: workoutDate.toISOString().split('T')[0],
-              title: workout.title,
-              description: workout.description,
-              type: workout.type,
-              planned_distance: workout.distance,
-              planned_duration: workout.duration,
-              target_pace: userProfile.pace,
-              completed: false
-            };
+            week_number: previousWeekResults?.weekNumber ? previousWeekResults.weekNumber + 1 : 1
           });
           
-          const { data: sessionsData, error: sessionsError } = await supabase
-            .from('training_sessions')
-            .insert(sessionsToInsert);
+          // Save the training plan
+          const { data: trainingPlanData, error: trainingPlanError } = await supabase
+            .from('training_plans')
+            .insert({
+              user_id: userProfileId,
+              name: plan.name,
+              description: plan.description,
+              duration_weeks: 1, // Usar el campo correcto
+              difficulty_level: plan.intensity || 'Moderada', // Usar el campo correcto
+              goal: userProfile.goal,
+              is_active: true
+            })
+            .select()
+            .single();
           
-          if (sessionsError) {
-            console.error("Error saving workout sessions:", sessionsError);
+          if (trainingPlanError) {
+            console.error("❌ ERROR saving training plan:", trainingPlanError);
+            console.error("Training plan error details:", JSON.stringify(trainingPlanError, null, 2));
+            console.error("Attempted to insert with user_id:", userProfileId);
           } else {
-            console.log("Training sessions saved successfully:", sessionsData ? sessionsData.length : 0, "sessions");
+            console.log("✅ Training plan saved successfully:", trainingPlanData);
+            
+            // Save each workout session
+            console.log("📋 About to save training sessions for plan:", trainingPlanData.id);
+            const sessionsToInsert = plan.workouts.map((workout: any, index: number) => {
+              // Ensure we have a valid date from the workout or calculate it
+              let workoutDate = workout.date ? new Date(workout.date) : new Date();
+              if (!workout.date) {
+                workoutDate.setDate(new Date().getDate() + index);
+              }
+              
+              return {
+                plan_id: trainingPlanData.id,
+                day_number: index + 1,
+                day_date: workoutDate.toISOString().split('T')[0],
+                title: workout.title,
+                description: workout.description,
+                type: workout.type,
+                planned_distance: workout.distance,
+                planned_duration: workout.duration,
+                target_pace: userProfile.pace,
+                completed: false
+              };
+            });
+            
+            console.log("📋 Sessions to insert:", sessionsToInsert.length);
+            
+            const { data: sessionsData, error: sessionsError } = await supabase
+              .from('training_sessions')
+              .insert(sessionsToInsert);
+            
+            if (sessionsError) {
+              console.error("❌ ERROR saving workout sessions:", sessionsError);
+              console.error("Sessions error details:", JSON.stringify(sessionsError, null, 2));
+            } else {
+              console.log("✅ Training sessions saved successfully:", sessionsData ? sessionsData.length : 0, "sessions");
+            }
           }
         }
       } catch (dbError) {
@@ -492,8 +665,10 @@ IMPORTANTE:
         // Continue to return the plan even if DB storage fails
       }
       
-      // Add RAG status to the response
+      // Add enhanced RAG status to the response
       plan.ragActive = ragActive;
+      plan.ragStrategy = ragStrategy;
+      plan.ragFragmentsUsed = ragActive ? contextText.split('**FRAGMENTO').length - 1 : 0;
       
       return new Response(
         JSON.stringify(plan),

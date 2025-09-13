@@ -62,9 +62,21 @@ class WatchConnectivityService {
         return;
       }
 
+      // Get user profile ID
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_auth_id', user.id)
+        .single();
+      
+      if (!userProfile) {
+        console.error('User profile not found for auth user:', user.id);
+        return;
+      }
+
       // Convert watch data to our app format
       const activityData = {
-        user_id: user.id,
+        user_id: userProfile.id,
         fecha: new Date(workoutData.startTime * 1000).toISOString().split('T')[0],
         hora_inicio: new Date(workoutData.startTime * 1000).toTimeString().split(' ')[0],
         distancia: workoutData.distance / 1000, // Convert to km
