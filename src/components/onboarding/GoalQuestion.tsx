@@ -32,7 +32,7 @@ const GoalQuestion: React.FC = () => {
 
   return (
     <div className="min-h-screen pt-16 pb-20 flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white">
-      <ProgressHeader currentStep={8} totalSteps={10} />
+      <ProgressHeader currentStep={7} totalSteps={9} />
 
       <div className="flex-1 flex flex-col justify-center px-6 max-w-md mx-auto w-full">
         <div className="bg-white rounded-xl p-6 shadow-sm">

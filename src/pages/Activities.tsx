@@ -273,10 +273,10 @@ const Activities: React.FC = () => {
             <div 
         className="w-full flex justify-center"
         style={{ 
-          paddingTop: insets.top + HEADER_HEIGHT + 16,
-          paddingBottom: `calc(90px + ${insets.bottom}px)`, // Más espacio para el bottom nav
-          paddingLeft: Math.max(insets.left, 16),
-          paddingRight: Math.max(insets.right, 16),
+          paddingTop: (insets.top || 0) + HEADER_HEIGHT + 16,
+          paddingBottom: `calc(90px + ${insets.bottom || 0}px)`, // Más espacio para el bottom nav
+          paddingLeft: Math.max(insets.left || 0, 16),
+          paddingRight: Math.max(insets.right || 0, 16),
           height: '100vh',
           overflow: 'auto',
         }}

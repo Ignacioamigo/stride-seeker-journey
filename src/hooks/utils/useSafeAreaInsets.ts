@@ -117,7 +117,10 @@ export function useSafeAreaInsets() {
 
   // Memoizar el resultado para evitar re-renders innecesarios
   return useMemo(() => ({
-    ...insets,
+    top: insets.top || 0,
+    right: insets.right || 0,
+    bottom: insets.bottom || 0,
+    left: insets.left || 0,
     isReady
   }), [insets.top, insets.right, insets.bottom, insets.left, isReady]);
 } 

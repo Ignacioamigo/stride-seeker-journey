@@ -58,12 +58,18 @@ const StatsCard: React.FC<StatsCardProps> = ({
 
 const Stats: React.FC = () => {
   const { user } = useUser();
-  const insets = useSafeAreaInsets();
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('current_week');
+  
+  // 🔥 HOOK ANTI-DESCUADRE - DEBE IR AL INICIO
+  useLayoutStability();
+  const { top, bottom, left, right, isReady } = useSafeAreaInsets();
   const { stats: periodStats, isLoading: periodLoading, currentPlan } = usePeriodStats(selectedPeriod);
   
-  // 🔥 HOOK ANTI-DESCUADRE
-  useLayoutStability();
+  // Usar fallbacks seguros cuando isReady es false
+  const safeTop = isReady ? (top || 0) : 44;
+  const safeBottom = isReady ? (bottom || 0) : 34;
+  const safeLeft = isReady ? left : 0;
+  const safeRight = isReady ? right : 0;
   
   // Calculate change indicators based on period
   const getDistanceSubtext = (): string => {
@@ -94,10 +100,10 @@ const Stats: React.FC = () => {
         <div 
           className="w-full flex justify-center"
           style={{ 
-            paddingTop: insets.top + HEADER_HEIGHT + 16, // Safe area + Header height + spacing
-            paddingBottom: `calc(90px + ${insets.bottom}px)`, // Más espacio para el bottom nav
-            paddingLeft: Math.max(insets.left, 16),
-            paddingRight: Math.max(insets.right, 16),
+            paddingTop: safeTop + HEADER_HEIGHT + 80, // Safe area + Header height + ESPACIO AMPLIO para selector
+            paddingBottom: `calc(600px + ${safeBottom}px)`, // MÁXIMO espacio estable para scroll completo
+            paddingLeft: Math.max(safeLeft, 16),
+            paddingRight: Math.max(safeRight, 16),
             height: '100vh',
             overflow: 'auto',
           }}

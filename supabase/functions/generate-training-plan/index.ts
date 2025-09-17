@@ -200,7 +200,10 @@ serve(async (req) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${supabaseKey}`
           },
-          body: JSON.stringify({ text: contextualQuery })
+          body: JSON.stringify({ 
+            text: contextualQuery,
+            taskType: 'RETRIEVAL_QUERY' 
+          })
         }
       );
       
@@ -303,8 +306,25 @@ serve(async (req) => {
       
     } catch (ragError) {
       console.error("Error during advanced RAG processing:", ragError);
+      console.error("RAG Error Details:", {
+        errorMessage: ragError.message,
+        errorStack: ragError.stack,
+        ragStrategy: ragStrategy,
+        contextLength: contextText.length
+      });
+      
+      // More detailed error tracking
+      if (ragError.message && ragError.message.includes('API key not configured')) {
+        console.error("❌ CRITICAL: GEMINI_API_KEY is not configured in Supabase Edge Functions environment");
+        ragStrategy = 'missing_api_key';
+      } else if (ragError.message && ragError.message.includes('Embedding API error')) {
+        console.error("❌ ERROR: Gemini Embedding API returned an error - check API key validity");
+        ragStrategy = 'api_error';
+      } else {
+        ragStrategy = 'error';
+      }
+      
       contextText = "";
-      ragStrategy = 'error';
     }
     
     // Helper functions for fragment processing

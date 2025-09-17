@@ -5,7 +5,7 @@ import { RaceEvent } from "@/types";
 import { searchRaces, getPopularRaces, raceTypes } from "@/services/raceService";
 import RunButton from "@/components/ui/RunButton";
 import ProgressHeader from "@/components/layout/ProgressHeader";
-import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
+import { useOnboardingLayout } from "@/hooks/useOnboardingLayout";
 import { Search, MapPin, Calendar, Route, X, Target } from "lucide-react";
 
 const RacePreparationQuestion: React.FC = () => {
@@ -16,11 +16,10 @@ const RacePreparationQuestion: React.FC = () => {
   const [showResults, setShowResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
-  const insets = useSafeAreaInsets();
+  const { isReady, paddingTop, paddingBottom, paddingLeft, paddingRight } = useOnboardingLayout();
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const headerHeight = insets.top + 24 + 32;
   const [popularRaces, setPopularRaces] = useState<RaceEvent[]>([]);
 
   // Load popular races on component mount
@@ -114,13 +113,18 @@ const RacePreparationQuestion: React.FC = () => {
   return (
     <div 
       className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
-      style={{ paddingTop: `${headerHeight}px` }}
+      style={{
+        paddingTop,
+        paddingBottom,
+        paddingLeft,
+        paddingRight,
+      }}
     >
       <ProgressHeader 
         title="¿Te preparas para alguna carrera específica?"
         subtitle="Personaliza tu entrenamiento para una carrera concreta"
-        currentStep={9}
-        totalSteps={12}
+        currentStep={7}
+        totalSteps={9}
       />
 
       <div className="flex-1 px-6 py-8 space-y-8">

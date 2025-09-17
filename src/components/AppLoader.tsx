@@ -29,10 +29,10 @@ const AppLoader: React.FC<AppLoaderProps> = ({ children }) => {
       <div 
         className="min-h-screen bg-gradient-to-b from-runapp-light-purple/30 to-white flex flex-col items-center justify-center"
         style={{
-          paddingTop: insets.top,
-          paddingBottom: insets.bottom,
-          paddingLeft: Math.max(insets.left, 16),
-          paddingRight: Math.max(insets.right, 16),
+          paddingTop: insets.top || 0,
+          paddingBottom: insets.bottom || 0,
+          paddingLeft: Math.max(insets.left || 0, 16),
+          paddingRight: Math.max(insets.right || 0, 16),
         }}
       >
         <div className="text-center">

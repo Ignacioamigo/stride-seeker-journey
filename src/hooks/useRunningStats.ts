@@ -468,6 +468,20 @@ export const useRunningStats = (updateCounter?: number) => {
     calculateStats();
   }, []);
 
+  // Escuchar eventos de reset desde UserContext
+  useEffect(() => {
+    const handleResetStats = () => {
+      console.log('🔄 Hook: Evento resetStats recibido desde UserContext');
+      resetStats();
+    };
+
+    window.addEventListener('resetStats', handleResetStats);
+    
+    return () => {
+      window.removeEventListener('resetStats', handleResetStats);
+    };
+  }, []);
+
   const refreshStats = () => {
     console.log('🔥 Hook: refreshStats llamado - ejecutando calculateStats');
     calculateStats();

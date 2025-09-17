@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import ProgressHeader from "@/components/layout/ProgressHeader";
-import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
+import { useOnboardingLayout } from "@/hooks/useOnboardingLayout";
 
 const MaxDistanceQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
@@ -12,9 +12,7 @@ const MaxDistanceQuestion: React.FC = () => {
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [inputMode, setInputMode] = useState<boolean>(false);
   const navigate = useNavigate();
-  const insets = useSafeAreaInsets();
-
-  const headerHeight = insets.top + 24 + 32;
+  const { isReady, paddingTop, paddingBottom, paddingLeft, paddingRight } = useOnboardingLayout();
 
   const predefinedOptions = [
     { label: "Soy principiante / Nunca he corrido", value: "0" },
@@ -57,39 +55,39 @@ const MaxDistanceQuestion: React.FC = () => {
     <div 
       className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
       style={{
-        paddingTop: headerHeight,
-        paddingBottom: insets.bottom + 80,
-        paddingLeft: Math.max(insets.left, 16),
-        paddingRight: Math.max(insets.right, 16),
+        paddingTop,
+        paddingBottom,
+        paddingLeft,
+        paddingRight,
       }}
     >
-      <ProgressHeader currentStep={6} totalSteps={10} />
+      <ProgressHeader currentStep={5} totalSteps={9} />
 
-      <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
-        <div className="bg-white rounded-xl p-6 shadow-sm">
-          <h2 className="text-2xl font-semibold text-runapp-navy mb-2">
+      <div className="flex-1 flex flex-col max-w-md mx-auto w-full py-4">
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <h2 className="text-xl font-semibold text-runapp-navy mb-1">
             ¿Cuál es la distancia máxima que has corrido?
           </h2>
-          <p className="text-runapp-gray mb-6">Esto nos ayudará a personalizar tu plan de entrenamiento</p>
+          <p className="text-runapp-gray mb-4 text-sm">Esto nos ayudará a personalizar tu plan de entrenamiento</p>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {!inputMode ? (
-              <div className="space-y-4">
-                <div className="grid gap-3">
+              <div className="space-y-3">
+                <div className="grid gap-2">
                   {predefinedOptions.map((option, index) => (
                     <button
                       key={index}
                       type="button"
                       onClick={() => handleOptionSelect(option)}
-                      className={`p-4 rounded-lg border-2 text-left transition-all duration-200 ${
+                      className={`p-3 rounded-lg border-2 text-left transition-all duration-200 ${
                         selectedOption === option.label
                           ? 'border-runapp-purple bg-runapp-purple/5 text-runapp-purple'
                           : 'border-gray-200 hover:border-gray-300 text-runapp-navy'
                       }`}
                     >
-                      <div className="font-medium">{option.label}</div>
+                      <div className="font-medium text-sm">{option.label}</div>
                       {option.value !== "0" && (
-                        <div className="text-sm text-gray-500 mt-1">
+                        <div className="text-xs text-gray-500 mt-0.5">
                           ~{option.value} km
                         </div>
                       )}
@@ -97,7 +95,7 @@ const MaxDistanceQuestion: React.FC = () => {
                   ))}
                 </div>
                 
-                <div className="pt-4 border-t border-gray-200">
+                <div className="pt-2 border-t border-gray-200">
                   <button
                     type="button"
                     onClick={handleCustomInput}

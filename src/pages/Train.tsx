@@ -5,15 +5,21 @@ import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 const HEADER_HEIGHT = 56;
 
 const Train: React.FC = () => {
-  const insets = useSafeAreaInsets();
+  const { top, bottom, left, right, isReady } = useSafeAreaInsets();
+  
+  // Usar fallbacks seguros cuando isReady es false
+  const safeTop = isReady ? (top || 0) : 44;
+  const safeBottom = isReady ? (bottom || 0) : 34;
+  const safeLeft = isReady ? left : 0;
+  const safeRight = isReady ? right : 0;
   
   return (
     <div
       className="bg-gray-50 flex flex-col h-screen overflow-hidden"
       style={{
-        paddingTop: insets.top,
-        paddingLeft: Math.max(insets.left, 0),
-        paddingRight: Math.max(insets.right, 0),
+        paddingTop: safeTop,
+        paddingLeft: Math.max(safeLeft, 0),
+        paddingRight: Math.max(safeRight, 0),
         paddingBottom: 0, // BottomNav maneja su propio safe area
       }}
     >

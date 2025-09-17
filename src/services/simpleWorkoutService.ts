@@ -139,13 +139,27 @@ export const getSimpleWorkouts = async (): Promise<SimpleWorkout[]> => {
   try {
     console.log('📊 Obteniendo entrenamientos desde workouts_simple...');
     
+    // 🔍 FILTRAR POR USUARIO ACTUAL
+    let userEmail = 'anonimo@app.com';
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        userEmail = user.email;
+      }
+    } catch (authError) {
+      console.log('👤 Usuario anónimo, usando email por defecto');
+    }
+    
+    console.log('👤 Filtrando entrenamientos para usuario:', userEmail);
+    
     const { data, error } = await supabase
       .from('workouts_simple')
       .select('*')
+      .eq('user_email', userEmail)  // 🎯 FILTRAR POR USUARIO
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      console.log('✅ Entrenamientos desde Supabase:', data.length);
+      console.log('✅ Entrenamientos desde Supabase (filtrados):', data.length);
       return data;
     } else {
       console.error('❌ Error obteniendo desde Supabase:', error);
@@ -169,4 +183,68 @@ export const getSimpleWorkouts = async (): Promise<SimpleWorkout[]> => {
 export const getSimpleWorkoutsForPlan = async (planId: string): Promise<SimpleWorkout[]> => {
   const allWorkouts = await getSimpleWorkouts();
   return allWorkouts.filter(w => w.plan_info === planId);
+};
+
+/**
+ * 🧹 FUNCIÓN DE LIMPIEZA TOTAL DE ESTADÍSTICAS
+ * Limpia TODAS las fuentes de datos para un nuevo usuario
+ */
+export const clearAllUserStats = async (): Promise<void> => {
+  console.log('🧹🔥 === INICIANDO LIMPIEZA TOTAL DE ESTADÍSTICAS ===');
+  
+  try {
+    // 1. 🗄️ LIMPIAR SUPABASE
+    let userEmail = 'anonimo@app.com';
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        userEmail = user.email;
+      }
+    } catch (authError) {
+      console.log('👤 Usuario anónimo para limpieza');
+    }
+    
+    console.log(`🧹 Limpiando datos de Supabase para usuario: ${userEmail}`);
+    
+    // Eliminar de workouts_simple (principal)
+    const { error: simpleError } = await supabase
+      .from('workouts_simple')
+      .delete()
+      .eq('user_email', userEmail);
+    
+    if (simpleError) {
+      console.error('❌ Error limpiando workouts_simple:', simpleError);
+    } else {
+      console.log('✅ workouts_simple limpiada');
+    }
+    
+  } catch (dbError) {
+    console.error('🔥 Error limpiando Supabase:', dbError);
+  }
+  
+  // 2. 💾 LIMPIAR LOCALSTORAGE COMPLETO
+  console.log('🧹 Limpiando localStorage...');
+  
+  try {
+    // Limpiar datos específicos de workouts
+    localStorage.removeItem('simpleWorkouts');
+    localStorage.removeItem('completedWorkouts');
+    localStorage.removeItem('savedPlan');
+    
+    // Limpiar datos de emergencia
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith('emergencyWorkout_')) {
+        localStorage.removeItem(key);
+        console.log(`🧹 Removido: ${key}`);
+      }
+    });
+    
+    console.log('✅ localStorage completamente limpiado');
+    
+  } catch (localError) {
+    console.error('🔥 Error limpiando localStorage:', localError);
+  }
+  
+  console.log('🎉 === LIMPIEZA TOTAL COMPLETADA ===');
 };

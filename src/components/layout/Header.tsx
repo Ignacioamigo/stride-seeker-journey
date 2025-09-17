@@ -12,8 +12,11 @@ const RADIUS_TOP = 28;
 const RADIUS_BOTTOM = 0;
 
 const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" }) => {
-  const insets = useSafeAreaInsets();
-  const headerHeight = insets.top + HEADER_HEIGHT;
+  const { top, bottom, left, right, isReady } = useSafeAreaInsets();
+  const headerHeight = (top || 0) + HEADER_HEIGHT;
+  
+  // Si los insets no están listos, usar valores fallback seguros
+  const safeTop = isReady ? top : 44; // Fallback seguro para iOS
   const [scrolled, setScrolled] = React.useState(false);
   React.useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 1);
@@ -33,9 +36,9 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" })
         zIndex: 100,
         background: bgColor,
         color: "#fff",
-        paddingTop: `max(${insets.top}px, env(safe-area-inset-top, 20px))`,
-        height: `calc(${HEADER_HEIGHT}px + max(${insets.top}px, env(safe-area-inset-top, 20px)))`,
-        minHeight: `calc(${HEADER_HEIGHT}px + max(${insets.top}px, env(safe-area-inset-top, 20px)))`,
+        paddingTop: `max(${safeTop}px, env(safe-area-inset-top, 20px))`,
+        height: `calc(${HEADER_HEIGHT}px + max(${safeTop}px, env(safe-area-inset-top, 20px)))`,
+        minHeight: `calc(${HEADER_HEIGHT}px + max(${safeTop}px, env(safe-area-inset-top, 20px)))`,
         borderTopLeftRadius: RADIUS_TOP,
         borderTopRightRadius: RADIUS_TOP,
         borderBottomLeftRadius: RADIUS_BOTTOM,

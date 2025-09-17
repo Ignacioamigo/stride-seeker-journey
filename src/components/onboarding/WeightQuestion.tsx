@@ -5,17 +5,14 @@ import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import SliderInput from "@/components/ui/SliderInput";
 import ProgressHeader from "@/components/layout/ProgressHeader";
-import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
+import { useOnboardingLayout } from "@/hooks/useOnboardingLayout";
 
 const WeightQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
   const [weight, setWeight] = useState<string>(user.weight?.toString() || "70");
   const [unit, setUnit] = useState<'kg' | 'lbs'>('kg');
   const navigate = useNavigate();
-  const insets = useSafeAreaInsets();
-
-  // Calculate header height: safe area + padding + content
-  const headerHeight = insets.top + 24 + 32; // safe area + py-3 (12px*2) + estimated content height
+  const { isReady, paddingTop, paddingBottom, paddingLeft, paddingRight } = useOnboardingLayout();
 
   const convertToKg = (lbs: number) => Math.round(lbs * 0.45359237);
   const convertToLbs = (kg: number) => Math.round(kg * 2.20462);
@@ -83,10 +80,10 @@ const WeightQuestion: React.FC = () => {
     <div 
       className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
       style={{
-        paddingTop: headerHeight,
-        paddingBottom: insets.bottom + 80, // safe area + space for content
-        paddingLeft: Math.max(insets.left, 16),
-        paddingRight: Math.max(insets.right, 16),
+        paddingTop,
+        paddingBottom,
+        paddingLeft,
+        paddingRight,
       }}
     >
       <ProgressHeader currentStep={5} totalSteps={10} />

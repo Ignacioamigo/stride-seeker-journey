@@ -7,7 +7,7 @@ import ProgressHeader from "@/components/layout/ProgressHeader";
 import DaySelector from "@/components/ui/DaySelector";
 import { WeekDay } from "@/types";
 import { getCurrentWeekDays } from "@/utils/dateUtils";
-import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
+import { useOnboardingLayout } from "@/hooks/useOnboardingLayout";
 
 const WeeklyWorkoutsQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
@@ -15,7 +15,7 @@ const WeeklyWorkoutsQuestion: React.FC = () => {
   const [selectedDays, setSelectedDays] = useState<WeekDay[]>([]);
   const [mode, setMode] = useState<'quantity' | 'days'>('quantity');
   const navigate = useNavigate();
-  const { top, bottom, left, right, isReady } = useSafeAreaInsets();
+  const { isReady, paddingTop, paddingBottom, paddingLeft, paddingRight } = useOnboardingLayout();
 
   // Inicializar días de la semana
   useEffect(() => {
@@ -96,13 +96,13 @@ const WeeklyWorkoutsQuestion: React.FC = () => {
     <div 
       className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
       style={{
-        paddingTop: top + 60, // safe area + header space
-        paddingBottom: bottom + 80, // safe area + content space
-        paddingLeft: Math.max(left, 16),
-        paddingRight: Math.max(right, 16),
+        paddingTop: (top || 0) + 60, // safe area + header space
+        paddingBottom: (bottom || 0) + 80, // safe area + content space
+        paddingLeft: Math.max(left || 0, 16),
+        paddingRight: Math.max(right || 0, 16),
       }}
     >
-      <ProgressHeader currentStep={9} totalSteps={10} />
+      <ProgressHeader currentStep={8} totalSteps={9} />
 
       <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <div className="bg-white rounded-xl p-6 shadow-sm">

@@ -35,17 +35,45 @@ const WorkoutSummaryScreen: React.FC<WorkoutSummaryScreenProps> = ({
     if (meters < 1000) {
       return `${meters.toFixed(0)} m`;
     }
-    return `${(meters / 1000).toFixed(2)} km`;
+    return `${(meters / 1000).toFixed(2).replace('.', ',')}`;
+  };
+
+  const formatDuration = (duration: string): string => {
+    if (!duration) return "00:00:00";
+    
+    // Limpiar la duración y extraer solo números y dos puntos
+    const cleanDuration = duration.replace(/[^\d:]/g, '');
+    const parts = cleanDuration.split(':');
+    
+    // Asegurar que siempre tengamos 3 partes (horas:minutos:segundos)
+    if (parts.length >= 3) {
+      const hours = parseInt(parts[0]) || 0;
+      const minutes = parseInt(parts[1]) || 0;
+      const seconds = parseInt(parts[2]) || 0; // Solo tomar la parte entera de los segundos
+      
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else if (parts.length === 2) {
+      // Si solo hay MM:SS, asumir 00:MM:SS
+      const minutes = parseInt(parts[0]) || 0;
+      const seconds = parseInt(parts[1]) || 0;
+      
+      return `00:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    return "00:00:00";
   };
 
   const calculateAverageSpeed = (): string => {
-    if (!runSession || runSession.distance === 0) return "--,--";
-    const durationParts = runSession.duration.split(':');
+    if (!runSession || runSession.distance === 0) return "0,0";
+    
+    const formattedDuration = formatDuration(runSession.duration);
+    const durationParts = formattedDuration.split(':');
     const totalMinutes = parseInt(durationParts[0]) * 60 + parseInt(durationParts[1]) + parseInt(durationParts[2]) / 60;
     const kmDistance = runSession.distance / 1000;
-    if (totalMinutes === 0) return "--,--";
+    
+    if (totalMinutes === 0) return "0,00";
     const speed = (kmDistance / totalMinutes) * 60; // km/h
-    return speed.toFixed(1);
+    return speed.toFixed(2).replace('.', ','); // Usar coma como separador decimal
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,13 +212,13 @@ const WorkoutSummaryScreen: React.FC<WorkoutSummaryScreenProps> = ({
                   <Route className="w-5 h-5 mr-1" />
                 </div>
                 <p className="text-2xl font-bold">{formatDistance(runSession.distance)}</p>
-                <p className="text-sm opacity-80">Distancia</p>
+                <p className="text-sm opacity-80">Distancia<br/>(km)</p>
               </div>
               <div>
                 <div className="flex items-center justify-center mb-2">
                   <Clock className="w-5 h-5 mr-1" />
                 </div>
-                <p className="text-2xl font-bold">{runSession.duration}</p>
+                <p className="text-2xl font-bold">{formatDuration(runSession.duration)}</p>
                 <p className="text-sm opacity-80">Duración</p>
               </div>
               <div>
@@ -198,7 +226,7 @@ const WorkoutSummaryScreen: React.FC<WorkoutSummaryScreenProps> = ({
                   <Activity className="w-5 h-5 mr-1" />
                 </div>
                 <p className="text-2xl font-bold">{calculateAverageSpeed()}</p>
-                <p className="text-sm opacity-80">km/h medio</p>
+                <p className="text-sm opacity-80">Velocidad<br/>media<br/>(km/h)</p>
               </div>
             </div>
           </CardContent>

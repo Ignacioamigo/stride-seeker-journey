@@ -40,17 +40,18 @@ serve(async (req) => {
 
     console.log("Generating embedding for text with length:", text.length);
     
-    // Call the Embedding API
+    // Call the Embedding API with the latest model
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/embedding-001:embedContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'models/embedding-001',
-          content: { parts: [{ text }] }
+          model: 'models/text-embedding-004',
+          content: { parts: [{ text }] },
+          taskType: 'RETRIEVAL_DOCUMENT'
         }),
       }
     );
@@ -143,15 +144,16 @@ serve(async (req) => {
         // Generate and store embeddings for each chunk
         for (let i = 0; i < textChunks.length; i++) {
           const chunkResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1/models/embedding-001:embedContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
             {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                model: 'models/embedding-001',
-                content: { parts: [{ text: textChunks[i] }] }
+                model: 'models/text-embedding-004',
+                content: { parts: [{ text: textChunks[i] }] },
+                taskType: 'RETRIEVAL_DOCUMENT'
               }),
             }
           );
