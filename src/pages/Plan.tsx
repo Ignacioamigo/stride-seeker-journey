@@ -226,20 +226,26 @@ const Plan: React.FC = () => {
     const insets = useSafeAreaInsets();
     
     return (
-      <div className="bg-gray-50 min-h-screen">
+      <div 
+        style={{
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#f9fafb'
+        }}
+      >
         {/* Header - let it handle its own fixed positioning */}
         <Header title="Plan de entrenamiento" subtitle="Tu semana personalizada" />
         
-        {/* Content area with perfect alignment */}
+        {/* Scrollable Content */}
         <div 
-          className="w-full flex justify-center"
-          style={{ 
-            paddingTop: insets.top + HEADER_HEIGHT + 16, // Safe area + Header height + spacing
-            paddingBottom: `calc(400px + ${insets.bottom}px)`, // Muchísimo más espacio para scroll completo
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            paddingTop: `calc(${HEADER_HEIGHT}px + max(${insets.top}px, env(safe-area-inset-top, 20px)) + 20px)`,
             paddingLeft: Math.max(insets.left, 16),
             paddingRight: Math.max(insets.right, 16),
-            height: '100vh',
-            overflow: 'auto',
+            paddingBottom: `calc(90px + ${insets.bottom}px)`,
           }}
         >
           <div className="w-full max-w-md mx-auto px-4">

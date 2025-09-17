@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, MapPin, Clock, Route, Activity, ChevronRight, Share } from 'lucide-react';
 import { RunSession, WorkoutPublishData } from '@/types';
 import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
+import { useLayoutStability } from '@/hooks/useLayoutStability';
 import { supabase } from '@/integrations/supabase/client';
 
 interface WorkoutSummaryScreenProps {
@@ -30,6 +31,12 @@ const WorkoutSummaryScreen: React.FC<WorkoutSummaryScreenProps> = ({
   const [stravaUploadStatus, setStravaUploadStatus] = useState<string>('');
   const [showStravaButton, setShowStravaButton] = useState(false);
   const insets = useSafeAreaInsets();
+  
+  // Hook para estabilidad de layout
+  useLayoutStability();
+  
+  // Calcular altura total del header fijo
+  const headerHeight = Math.max(insets.top + 20, 40) + 16 + 32 + 64 + 16; // safe area + padding + title + button + spacing
 
   const formatDistance = (meters: number): string => {
     if (meters < 1000) {
@@ -144,9 +151,15 @@ const WorkoutSummaryScreen: React.FC<WorkoutSummaryScreenProps> = ({
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50" style={{ paddingTop: Math.max(insets.top, 0) }}>
-      {/* Header fijo con botón */}
-      <div className="flex-shrink-0 bg-gray-50 px-4 py-4 border-b border-gray-200">
+    <div className="h-screen flex flex-col bg-gray-50" style={{ position: 'relative', overflow: 'hidden' }}>
+      {/* Header fijo con safe area */}
+      <div 
+        className="flex-shrink-0 bg-gray-50 px-4 border-b border-gray-200 fixed top-0 left-0 right-0 z-50"
+        style={{
+          paddingTop: `max(${insets.top}px + 20px, env(safe-area-inset-top, 20px) + 20px)`,
+          paddingBottom: '16px'
+        }}
+      >
         <h1 className="text-2xl font-bold text-runapp-navy mb-4">¡Entrenamiento completado!</h1>
         {/* BOTÓN PRINCIPAL ARRIBA */}
         <Button
@@ -174,31 +187,42 @@ const WorkoutSummaryScreen: React.FC<WorkoutSummaryScreenProps> = ({
       </div>
 
       {/* Contenido scrolleable */}
-      <div className="flex-1 overflow-y-auto px-4 pb-8">
+      <div 
+        className="flex-1 overflow-y-auto px-4 pb-8"
+        style={{
+          paddingTop: `${headerHeight}px`,
+          marginTop: 0
+        }}
+      >
         {/* Quick Stats Card */}
         <Card className="mb-6 bg-gradient-to-r from-runapp-purple to-runapp-deep-purple text-white rounded-2xl">
           <CardContent className="p-6">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="flex items-center justify-center mb-2">
-                  <Route className="w-5 h-5 mr-1" />
+            <div className="space-y-4">
+              {/* Distancia */}
+              <div className="flex items-center justify-center space-x-3">
+                <Route className="w-5 h-5" />
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{formatDistance(runSession.distance)}</p>
+                  <p className="text-xs opacity-80">Distancia</p>
                 </div>
-                <p className="text-2xl font-bold">{formatDistance(runSession.distance)}</p>
-                <p className="text-sm opacity-80">Distancia</p>
               </div>
-              <div>
-                <div className="flex items-center justify-center mb-2">
-                  <Clock className="w-5 h-5 mr-1" />
+              
+              {/* Duración */}
+              <div className="flex items-center justify-center space-x-3">
+                <Clock className="w-5 h-5" />
+                <div className="text-center">
+                  <p className="text-xl font-bold">{runSession.duration}</p>
+                  <p className="text-xs opacity-80">Duración</p>
                 </div>
-                <p className="text-2xl font-bold">{runSession.duration}</p>
-                <p className="text-sm opacity-80">Duración</p>
               </div>
-              <div>
-                <div className="flex items-center justify-center mb-2">
-                  <Activity className="w-5 h-5 mr-1" />
+              
+              {/* Velocidad */}
+              <div className="flex items-center justify-center space-x-3">
+                <Activity className="w-5 h-5" />
+                <div className="text-center">
+                  <p className="text-xl font-bold">{calculateAverageSpeed()}</p>
+                  <p className="text-xs opacity-80">km/h medio</p>
                 </div>
-                <p className="text-2xl font-bold">{calculateAverageSpeed()}</p>
-                <p className="text-sm opacity-80">km/h medio</p>
               </div>
             </div>
           </CardContent>

@@ -15,24 +15,20 @@ const BottomNav: React.FC = () => {
   ];
 
   return (
-    <nav 
-      className="fixed bottom-0 left-0 right-0 flex justify-between items-center bg-white border-t border-gray-200 z-50 no-select"
+    <div 
       style={{
+        backgroundColor: 'white',
+        borderTop: '1px solid #e5e7eb',
+        boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
         paddingTop: 12,
-        paddingBottom: `max(${insets.bottom}px + 12px, calc(env(safe-area-inset-bottom, 0px) + 12px))`,
+        paddingBottom: Math.max(insets.bottom + 12, 12),
         paddingLeft: Math.max(insets.left + 24, 24),
         paddingRight: Math.max(insets.right + 24, 24),
-        minHeight: `calc(64px + ${insets.bottom}px)`,
-        background: 'white',
-        boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
-        transform: 'translate3d(0, 0, 0)',
-        WebkitTransform: 'translate3d(0, 0, 0)',
-        willChange: 'transform',
-        backfaceVisibility: 'hidden',
-        WebkitBackfaceVisibility: 'hidden',
-        contain: 'layout style paint',
+        minHeight: 64 + insets.bottom,
+        flexShrink: 0,
       }}
     >
+      <nav className="flex justify-between items-center no-select">
       {navItems.map((item) => (
         <Link 
           key={item.path} 
@@ -45,7 +41,8 @@ const BottomNav: React.FC = () => {
           <span className="mt-1 no-select">{item.name}</span>
         </Link>
       ))}
-    </nav>
+      </nav>
+    </div>
   );
 };
 

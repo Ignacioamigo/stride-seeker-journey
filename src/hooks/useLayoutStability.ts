@@ -1,41 +1,63 @@
-// 🔥 HOOK DEFINITIVO PARA ELIMINAR DESCUADRE
-import { useEffect, useCallback } from 'react';
+// 🔥 HOOK MEJORADO PARA ESTABILIDAD DE LAYOUT
+import { useEffect, useCallback, useRef } from 'react';
 
 export const useLayoutStability = () => {
+  const isStabilizing = useRef(false);
+
   const forceLayoutRecalculation = useCallback(() => {
-    // 1. Forzar GPU layer creation
-    document.body.style.transform = 'translate3d(0, 0, 0)';
-    document.documentElement.style.transform = 'translate3d(0, 0, 0)';
-    
-    // 2. Forzar reflow
-    document.body.offsetHeight;
-    
-    // 3. Reset inmediato
-    requestAnimationFrame(() => {
-      document.body.style.transform = '';
-      document.documentElement.style.transform = '';
-    });
-    
-    // 4. Arreglar elementos fixed específicos
-    const fixedElements = document.querySelectorAll('[style*="position: fixed"], .fixed');
-    fixedElements.forEach((el) => {
-      const element = el as HTMLElement;
-      element.style.transform = 'translate3d(0, 0, 0)';
-      
+    if (isStabilizing.current) return;
+    isStabilizing.current = true;
+
+    try {
+      // 1. Asegurar que el viewport meta tag esté correcto
+      let viewport = document.querySelector('meta[name="viewport"]');
+      if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+      }
+
+      // 2. Forzar recalculo de layout suave
       requestAnimationFrame(() => {
-        element.style.transform = '';
+        // Forzar reflow de manera más suave
+        const body = document.body;
+        const html = document.documentElement;
+        
+        // Aplicar transform para forzar layer de compositing
+        body.style.transform = 'translateZ(0)';
+        html.style.transform = 'translateZ(0)';
+        
+        // Forzar reflow
+        body.offsetHeight;
+        
+        // Reset después de siguiente frame
+        requestAnimationFrame(() => {
+          body.style.transform = '';
+          html.style.transform = '';
+          isStabilizing.current = false;
+        });
       });
-    });
+    } catch (error) {
+      console.warn('Layout stability adjustment failed:', error);
+      isStabilizing.current = false;
+    }
   }, []);
 
   useEffect(() => {
-    // Ejecutar inmediatamente
-    forceLayoutRecalculation();
+    // Ejecutar solo una vez al montar
+    const timer = setTimeout(forceLayoutRecalculation, 50);
     
-    // Y después de un pequeño delay para asegurar
-    const timer = setTimeout(forceLayoutRecalculation, 100);
+    // Escuchar cambios de orientación
+    const handleOrientationChange = () => {
+      setTimeout(forceLayoutRecalculation, 100);
+    };
     
-    return () => clearTimeout(timer);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', handleOrientationChange);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleOrientationChange);
+    };
   }, [forceLayoutRecalculation]);
 
   return forceLayoutRecalculation;

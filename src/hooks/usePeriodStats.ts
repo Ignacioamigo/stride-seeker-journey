@@ -3,6 +3,7 @@ import { getCompletedWorkouts } from '@/services/completedWorkoutService';
 import { loadLatestPlan } from '@/services/planService';
 import { TimePeriod } from '@/components/stats/PeriodSelector';
 import { WorkoutPlan } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PeriodStats {
   totalDistance: number;
@@ -358,6 +359,24 @@ export const usePeriodStats = (period: TimePeriod) => {
     
     return () => {
       window.removeEventListener('plan-updated', handlePlanUpdated);
+    };
+  }, []);
+
+  // Escuchar cambios en la autenticación para actualizar estadísticas
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[usePeriodStats] Auth state changed:', event);
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        console.log('[usePeriodStats] Recalculando estadísticas por cambio de autenticación');
+        // Pequeño delay para asegurar que el contexto se actualice
+        setTimeout(() => {
+          calculatePeriodStats();
+        }, 500);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
     };
   }, []);
 

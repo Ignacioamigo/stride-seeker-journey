@@ -15,11 +15,20 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" })
   const insets = useSafeAreaInsets();
   const headerHeight = insets.top + HEADER_HEIGHT;
   const [scrolled, setScrolled] = React.useState(false);
+  
   React.useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 1);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Asegurar que el header se renderice correctamente
+  React.useEffect(() => {
+    // Forzar un reflow después del montaje para asegurar posicionamiento correcto
+    requestAnimationFrame(() => {
+      document.body.offsetHeight;
+    });
+  }, [insets.top]);
 
   return (
     <div

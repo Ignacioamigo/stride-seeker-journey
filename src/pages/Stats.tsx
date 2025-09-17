@@ -86,20 +86,26 @@ const Stats: React.FC = () => {
   
   return (
     <StatsProvider>
-      <div className="bg-gray-50 min-h-screen">
+      <div 
+        style={{
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#f9fafb'
+        }}
+      >
         {/* Header - let it handle its own fixed positioning */}
         <Header title="Estadísticas" subtitle={`Hola, ${user.name} 👋 | Tu progreso detallado`} />
         
-        {/* Content area with perfect alignment */}
+        {/* Scrollable Content */}
         <div 
-          className="w-full flex justify-center"
-          style={{ 
-            paddingTop: insets.top + HEADER_HEIGHT + 16, // Safe area + Header height + spacing
-            paddingBottom: `calc(90px + ${insets.bottom}px)`, // Más espacio para el bottom nav
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            paddingTop: `calc(${HEADER_HEIGHT}px + max(${insets.top}px, env(safe-area-inset-top, 20px)) + 20px)`,
             paddingLeft: Math.max(insets.left, 16),
             paddingRight: Math.max(insets.right, 16),
-            height: '100vh',
-            overflow: 'auto',
+            paddingBottom: 16,
           }}
         >
           <div className="w-full max-w-md mx-auto px-4">

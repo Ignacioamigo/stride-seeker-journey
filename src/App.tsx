@@ -23,6 +23,8 @@ import Activities from "@/pages/Activities";
 import Settings from "@/pages/Settings";
 import ProfileSettings from "@/pages/ProfileSettings";
 import Configuration from "@/pages/Configuration";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsAndConditions from "@/pages/TermsAndConditions";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
 
@@ -82,6 +84,8 @@ const App = () => (
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/profile-settings" element={<ProfileSettings />} />
                   <Route path="/configuration" element={<Configuration />} />
+                  <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                  <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
                   <Route path="/admin" element={<Admin />} />
                   
                   {/* Mobile setup routes */}

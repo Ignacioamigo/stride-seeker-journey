@@ -139,13 +139,29 @@ export const getSimpleWorkouts = async (): Promise<SimpleWorkout[]> => {
   try {
     console.log('📊 Obteniendo entrenamientos desde workouts_simple...');
     
+    // 1. Obtener email del usuario autenticado
+    let userEmail = 'anonimo@app.com';
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        userEmail = user.email;
+        console.log('👤 Usuario autenticado:', userEmail);
+      } else {
+        console.log('👤 Usuario anónimo, usando email por defecto');
+      }
+    } catch (authError) {
+      console.log('👤 Error obteniendo usuario, usando email por defecto');
+    }
+
+    // 2. Filtrar por usuario en la consulta
     const { data, error } = await supabase
       .from('workouts_simple')
       .select('*')
+      .eq('user_email', userEmail)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      console.log('✅ Entrenamientos desde Supabase:', data.length);
+      console.log(`✅ Entrenamientos desde Supabase para ${userEmail}:`, data.length);
       return data;
     } else {
       console.error('❌ Error obteniendo desde Supabase:', error);
@@ -154,12 +170,25 @@ export const getSimpleWorkouts = async (): Promise<SimpleWorkout[]> => {
     console.error('💥 Error en getSimpleWorkouts:', error);
   }
 
-  // Fallback a localStorage
+  // Fallback a localStorage (también filtrar por usuario)
   try {
     const stored = localStorage.getItem('simpleWorkouts');
-    const workouts = stored ? JSON.parse(stored) : [];
-    console.log('📱 Entrenamientos desde localStorage:', workouts.length);
-    return workouts;
+    const allWorkouts = stored ? JSON.parse(stored) : [];
+    
+    // Obtener email del usuario para filtrar localStorage también
+    let userEmail = 'anonimo@app.com';
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        userEmail = user.email;
+      }
+    } catch (authError) {
+      // Usar email por defecto
+    }
+    
+    const userWorkouts = allWorkouts.filter(w => w.user_email === userEmail);
+    console.log(`📱 Entrenamientos desde localStorage para ${userEmail}:`, userWorkouts.length);
+    return userWorkouts;
   } catch (error) {
     console.error('💥 Error obteniendo desde localStorage:', error);
     return [];

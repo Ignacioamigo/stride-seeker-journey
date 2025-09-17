@@ -5,6 +5,8 @@ import { MapPin, Clock, Route, Activity, ChevronLeft, Share2, Heart, MessageCirc
 import { PublishedActivity, WorkoutMetrics } from '@/types';
 import { calculateWorkoutMetrics } from '@/services/activityService';
 import SimpleMapView from '@/components/SimpleMapView';
+import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
+import { useLayoutStability } from '@/hooks/useLayoutStability';
 
 interface ActivityDetailsScreenProps {
   activity: PublishedActivity;
@@ -16,6 +18,13 @@ const ActivityDetailsScreen: React.FC<ActivityDetailsScreenProps> = ({
   onBack
 }) => {
   const metrics = calculateWorkoutMetrics(activity.runSession);
+  const insets = useSafeAreaInsets();
+  
+  // Hook para estabilidad de layout
+  useLayoutStability();
+  
+  // Calcular altura del header
+  const headerHeight = Math.max(insets.top + 20, 40) + 60; // safe area + header height
 
   const formatDistance = (meters: number): string => {
     if (meters < 1000) {
@@ -35,9 +44,14 @@ const ActivityDetailsScreen: React.FC<ActivityDetailsScreenProps> = ({
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header fijo */}
-      <div className="flex-shrink-0 bg-white shadow-sm">
+    <div className="h-screen flex flex-col bg-gray-50" style={{ position: 'relative', overflow: 'hidden' }}>
+      {/* Header fijo con safe area */}
+      <div 
+        className="flex-shrink-0 bg-white shadow-sm fixed top-0 left-0 right-0 z-50"
+        style={{
+          paddingTop: `max(${insets.top}px + 20px, env(safe-area-inset-top, 20px) + 20px)`
+        }}
+      >
         <div className="flex items-center justify-between p-4">
           <Button variant="ghost" onClick={onBack} className="text-runapp-navy">
             <ChevronLeft className="w-5 h-5 mr-1" />
@@ -50,7 +64,13 @@ const ActivityDetailsScreen: React.FC<ActivityDetailsScreenProps> = ({
       </div>
 
       {/* Contenido scrolleable */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div 
+        className="flex-1 overflow-y-auto p-4 space-y-6"
+        style={{
+          paddingTop: `${headerHeight}px`,
+          marginTop: 0
+        }}
+      >
         {/* User Info */}
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-runapp-purple rounded-full flex items-center justify-center">
@@ -75,21 +95,32 @@ const ActivityDetailsScreen: React.FC<ActivityDetailsScreenProps> = ({
         {/* Main Stats */}
         <Card className="bg-gradient-to-r from-runapp-purple to-runapp-deep-purple text-white">
           <CardContent className="p-6">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <Route className="w-6 h-6 mx-auto mb-2" />
-                <p className="text-3xl font-bold">{formatDistance(metrics.totalDistance)}</p>
-                <p className="text-sm opacity-80">Distancia (km)</p>
+            <div className="space-y-4">
+              {/* Distancia */}
+              <div className="flex items-center justify-center space-x-3">
+                <Route className="w-5 h-5" />
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{formatDistance(metrics.totalDistance)}</p>
+                  <p className="text-xs opacity-80">Distancia (km)</p>
+                </div>
               </div>
-              <div>
-                <Clock className="w-6 h-6 mx-auto mb-2" />
-                <p className="text-3xl font-bold">{metrics.totalDuration}</p>
-                <p className="text-sm opacity-80">Duración</p>
+              
+              {/* Duración */}
+              <div className="flex items-center justify-center space-x-3">
+                <Clock className="w-5 h-5" />
+                <div className="text-center">
+                  <p className="text-xl font-bold">{metrics.totalDuration}</p>
+                  <p className="text-xs opacity-80">Duración</p>
+                </div>
               </div>
-              <div>
-                <Activity className="w-6 h-6 mx-auto mb-2" />
-                <p className="text-3xl font-bold">{metrics.averageSpeed.toFixed(1)}</p>
-                <p className="text-sm opacity-80">Velocidad media (km/h)</p>
+              
+              {/* Velocidad */}
+              <div className="flex items-center justify-center space-x-3">
+                <Activity className="w-5 h-5" />
+                <div className="text-center">
+                  <p className="text-xl font-bold">{metrics.averageSpeed.toFixed(1)}</p>
+                  <p className="text-xs opacity-80">Velocidad media (km/h)</p>
+                </div>
               </div>
             </div>
           </CardContent>

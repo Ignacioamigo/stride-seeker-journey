@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getCompletedWorkouts } from '@/services/completedWorkoutService';
 import { calculateWeeklyData } from './utils/weeklyStatsCalculator';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RunningStats {
   weeklyDistance: number;
@@ -466,6 +467,24 @@ export const useRunningStats = (updateCounter?: number) => {
   useEffect(() => {
     console.log('Hook: useEffect inicial');
     calculateStats();
+  }, []);
+
+  // Escuchar cambios en la autenticación para actualizar estadísticas
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[useRunningStats] Auth state changed:', event);
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        console.log('[useRunningStats] Recalculando estadísticas por cambio de autenticación');
+        // Pequeño delay para asegurar que el contexto se actualice
+        setTimeout(() => {
+          calculateStats();
+        }, 500);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const refreshStats = () => {
