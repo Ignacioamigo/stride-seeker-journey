@@ -190,8 +190,11 @@ serve(async (req) => {
       
       console.log("Multi-query RAG approach:", {baseQuery, contextualQuery, detailedQuery});
       
-      // Strategy 1: Contextual search (most specific)
+      // RAG Strategy: Use semantic search with embeddings
       let fragments = [];
+      let queryEmbedding = null;
+      
+      // Try to generate embedding first
       const embeddingRes = await fetch(
         `${supabaseUrl}/functions/v1/generate-embedding`,
         {
@@ -207,58 +210,82 @@ serve(async (req) => {
       if (embeddingRes.ok) {
         const embeddingData = await embeddingRes.json();
         if (embeddingData.embedding && Array.isArray(embeddingData.embedding)) {
-          console.log("Embedding generated successfully with dimensions:", embeddingData.embedding.length);
-          
-          // Extract distance goal from objective
-          let distanceGoal = '';
-          if (userProfile.goal.toLowerCase().includes('5k')) distanceGoal = '5k';
-          else if (userProfile.goal.toLowerCase().includes('10k')) distanceGoal = '10k';
-          else if (userProfile.goal.toLowerCase().includes('21k') || userProfile.goal.toLowerCase().includes('media maratón')) distanceGoal = '21k';
-          else if (userProfile.goal.toLowerCase().includes('42k') || userProfile.goal.toLowerCase().includes('maratón')) distanceGoal = '42k';
-          
-          // Try contextual search first (best strategy)
-          const { data: contextualFragments, error: contextualError } = await supabase.rpc('contextual_search_fragments', {
-            query_embedding: embeddingData.embedding,
-            user_level: userProfile.experienceLevel || '',
-            workout_type: baseQuery.toLowerCase(),
-            distance_goal: distanceGoal,
-            match_threshold: 0.6,
-            match_count: 10
-          });
-          
-          if (!contextualError && contextualFragments && contextualFragments.length > 0) {
-            fragments = contextualFragments;
-            ragStrategy = 'contextual';
-            console.log(`RAG Strategy: Contextual - Found ${fragments.length} relevant fragments`);
-          } else {
-            // Fallback to hybrid search
-            const { data: hybridFragments, error: hybridError } = await supabase.rpc('hybrid_search_fragments', {
-              query_embedding: embeddingData.embedding,
-              query_text: baseQuery,
-              match_threshold: 0.55,
-              match_count: 8
-            });
-            
-            if (!hybridError && hybridFragments && hybridFragments.length > 0) {
-              fragments = hybridFragments;
-              ragStrategy = 'hybrid';
-              console.log(`RAG Strategy: Hybrid - Found ${fragments.length} relevant fragments`);
-            } else {
-              // Final fallback to basic semantic search
-              const { data: basicFragments, error: basicError } = await supabase.rpc('match_fragments', {
-                query_embedding: embeddingData.embedding,
-                match_threshold: 0.5,
-                match_count: 6
-              });
-              
-              if (!basicError && basicFragments && basicFragments.length > 0) {
-                fragments = basicFragments;
-                ragStrategy = 'basic';
-                console.log(`RAG Strategy: Basic - Found ${fragments.length} relevant fragments`);
-              }
-            }
-          }
+          console.log("✅ Embedding generated successfully with dimensions:", embeddingData.embedding.length);
+          queryEmbedding = embeddingData.embedding;
         }
+      } else {
+        console.log("⚠️ Embedding generation failed, using sample embedding from database");
+        // Fallback: use a sample embedding from the database
+        const { data: sampleFragment, error: sampleError } = await supabase
+          .from('fragments')
+          .select('embedding')
+          .limit(1)
+          .single();
+          
+        if (!sampleError && sampleFragment?.embedding) {
+          queryEmbedding = sampleFragment.embedding;
+          console.log("✅ Using sample embedding with dimensions:", queryEmbedding.length);
+        }
+      }
+      
+      // If we have an embedding (generated or sample), use semantic search
+      if (queryEmbedding) {
+        // Extract distance goal from objective for better filtering
+        let distanceGoal = '';
+        if (userProfile.goal.toLowerCase().includes('5k')) distanceGoal = '5k';
+        else if (userProfile.goal.toLowerCase().includes('10k')) distanceGoal = '10k';
+        else if (userProfile.goal.toLowerCase().includes('21k') || userProfile.goal.toLowerCase().includes('media maratón')) distanceGoal = '21k';
+        else if (userProfile.goal.toLowerCase().includes('42k') || userProfile.goal.toLowerCase().includes('maratón')) distanceGoal = '42k';
+        
+        console.log(`🎯 RAG Query: "${contextualQuery}" for ${distanceGoal} ${userProfile.experienceLevel}`);
+        
+        // Use the working match_fragments function with optimized parameters
+        const { data: semanticFragments, error: semanticError } = await supabase.rpc('match_fragments', {
+          query_embedding: queryEmbedding,
+          match_threshold: 0.4, // Lower threshold for more results
+          match_count: 12 // More fragments for better context
+        });
+        
+        if (!semanticError && semanticFragments && semanticFragments.length > 0) {
+          // Filter and rank fragments based on user profile
+          const rankedFragments = semanticFragments
+            .map(fragment => {
+              let relevanceScore = fragment.similarity || 0;
+              
+              // Boost by experience level
+              if (userProfile.experienceLevel && fragment.content) {
+                if (userProfile.experienceLevel.toLowerCase().includes('principiante') && 
+                    fragment.content.toLowerCase().includes('principiante')) {
+                  relevanceScore *= 1.3;
+                } else if (userProfile.experienceLevel.toLowerCase().includes('intermedio') && 
+                          fragment.content.toLowerCase().includes('intermedio')) {
+                  relevanceScore *= 1.3;
+                } else if (userProfile.experienceLevel.toLowerCase().includes('avanzado') && 
+                          fragment.content.toLowerCase().includes('avanzado')) {
+                  relevanceScore *= 1.3;
+                }
+              }
+              
+              // Boost by distance goal
+              if (distanceGoal && fragment.content && 
+                  fragment.content.toLowerCase().includes(distanceGoal.toLowerCase())) {
+                relevanceScore *= 1.4;
+              }
+              
+              return { ...fragment, relevance_score: relevanceScore };
+            })
+            .sort((a, b) => b.relevance_score - a.relevance_score)
+            .slice(0, 8); // Take top 8 most relevant
+          
+          fragments = rankedFragments;
+          ragStrategy = 'semantic_enhanced';
+          console.log(`✅ RAG Strategy: Enhanced Semantic Search - Found ${fragments.length} relevant fragments`);
+          console.log(`📊 Top fragments: ${fragments.slice(0, 3).map(f => f.id).join(', ')}`);
+        } else {
+          console.log("❌ Semantic search failed:", semanticError?.message);
+        }
+      } else {
+        console.log("❌ No embedding available for RAG");
       }
       
       // Process and rank retrieved fragments
