@@ -4,7 +4,6 @@ import { UserProfile } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { resetSession } from '@/services/authService';
 import { removeSavedPlan } from '@/services/planService';
-import { clearAllUserStats } from '@/services/simpleWorkoutService';
 
 interface UserContextProps {
   user: UserProfile;
@@ -115,25 +114,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(defaultUser);
       localStorage.removeItem('runAdaptiveUser');
       
-      // 🧹🔥 LIMPIEZA TOTAL ROBUSTA PARA RESET DE USUARIO
-      console.log('🧹🔥 Iniciando limpieza total durante reset de usuario...');
-      
-      try {
-        // 1. Limpiar planes
-        removeSavedPlan();
-        console.log('✅ Planes eliminados durante reset');
-        
-        // 2. LIMPIEZA TOTAL DE ESTADÍSTICAS (Supabase + localStorage)
-        await clearAllUserStats();
-        console.log('✅ Estadísticas completamente limpiadas durante reset');
-        
-      } catch (cleanupError) {
-        console.error('🔥 Error durante limpieza en reset:', cleanupError);
-        // Continuar con el fallback manual si falla
-        localStorage.removeItem('completedWorkouts');
-        localStorage.removeItem('simpleWorkouts');
-        localStorage.removeItem('savedPlan');
-      }
+      // Limpiar planes guardados para asegurar un inicio limpio
+      removeSavedPlan();
       
       // Disparar evento personalizado para notificar que se resetean las estadísticas
       window.dispatchEvent(new CustomEvent('resetStats'));

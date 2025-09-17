@@ -7,8 +7,6 @@ import { UserProvider, useUser } from "@/context/UserContext";
 import { StatsProvider } from "@/context/StatsContext";
 import { WeeklyFeedbackProvider } from "@/context/WeeklyFeedbackContext";
 import AppLoader from "@/components/AppLoader";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import DebugOnboarding from "@/components/DebugOnboarding";
 
 // Weekly Feedback Components
 import WeeklyFeedbackModal from "@/components/feedback/WeeklyFeedbackModal";
@@ -25,7 +23,6 @@ import Activities from "@/pages/Activities";
 import Settings from "@/pages/Settings";
 import ProfileSettings from "@/pages/ProfileSettings";
 import Configuration from "@/pages/Configuration";
-import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
 
@@ -37,7 +34,6 @@ import SettingsScreen from "@/components/SettingsScreen";
 import NameQuestion from "@/components/onboarding/NameQuestion";
 import AgeQuestion from "@/components/onboarding/AgeQuestion";
 import GenderQuestion from "@/components/onboarding/GenderQuestion";
-import HeightWeightQuestion from "@/components/onboarding/HeightWeightQuestion";
 import HeightQuestion from "@/components/onboarding/HeightQuestion";
 import WeightQuestion from "@/components/onboarding/WeightQuestion";
 import MaxDistanceQuestion from "@/components/onboarding/MaxDistanceQuestion";
@@ -64,15 +60,13 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <ErrorBoundary>
-        <UserProvider>
-          <StatsProvider>
-            <WeeklyFeedbackProvider>
-              <AppLoader>
-                <Toaster />
-                <Sonner />
-                <DebugOnboarding />
-                <BrowserRouter>
+      <UserProvider>
+        <StatsProvider>
+          <WeeklyFeedbackProvider>
+            <AppLoader>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
                 <Routes>
                   {/* Smart redirect based on onboarding status */}
                   <Route path="/" element={<SmartRedirect />} />
@@ -88,7 +82,6 @@ const App = () => (
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/profile-settings" element={<ProfileSettings />} />
                   <Route path="/configuration" element={<Configuration />} />
-                  <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="/admin" element={<Admin />} />
                   
                   {/* Mobile setup routes */}
@@ -98,7 +91,6 @@ const App = () => (
                   <Route path="/onboarding/name" element={<NameQuestion />} />
                   <Route path="/onboarding/age" element={<AgeQuestion />} />
                   <Route path="/onboarding/gender" element={<GenderQuestion />} />
-                  <Route path="/onboarding/height-weight" element={<HeightWeightQuestion />} />
                   <Route path="/onboarding/height" element={<HeightQuestion />} />
                   <Route path="/onboarding/weight" element={<WeightQuestion />} />
                   <Route path="/onboarding/max-distance" element={<MaxDistanceQuestion />} />
@@ -123,7 +115,6 @@ const App = () => (
           </WeeklyFeedbackProvider>
         </StatsProvider>
       </UserProvider>
-      </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );

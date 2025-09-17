@@ -5,43 +5,23 @@ import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import ProgressHeader from "@/components/layout/ProgressHeader";
 import { removeSavedPlan } from "@/services/planService";
-import { useOnboardingLayout } from "@/hooks/useOnboardingLayout";
-import { useStats } from "@/context/StatsContext";
-import { clearAllUserStats } from "@/services/simpleWorkoutService";
+import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
 const InjuriesQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
   const [injuries, setInjuries] = useState(user.injuries || "");
   const navigate = useNavigate();
-  const { isReady, paddingTop, paddingBottom, paddingLeft, paddingRight } = useOnboardingLayout();
-  const { resetStats } = useStats();
+  const insets = useSafeAreaInsets();
 
+  // Calculate header height: safe area + padding + content
+  const headerHeight = insets.top + 24 + 32; // safe area + py-3 (12px*2) + estimated content height
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 🧹🔥 LIMPIEZA TOTAL ROBUSTA PARA NUEVO USUARIO
-    console.log("🧹🔥 Iniciando limpieza total para nuevo usuario...");
-    
-    try {
-      // 1. Limpiar planes existentes
-      await removeSavedPlan();
-      console.log("✅ Planes eliminados");
-      
-      // 2. LIMPIEZA TOTAL DE ESTADÍSTICAS (Supabase + localStorage)
-      await clearAllUserStats();
-      console.log("✅ Estadísticas completamente limpiadas");
-      
-      // 3. Reset del contexto de estadísticas
-      resetStats();
-      console.log("✅ Contexto de estadísticas reseteado");
-      
-      console.log("🎉 LIMPIEZA TOTAL COMPLETADA - Usuario listo para empezar fresh");
-      
-    } catch (error) {
-      console.error("🔥 Error durante la limpieza:", error);
-      // Continuar con onboarding aunque haya errores
-    }
+    // Clear any existing plans to ensure fresh start for new user
+    console.log("Clearing any existing plans for new user...");
+    removeSavedPlan();
     
     updateUser({ 
       injuries,
@@ -70,13 +50,13 @@ const InjuriesQuestion: React.FC = () => {
     <div 
       className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
       style={{
-        paddingTop,
-        paddingBottom,
-        paddingLeft,
-        paddingRight,
+        paddingTop: headerHeight,
+        paddingBottom: insets.bottom + 80, // safe area + space for content
+        paddingLeft: Math.max(insets.left, 16),
+        paddingRight: Math.max(insets.right, 16),
       }}
     >
-      <ProgressHeader currentStep={9} totalSteps={9} />
+      <ProgressHeader currentStep={10} totalSteps={10} />
 
       <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <div className="bg-white rounded-xl p-6 shadow-sm">

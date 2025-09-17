@@ -4,13 +4,16 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import ProgressHeader from "@/components/layout/ProgressHeader";
-import { useOnboardingLayout } from "@/hooks/useOnboardingLayout";
+import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
 const NameQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
   const [name, setName] = useState(user.name || "");
   const navigate = useNavigate();
-  const { isReady, paddingTop, paddingBottom, paddingLeft, paddingRight } = useOnboardingLayout();
+  const { top, bottom, left, right, isReady } = useSafeAreaInsets();
+
+  // Calculate header height: safe area + padding + content
+  const headerHeight = top + 24 + 32; // safe area + py-3 (12px*2) + estimated content height
 
   // Si los insets no están listos, mostrar loading simple
   if (!isReady) {
@@ -38,13 +41,13 @@ const NameQuestion: React.FC = () => {
     <div 
       className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
       style={{
-        paddingTop,
-        paddingBottom,
-        paddingLeft,
-        paddingRight,
+        paddingTop: headerHeight,
+        paddingBottom: bottom + 80, // safe area + space for content
+        paddingLeft: Math.max(left, 16),
+        paddingRight: Math.max(right, 16),
       }}
     >
-      <ProgressHeader currentStep={1} totalSteps={9} />
+      <ProgressHeader currentStep={1} totalSteps={10} />
       
       <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <div className="mb-8 text-center">

@@ -28,15 +28,8 @@ const Plan: React.FC = () => {
   const [generationStage, setGenerationStage] = useState<'init' | 'rag' | 'api' | 'complete'>('init');
   const [connectionStatus, setConnectionStatus] = useState<boolean>(navigator.onLine);
   const [ragActive, setRagActive] = useState(false);
-  const { top, bottom, left, right, isReady } = useSafeAreaInsets();
-  
-  // Usar fallbacks seguros cuando isReady es false
-  const safeTop = isReady ? (top || 0) : 44;
-  const safeBottom = isReady ? (bottom || 0) : 34;
-  const safeLeft = isReady ? left : 0;
-  const safeRight = isReady ? right : 0;
-  
-  const headerHeight = safeTop + HEADER_HEIGHT;
+  const insets = useSafeAreaInsets();
+  const headerHeight = insets.top + HEADER_HEIGHT;
 
   // Monitor connection status
   useEffect(() => {
@@ -230,6 +223,8 @@ const Plan: React.FC = () => {
 
   // Base layout that always renders to prevent blank screen
   const renderLayout = () => {
+    const insets = useSafeAreaInsets();
+    
     return (
       <div className="bg-gray-50 min-h-screen">
         {/* Header - let it handle its own fixed positioning */}
@@ -239,10 +234,10 @@ const Plan: React.FC = () => {
         <div 
           className="w-full flex justify-center"
           style={{ 
-            paddingTop: safeTop + HEADER_HEIGHT + 16, // Safe area + Header height + spacing
-            paddingBottom: `calc(400px + ${safeBottom}px)`, // Muchísimo más espacio para scroll completo
-            paddingLeft: Math.max(safeLeft, 16),
-            paddingRight: Math.max(safeRight, 16),
+            paddingTop: insets.top + HEADER_HEIGHT + 16, // Safe area + Header height + spacing
+            paddingBottom: `calc(400px + ${insets.bottom}px)`, // Muchísimo más espacio para scroll completo
+            paddingLeft: Math.max(insets.left, 16),
+            paddingRight: Math.max(insets.right, 16),
             height: '100vh',
             overflow: 'auto',
           }}

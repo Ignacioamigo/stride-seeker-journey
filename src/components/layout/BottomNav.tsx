@@ -19,10 +19,10 @@ const BottomNav: React.FC = () => {
       className="fixed bottom-0 left-0 right-0 flex justify-between items-center bg-white border-t border-gray-200 z-50 no-select"
       style={{
         paddingTop: 12,
-        paddingBottom: `max(${insets.bottom || 0}px + 12px, calc(env(safe-area-inset-bottom, 0px) + 12px))`,
-        paddingLeft: Math.max((insets.left || 0) + 24, 24),
-        paddingRight: Math.max((insets.right || 0) + 24, 24),
-        minHeight: `calc(64px + ${insets.bottom || 0}px)`,
+        paddingBottom: `max(${insets.bottom}px + 12px, calc(env(safe-area-inset-bottom, 0px) + 12px))`,
+        paddingLeft: Math.max(insets.left + 24, 24),
+        paddingRight: Math.max(insets.right + 24, 24),
+        minHeight: `calc(64px + ${insets.bottom}px)`,
         background: 'white',
         boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
         transform: 'translate3d(0, 0, 0)',
