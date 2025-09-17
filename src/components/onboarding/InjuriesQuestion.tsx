@@ -27,6 +27,11 @@ const InjuriesQuestion: React.FC = () => {
       injuries,
       completedOnboarding: true 
     });
+    
+    // 🎯 DISPARAR EVENTO DE ONBOARDING COMPLETADO PARA RESETEAR ESTADÍSTICAS
+    console.log("🎯 Onboarding completado - disparando evento para resetear estadísticas");
+    window.dispatchEvent(new CustomEvent('onboarding-completed'));
+    
     navigate("/plan");
   };
 

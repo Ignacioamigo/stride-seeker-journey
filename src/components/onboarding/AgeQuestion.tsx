@@ -45,7 +45,7 @@ const AgeQuestion: React.FC = () => {
       <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <div className="bg-white rounded-xl p-6 shadow-sm">
           <h2 className="text-2xl font-semibold text-runapp-navy mb-2">
-            ¿Cuál es tu fecha de nacimiento?
+            ¿Cuál es tu edad?
           </h2>
           <p className="text-runapp-gray mb-6">Queremos personalizar tu plan</p>
           

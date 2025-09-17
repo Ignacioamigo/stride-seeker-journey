@@ -145,19 +145,42 @@ export const useRunningStats = (updateCounter?: number) => {
       console.log(`🔥 useRunningStats: Función calculateStats iniciada`);
       setIsLoading(true);
       
-      // 🧹 LIMPIEZA AUTOMÁTICA DE DATOS CORRUPTOS
+      // 🔍 VERIFICAR USUARIO AUTENTICADO PRIMERO
+      const { data: { user } } = await supabase.auth.getUser();
+      const currentUserEmail = user?.email || 'anonimo@app.com';
+      console.log(`🔥 Usuario actual: ${currentUserEmail}`);
+      
+      // 🧹 LIMPIAR DATOS DE OTROS USUARIOS EN LOCALSTORAGE
       const localWorkouts = localStorage.getItem('completedWorkouts');
       if (localWorkouts) {
         try {
           const parsed = JSON.parse(localWorkouts);
-          const hasCorruptData = parsed.some(w => 
-            !w || !w.workout_title || w.fecha_completado === 'undefined' || w.distancia_recorrida === undefined
-          );
+          // Limpiar datos corruptos Y filtrar solo el usuario actual
+          const validUserWorkouts = parsed.filter(w => {
+            const isValid = w && 
+                           w.workout_title && 
+                           w.fecha_completado && 
+                           w.fecha_completado !== 'undefined' &&
+                           w.distancia_recorrida !== undefined && 
+                           w.distancia_recorrida !== null &&
+                           !isNaN(w.distancia_recorrida);
+            
+            // Solo entrenamientos del usuario actual
+            const isCurrentUser = !w.user_email || w.user_email === currentUserEmail;
+            
+            if (!isValid) {
+              console.log(`🗑️ Hook: Eliminando entrenamiento corrupto:`, w);
+            } else if (!isCurrentUser) {
+              console.log(`🚫 Hook: Eliminando entrenamiento de otro usuario:`, w.user_email);
+            }
+            
+            return isValid && isCurrentUser;
+          });
           
-          if (hasCorruptData) {
-            console.log('🧹 DETECTADOS DATOS CORRUPTOS - LIMPIANDO localStorage...');
-            localStorage.removeItem('completedWorkouts');
-            console.log('🧹 localStorage limpiado exitosamente');
+          // Actualizar localStorage solo con datos del usuario actual
+          if (validUserWorkouts.length !== parsed.length) {
+            console.log(`🧹 Hook: LIMPIANDO localStorage - de ${parsed.length} a ${validUserWorkouts.length} entrenamientos`);
+            localStorage.setItem('completedWorkouts', JSON.stringify(validUserWorkouts));
           }
         } catch (e) {
           console.log('🧹 Error parsing localStorage - LIMPIANDO...');
@@ -169,56 +192,28 @@ export const useRunningStats = (updateCounter?: number) => {
       await new Promise(resolve => setTimeout(resolve, 200));
       
       let workouts = await getCompletedWorkouts();
-      console.log(`Hook: Entrenamientos obtenidos: ${workouts?.length || 0}`);
+      console.log(`Hook: Entrenamientos obtenidos del usuario ${currentUserEmail}: ${workouts?.length || 0}`);
       
-      // FALLBACK CRÍTICO: Si Supabase está vacío, usar localStorage
+      // FALLBACK CRÍTICO: Si Supabase está vacío, usar localStorage filtrado
       if (!workouts || workouts.length === 0) {
-        console.log('🔄 Hook: Supabase vacío, intentando fallback a localStorage...');
+        console.log('🔄 Hook: Supabase vacío, intentando fallback a localStorage filtrado...');
         const localWorkouts = localStorage.getItem('completedWorkouts');
         if (localWorkouts) {
           const parsedWorkouts = JSON.parse(localWorkouts);
-          console.log(`🔄 Hook: Encontrados ${parsedWorkouts.length} entrenamientos en localStorage`);
-          
-          // FILTRAR DATOS VÁLIDOS - ELIMINAR CORRUPTOS
-          const validWorkouts = parsedWorkouts.filter(w => {
-            const isValid = w && 
-                           w.workout_title && 
-                           w.fecha_completado && 
-                           w.fecha_completado !== 'undefined' &&
-                           w.distancia_recorrida !== undefined && 
-                           w.distancia_recorrida !== null &&
-                           !isNaN(w.distancia_recorrida);
-            
-            if (!isValid) {
-              console.log(`🗑️ Hook: Eliminando entrenamiento corrupto:`, w);
-            } else {
-              console.log(`✅ Hook: Entrenamiento válido: ${w.workout_title} - ${w.fecha_completado} - ${w.distancia_recorrida}km`);
-            }
-            
-            return isValid;
-          });
-          
-          console.log(`🔄 Hook: Entrenamientos válidos después de filtro: ${validWorkouts.length}`);
-          
-          // LIMPIAR LOCALSTORAGE DE DATOS CORRUPTOS
-          if (validWorkouts.length !== parsedWorkouts.length) {
-            console.log('🧹 Hook: LIMPIANDO localStorage de datos corruptos...');
-            localStorage.setItem('completedWorkouts', JSON.stringify(validWorkouts));
-          }
-          
-          workouts = validWorkouts;
+          console.log(`🔄 Hook: Encontrados ${parsedWorkouts.length} entrenamientos del usuario actual en localStorage`);
+          workouts = parsedWorkouts;
         }
       }
       
       if (!workouts || workouts.length === 0) {
-        console.log('🔥 Hook: No hay entrenamientos, reseteando estadísticas');
+        console.log('🔥 Hook: No hay entrenamientos para este usuario, reseteando estadísticas');
         resetStats();
         setIsLoading(false);
         return;
       }
 
-      console.log('🔥 Hook: INICIANDO CÁLCULO CON DATOS VÁLIDOS');
-      console.log('🔥 Hook: Workouts recibidos para calcular:', workouts.length);
+      console.log('🔥 Hook: INICIANDO CÁLCULO CON DATOS VÁLIDOS DEL USUARIO ACTUAL');
+      console.log('🔥 Hook: Workouts del usuario para calcular:', workouts.length);
       
       // FORZAR ACTUALIZACIÓN INMEDIATA DE STATS
       calculateStatsFromData(workouts);
@@ -255,20 +250,35 @@ export const useRunningStats = (updateCounter?: number) => {
       weeklyData: JSON.stringify(weeklyData, null, 2)
     });
 
-    // Filtrar entrenamientos por períodos usando fecha_completado
+    // Filtrar entrenamientos por períodos usando fecha_completado con mejor manejo de fechas
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    startOfLastMonth.setHours(0, 0, 0, 0);
+    
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    endOfLastMonth.setHours(23, 59, 59, 999);
+
+    console.log('🗓️ Filtros de fecha:', {
+      now: now.toLocaleDateString(),
+      startOfMonth: startOfMonth.toLocaleDateString(),
+      startOfLastMonth: startOfLastMonth.toLocaleDateString(),
+      endOfLastMonth: endOfLastMonth.toLocaleDateString()
+    });
 
     const thisMonthWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.fecha_completado);
-      return workoutDate >= startOfMonth;
+      const workoutDate = new Date(w.fecha_completado + 'T12:00:00.000Z'); // Forzar mediodía UTC
+      const isThisMonth = workoutDate >= startOfMonth && workoutDate <= now;
+      console.log(`🗓️ Entrenamiento ${w.workout_title}: ${workoutDate.toLocaleDateString()} - ${isThisMonth ? 'Este mes' : 'Otro mes'}`);
+      return isThisMonth;
     });
 
     const lastMonthWorkouts = workouts.filter(w => {
-      const workoutDate = new Date(w.fecha_completado);
-      return workoutDate >= startOfLastMonth && workoutDate <= endOfLastMonth;
+      const workoutDate = new Date(w.fecha_completado + 'T12:00:00.000Z'); // Forzar mediodía UTC
+      const isLastMonth = workoutDate >= startOfLastMonth && workoutDate <= endOfLastMonth;
+      return isLastMonth;
     });
 
     // Solo considerar entrenamientos con distancia real
@@ -475,6 +485,8 @@ export const useRunningStats = (updateCounter?: number) => {
       console.log('[useRunningStats] Auth state changed:', event);
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
         console.log('[useRunningStats] Recalculando estadísticas por cambio de autenticación');
+        // Reset inmediato al cambiar de usuario
+        resetStats();
         // Pequeño delay para asegurar que el contexto se actualice
         setTimeout(() => {
           calculateStats();
@@ -484,6 +496,45 @@ export const useRunningStats = (updateCounter?: number) => {
 
     return () => {
       subscription.unsubscribe();
+    };
+  }, []);
+
+  // Escuchar evento de reset de estadísticas
+  useEffect(() => {
+    const handleResetStats = () => {
+      console.log('[useRunningStats] 🔄 Evento resetStats recibido - reseteando estadísticas');
+      resetStats();
+      // Recalcular después de un pequeño delay
+      setTimeout(() => {
+        calculateStats();
+      }, 100);
+    };
+
+    window.addEventListener('resetStats', handleResetStats);
+    
+    return () => {
+      window.removeEventListener('resetStats', handleResetStats);
+    };
+  }, []);
+
+  // Escuchar cuando se completa el onboarding para resetear estadísticas
+  useEffect(() => {
+    const handleOnboardingComplete = () => {
+      console.log('[useRunningStats] 🎯 Onboarding completado - reseteando estadísticas para nuevo usuario');
+      resetStats();
+      // Limpiar localStorage de entrenamientos anteriores
+      localStorage.removeItem('completedWorkouts');
+      localStorage.removeItem('simpleWorkouts');
+      // Recalcular estadísticas limpias
+      setTimeout(() => {
+        calculateStats();
+      }, 200);
+    };
+
+    window.addEventListener('onboarding-completed', handleOnboardingComplete);
+    
+    return () => {
+      window.removeEventListener('onboarding-completed', handleOnboardingComplete);
     };
   }, []);
 

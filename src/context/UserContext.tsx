@@ -114,6 +114,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(defaultUser);
       localStorage.removeItem('runAdaptiveUser');
       
+      // 🧹 LIMPIAR TODOS LOS DATOS DE ENTRENAMIENTOS EN LOCALSTORAGE
+      localStorage.removeItem('completedWorkouts');
+      localStorage.removeItem('simpleWorkouts');
+      
       // Limpiar planes guardados para asegurar un inicio limpio
       removeSavedPlan();
       

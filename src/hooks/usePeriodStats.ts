@@ -179,22 +179,31 @@ export const usePeriodStats = (period: TimePeriod) => {
       console.log(`[usePeriodStats] === INICIANDO CÁLCULO PARA PERÍODO: ${period} ===`);
       setIsLoading(true);
       
+      // 🔍 VERIFICAR USUARIO AUTENTICADO PRIMERO
+      const { data: { user } } = await supabase.auth.getUser();
+      const currentUserEmail = user?.email || 'anonimo@app.com';
+      console.log(`[usePeriodStats] Usuario actual: ${currentUserEmail}`);
+      
       // Cargar el plan actual para "Esta semana"
       const plan = await loadLatestPlan();
       setCurrentPlan(plan);
       
-      // SIEMPRE OBTENER TODOS LOS DATOS PRIMERO (con fallback automático)
+      // SIEMPRE OBTENER TODOS LOS DATOS PRIMERO (con filtrado por usuario)
       let allWorkouts = await getCompletedWorkouts();
-      console.log(`[usePeriodStats] Total entrenamientos obtenidos de Supabase: ${allWorkouts?.length || 0}`);
+      console.log(`[usePeriodStats] Total entrenamientos obtenidos del usuario ${currentUserEmail}: ${allWorkouts?.length || 0}`);
       
-      // FALLBACK CRÍTICO: Si Supabase está vacío, usar localStorage
+      // FALLBACK CRÍTICO: Si Supabase está vacío, usar localStorage filtrado por usuario
       if (!allWorkouts || allWorkouts.length === 0) {
-        console.log('[usePeriodStats] 🔄 Supabase vacío, usando fallback a localStorage...');
+        console.log('[usePeriodStats] 🔄 Supabase vacío, usando fallback a localStorage filtrado...');
         const localWorkouts = localStorage.getItem('completedWorkouts');
         if (localWorkouts) {
           const parsedWorkouts = JSON.parse(localWorkouts);
-          console.log(`[usePeriodStats] 🔄 Encontrados ${parsedWorkouts.length} entrenamientos en localStorage`);
-          allWorkouts = parsedWorkouts;
+          // Filtrar solo entrenamientos del usuario actual
+          const userWorkouts = parsedWorkouts.filter(w => 
+            !w.user_email || w.user_email === currentUserEmail
+          );
+          console.log(`[usePeriodStats] 🔄 Encontrados ${userWorkouts.length} entrenamientos del usuario actual en localStorage`);
+          allWorkouts = userWorkouts;
         }
       }
       
@@ -368,6 +377,14 @@ export const usePeriodStats = (period: TimePeriod) => {
       console.log('[usePeriodStats] Auth state changed:', event);
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
         console.log('[usePeriodStats] Recalculando estadísticas por cambio de autenticación');
+        // Reset inmediato al cambiar de usuario
+        setStats(prev => ({ 
+          ...prev, 
+          totalDistance: 0, 
+          totalCalories: 0, 
+          totalWorkouts: 0,
+          averagePace: "0:00 min/km"
+        }));
         // Pequeño delay para asegurar que el contexto se actualice
         setTimeout(() => {
           calculatePeriodStats();
@@ -377,6 +394,54 @@ export const usePeriodStats = (period: TimePeriod) => {
 
     return () => {
       subscription.unsubscribe();
+    };
+  }, []);
+
+  // Escuchar evento de reset de estadísticas
+  useEffect(() => {
+    const handleResetStats = () => {
+      console.log('[usePeriodStats] 🔄 Evento resetStats recibido - reseteando estadísticas del período');
+      setStats(prev => ({ 
+        ...prev, 
+        totalDistance: 0, 
+        totalCalories: 0, 
+        totalWorkouts: 0,
+        averagePace: "0:00 min/km"
+      }));
+      // Recalcular después de un pequeño delay
+      setTimeout(() => {
+        calculatePeriodStats();
+      }, 100);
+    };
+
+    window.addEventListener('resetStats', handleResetStats);
+    
+    return () => {
+      window.removeEventListener('resetStats', handleResetStats);
+    };
+  }, []);
+
+  // Escuchar cuando se completa el onboarding
+  useEffect(() => {
+    const handleOnboardingComplete = () => {
+      console.log('[usePeriodStats] 🎯 Onboarding completado - reseteando estadísticas del período');
+      setStats(prev => ({ 
+        ...prev, 
+        totalDistance: 0, 
+        totalCalories: 0, 
+        totalWorkouts: 0,
+        averagePace: "0:00 min/km"
+      }));
+      // Recalcular estadísticas limpias
+      setTimeout(() => {
+        calculatePeriodStats();
+      }, 200);
+    };
+
+    window.addEventListener('onboarding-completed', handleOnboardingComplete);
+    
+    return () => {
+      window.removeEventListener('onboarding-completed', handleOnboardingComplete);
     };
   }, []);
 

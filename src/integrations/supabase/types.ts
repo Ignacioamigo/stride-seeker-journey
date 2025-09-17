@@ -242,6 +242,56 @@ export type Database = {
         }
         Relationships: []
       }
+      simple_workouts: {
+        Row: {
+          id: string
+          user_id: string
+          workout_title: string
+          workout_type: string
+          distance_km: number
+          duration_minutes: number
+          workout_date: string
+          plan_id: string | null
+          week_number: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          workout_title: string
+          workout_type?: string
+          distance_km?: number
+          duration_minutes?: number
+          workout_date?: string
+          plan_id?: string | null
+          week_number?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          workout_title?: string
+          workout_type?: string
+          distance_km?: number
+          duration_minutes?: number
+          workout_date?: string
+          plan_id?: string | null
+          week_number?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simple_workouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       user_profiles: {
         Row: {
           age: number | null
