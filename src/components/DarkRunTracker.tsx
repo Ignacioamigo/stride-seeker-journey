@@ -164,7 +164,7 @@ const DarkRunTracker: React.FC = () => {
         </div>
 
         {/* Botón INICIAR estilo rectangular como en la imagen */}
-        <div className="absolute bottom-40 left-4 right-4">
+        <div className="absolute bottom-8 left-4 right-4">
           <Button 
             onClick={handleStartRun}
             className="bg-black hover:bg-gray-800 text-white font-bold w-full h-16 rounded-xl text-xl shadow-lg flex items-center justify-between px-6"

@@ -13,6 +13,18 @@ export function useSafeAreaInsets() {
   const [insets, setInsets] = useState(() => globalInsets || { top: 0, right: 0, bottom: 0, left: 0 });
   const [isReady, setIsReady] = useState(globalReady);
   const calculatedRef = useRef(globalReady);
+  
+  // Timeout para asegurar que isReady se vuelve true después de un tiempo máximo
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => {
+      if (!isReady) {
+        setIsReady(true);
+        globalReady = true;
+      }
+    }, 500); // 500ms máximo de espera
+    
+    return () => clearTimeout(fallbackTimer);
+  }, [isReady]);
 
   // Solo funciona en navegador
   const getInset = (name: string) => {
@@ -69,12 +81,22 @@ export function useSafeAreaInsets() {
 
     // Solo calcular una vez por sesión
     if (!calculatedRef.current) {
-      // Ejecutar inmediatamente o tras un micro-delay
-      if (document.readyState === 'complete') {
+      // Ejecutar inmediatamente si es posible
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
         calculateInsets();
       } else {
-        const timer = setTimeout(calculateInsets, 16); // Un frame
-        return () => clearTimeout(timer);
+        // Múltiples estrategias para asegurar inicialización rápida
+        const timer1 = setTimeout(calculateInsets, 16); // Un frame
+        const timer2 = setTimeout(() => {
+          if (!calculatedRef.current) {
+            calculateInsets();
+          }
+        }, 100); // Fallback más rápido
+        
+        return () => {
+          clearTimeout(timer1);
+          clearTimeout(timer2);
+        };
       }
     }
 

@@ -280,7 +280,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   };
   
   return (
-    <div className="mb-24">
+    <div className="mb-4">
       {offlineMode && (
         <Alert className="mb-4 bg-amber-50 border-amber-200">
           <WifiOff className="h-4 w-4 text-amber-600" />
@@ -363,7 +363,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
         )}
       </div>
       
-      <div className="space-y-1 pb-24">
+      <div className="space-y-1 pb-4">
         {sortedWorkouts.map((workout) => (
           <div key={workout.id} id={`workout-${workout.id}`}>
             <WorkoutCard 

@@ -245,7 +245,7 @@ const Plan: React.FC = () => {
             paddingTop: `calc(${HEADER_HEIGHT}px + max(${insets.top}px, env(safe-area-inset-top, 20px)) + 20px)`,
             paddingLeft: Math.max(insets.left, 16),
             paddingRight: Math.max(insets.right, 16),
-            paddingBottom: `calc(90px + ${insets.bottom}px)`,
+            paddingBottom: 20,
           }}
         >
           <div className="w-full max-w-md mx-auto px-4">

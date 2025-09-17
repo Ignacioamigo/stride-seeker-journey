@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, RotateCcw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
 const EditProfile: React.FC = () => {
-  const { user, updateUser } = useUser();
+  const { user, updateUser, resetUser } = useUser();
   const navigate = useNavigate();
   const insets = useSafeAreaInsets();
   
@@ -57,6 +57,17 @@ const EditProfile: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleRestartOnboarding = () => {
+    // Resetear el usuario y redirigir al onboarding
+    resetUser();
+    toast({
+      title: "Onboarding reiniciado",
+      description: "Te redirigiremos al proceso de configuración inicial.",
+      variant: "default"
+    });
+    navigate('/welcome');
   };
 
   return (
@@ -171,6 +182,32 @@ const EditProfile: React.FC = () => {
                 </Button>
               </div>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* Restart Onboarding Section */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-orange-700">Configuración avanzada</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 border border-orange-200 rounded-lg bg-orange-50">
+              <div className="mb-3">
+                <p className="font-medium text-orange-800">Reiniciar configuración inicial</p>
+                <p className="text-sm text-orange-600 mt-1">
+                  Esto te llevará de vuelta al proceso de configuración inicial. 
+                  Podrás cambiar tu perfil, objetivos y preferencias desde cero.
+                </p>
+              </div>
+              <Button 
+                onClick={handleRestartOnboarding}
+                variant="outline"
+                className="w-full border-orange-300 text-orange-700 hover:bg-orange-100"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reiniciar Onboarding
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

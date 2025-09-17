@@ -5,7 +5,14 @@ import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 const BottomNav: React.FC = () => {
   const location = useLocation();
   const currentPath = location.pathname;
-  const insets = useSafeAreaInsets();
+  const { top, right, bottom, left, isReady } = useSafeAreaInsets();
+  
+  // No renderizar hasta que los insets estén listos
+  if (!isReady) {
+    return null;
+  }
+  
+  const insets = { top, right, bottom, left };
 
   const navItems = [
     { name: "Plan", path: "/plan", icon: Calendar },
