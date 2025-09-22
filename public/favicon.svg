@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" fill="none">
+  <!-- Background -->
+  <rect width="200" height="200" fill="#4F46E5" rx="20"/>
+  
+  <!-- BeRun Logo - B with runner integrated -->
+  <g transform="translate(30, 30)">
+    <!-- Letter B outline -->
+    <path d="M10 140V20H60C75 20 85 25 90 35C95 45 90 55 85 60C95 65 100 75 100 90C100 105 90 120 75 130C70 135 60 140 50 140H10Z" 
+          fill="white" stroke="none"/>
+    
+    <!-- B inner curves -->
+    <path d="M30 35H55C62 35 68 40 68 50C68 60 62 65 55 65H30V35Z" fill="#4F46E5"/>
+    <path d="M30 80H60C67 80 73 85 73 95C73 105 67 110 60 110H30V80Z" fill="#4F46E5"/>
+    
+    <!-- Runner figure integrated in the B -->
+    <g transform="translate(45, 40)">
+      <!-- Head -->
+      <circle cx="15" cy="8" r="6" fill="white"/>
+      
+      <!-- Body -->
+      <path d="M15 14L15 35" stroke="white" stroke-width="3" stroke-linecap="round"/>
+      
+      <!-- Arms in running position -->
+      <path d="M15 20L8 25" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M15 22L22 18" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      
+      <!-- Legs in running position -->
+      <path d="M15 35L10 50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+      <path d="M15 35L20 48" stroke="white" stroke-width="3" stroke-linecap="round"/>
+      
+      <!-- Feet -->
+      <circle cx="8" cy="52" r="2" fill="white"/>
+      <circle cx="22" cy="50" r="2" fill="white"/>
+    </g>
+  </g>
+</svg>

@@ -37,12 +37,16 @@ const AppLoader: React.FC<AppLoaderProps> = ({ children }) => {
       >
         <div className="text-center">
           {/* Logo animado */}
-          <div className="w-20 h-20 bg-runapp-light-purple rounded-full flex items-center justify-center mb-4 animate-pulse">
-            <span className="text-3xl">🏃</span>
+          <div className="w-20 h-20 mb-4 animate-pulse">
+            <img 
+              src="/BeRun_appicon_1024_blue1463FF.png" 
+              alt="BeRun Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           
           {/* Texto de carga */}
-          <h1 className="text-2xl font-bold text-runapp-navy mb-2">RunAdaptive</h1>
+          <h1 className="text-2xl font-bold text-runapp-navy mb-2">BeRun</h1>
           <p className="text-runapp-gray">Iniciando tu entrenador personal...</p>
           
           {/* Indicador de carga */}

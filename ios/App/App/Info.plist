@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Stride Seeker</string>
+	<string>BeRun</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -18,10 +18,46 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>berun.strava</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>berun</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>GMSApiKey</key>
+	<string>AIzaSyBvOkBo0jlJ9sGnRRCOpIqAB7u6Tv4pGQE</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>BeRun puede usar la cámara para tomar fotos de tus entrenamientos.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>BeRun necesita acceso a tu ubicación para rastrear tus carreras en segundo plano y calcular distancia, ritmo y ruta.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>BeRun necesita acceso a tu ubicación para rastrear tus carreras en segundo plano.</string>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>ExampleUsageDescription</key>
+		<string>BeRun necesita acceso temporal a tu ubicación para rastrear tu carrera.</string>
+	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>BeRun necesita acceso a tu ubicación para rastrear tus carreras y calcular distancia, ritmo y ruta.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>BeRun puede guardar fotos de tus entrenamientos en tu galería.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>BeRun puede acceder a tu galería para seleccionar fotos de tus entrenamientos.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -45,52 +81,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	
-	<!-- Permisos de ubicación GPS -->
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Stride Seeker necesita acceso a tu ubicación para rastrear tus carreras y calcular distancia, ritmo y ruta.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Stride Seeker necesita acceso a tu ubicación para rastrear tus carreras en segundo plano y calcular distancia, ritmo y ruta.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Stride Seeker necesita acceso a tu ubicación para rastrear tus carreras en segundo plano.</string>
-	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
-	<dict>
-		<key>ExampleUsageDescription</key>
-		<string>Stride Seeker necesita acceso temporal a tu ubicación para rastrear tu carrera.</string>
-	</dict>
-	
-	<!-- Permisos de cámara y fotos -->
-	<key>NSCameraUsageDescription</key>
-	<string>Stride Seeker puede usar la cámara para tomar fotos de tus entrenamientos.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Stride Seeker puede acceder a tu galería para seleccionar fotos de tus entrenamientos.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Stride Seeker puede guardar fotos de tus entrenamientos en tu galería.</string>
-	
-	<!-- Modos de fondo -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-		<string>background-processing</string>
-		<string>fetch</string>
-		<string>remote-notification</string>
-	</array>
-	
-	<!-- Google Maps API Key -->
-	<key>GMSApiKey</key>
-	<string>AIzaSyBvOkBo0jlJ9sGnRRCOpIqAB7u6Tv4pGQE</string>
-	
-	<!-- URL Schemes para Strava -->
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>stride.seeker.strava</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>stride</string>
-			</array>
-		</dict>
-	</array>
 </dict>
 </plist>

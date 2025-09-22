@@ -16,7 +16,7 @@ const InjuriesQuestion: React.FC = () => {
   // Calculate header height: safe area + padding + content
   const headerHeight = insets.top + 24 + 32; // safe area + py-3 (12px*2) + estimated content height
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Clear any existing plans to ensure fresh start for new user
@@ -32,7 +32,9 @@ const InjuriesQuestion: React.FC = () => {
     console.log("🎯 Onboarding completado - disparando evento para resetear estadísticas");
     window.dispatchEvent(new CustomEvent('onboarding-completed'));
     
-    navigate("/plan");
+    // Redirect to setup flow after onboarding completion
+    console.log("📱 Redirecting to setup flow after onboarding completion");
+    navigate("/setup-1");
   };
 
   const commonInjuries = [

@@ -7,6 +7,7 @@ import type {
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 4000 // 4 seconds - much more reasonable
+const TOAST_AUTO_DISMISS_DELAY = 3000 // Auto-dismiss after 3 seconds
 
 type ToasterToast = ToastProps & {
   id: string
@@ -139,7 +140,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+function toast({ duration, ...props }: Toast & { duration?: number }) {
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -160,6 +161,16 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  // Auto-dismiss after specified duration or default delay
+  const autoDismissDelay = duration !== undefined ? duration : TOAST_AUTO_DISMISS_DELAY
+  
+  // Only auto-dismiss if duration is not 0 (0 means persistent)
+  if (autoDismissDelay > 0) {
+    setTimeout(() => {
+      dismiss()
+    }, autoDismissDelay)
+  }
 
   return {
     id: id,

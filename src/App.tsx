@@ -27,6 +27,9 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsAndConditions from "@/pages/TermsAndConditions";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
+import PaywallPage from "@/pages/PaywallPage";
+import SetupPage1 from "@/pages/SetupPage1";
+import SetupPage2 from "@/pages/SetupPage2";
 
 // Mobile screens
 import PermissionsScreen from "@/components/PermissionsScreen";
@@ -87,6 +90,9 @@ const App = () => (
                   <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
                   <Route path="/admin" element={<Admin />} />
+                  <Route path="/setup-1" element={<SetupPage1 />} />
+                  <Route path="/setup-2" element={<SetupPage2 />} />
+                  <Route path="/paywall" element={<PaywallPage />} />
                   
                   {/* Mobile setup routes */}
                   <Route path="/permissions" element={<PermissionsScreen />} />

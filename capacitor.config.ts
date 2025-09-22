@@ -2,15 +2,15 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.f20075a364dd4e768cac356cfec575f8',
-  appName: 'Stride Seeker',
+  appId: 'stride.seeker.app',
+  appName: 'BeRun',
   webDir: 'dist',
   server: {
     androidScheme: 'https'
   },
   plugins: {
     BackgroundGeolocation: {
-      notificationTitle: "Stride Seeker",
+      notificationTitle: "BeRun",
       notificationText: "Tracking tu carrera en segundo plano",
       enableHighAccuracy: true
     },
@@ -30,7 +30,7 @@ const config: CapacitorConfig = {
     }
   },
   ios: {
-    scheme: "stride",
+    scheme: "berun",
     contentInset: "never",
     backgroundColor: "#f9fafb"
   },

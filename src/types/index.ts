@@ -181,3 +181,6 @@ export interface GPSPoint {
   speed?: number;
   timestamp: Date;
 }
+
+// Import Capacitor types
+import './capacitor';

@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import { generateTrainingPlan, loadLatestPlan, isOfflineMode, getConnectionError } from "@/services/planService";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, AlertCircle, Sparkles, WifiOff, Database } from "lucide-react";
+import { subscriptionService, PremiumFeature, useSubscription } from "@/services/subscriptionService";
+import PaywallModal from "@/components/paywall/PaywallModal";
+import { usePaywall } from "@/hooks/usePaywall";
+import { Loader2, AlertCircle, Sparkles, WifiOff } from "lucide-react";
 import TrainingPlanDisplay from "@/components/plan/TrainingPlanDisplay";
 import { WorkoutPlan } from "@/types";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -18,6 +22,9 @@ const HEADER_HEIGHT = 44;
 
 const Plan: React.FC = () => {
   const { user } = useUser();
+  const navigate = useNavigate();
+  const { isPremium, showPaywall: showSubscriptionPaywall } = useSubscription();
+  const { isOpen: isPaywallOpen, showPaywall, hidePaywall, handlePurchase, checkPremiumAccess } = usePaywall();
   const [isGenerating, setIsGenerating] = useState(false);
   
   // 🔥 HOOK ANTI-DESCUADRE
@@ -25,9 +32,8 @@ const Plan: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<WorkoutPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [generationStage, setGenerationStage] = useState<'init' | 'rag' | 'api' | 'complete'>('init');
+  const [generationStage, setGenerationStage] = useState<'init' | 'api' | 'complete'>('init');
   const [connectionStatus, setConnectionStatus] = useState<boolean>(navigator.onLine);
-  const [ragActive, setRagActive] = useState(false);
   const insets = useSafeAreaInsets();
   const headerHeight = insets.top + HEADER_HEIGHT;
 
@@ -57,8 +63,6 @@ const Plan: React.FC = () => {
           if (plan) {
             console.log("Plan loaded successfully:", plan.name);
             setCurrentPlan(plan);
-            // Check if ragActive was included in the response
-            setRagActive(!!plan.ragActive);
             // Log para depuración: mostrar el plan actualizado
             console.log('[Plan.tsx] Plan actualizado tras loadPlan:', plan);
           } else {
@@ -102,6 +106,14 @@ const Plan: React.FC = () => {
       return;
     }
 
+    // Check premium access for personalized training plan
+    const isPremiumUser = localStorage.getItem('isPremium') === 'true';
+    if (!isPremiumUser) {
+      console.log("🔒 Premium access required for training plan generation");
+      navigate('/setup-1');
+      return;
+    }
+
     if (!navigator.onLine) {
       toast({
         title: "No connection",
@@ -126,9 +138,6 @@ const Plan: React.FC = () => {
         weeklyWorkouts: user.weeklyWorkouts
       });
       
-      // RAG phase - retrieving relevant documents
-      setGenerationStage('rag');
-      
       // API phase - generating the plan
       setGenerationStage('api');
       
@@ -139,11 +148,10 @@ const Plan: React.FC = () => {
       console.log("Plan generated successfully:", plan);
       setCurrentPlan(plan);
       
-      console.log("RAG status from plan:", plan.ragActive);
       
       toast({
         title: "Plan generated",
-        description: `Your personalized training plan has been created ${plan.ragActive ? 'with knowledge augmentation (RAG)' : 'without RAG'}.`,
+        description: "Your personalized training plan has been created.",
       });
     } catch (error) {
       console.error("Error generating plan:", error);
@@ -178,8 +186,6 @@ const Plan: React.FC = () => {
       switch (generationStage) {
         case 'init':
           return "Preparing your personalized plan...";
-        case 'rag':
-          return "Analyzing your profile and training knowledge...";
         case 'api':
           return "Generating your training plan...";
         case 'complete':
@@ -203,23 +209,6 @@ const Plan: React.FC = () => {
     );
   };
 
-  // Render RAG indicator
-  const renderRagIndicator = () => {
-    if (!currentPlan) return null;
-    
-    return (
-      <div className="mb-4 flex items-center justify-center">
-        <div className={`flex items-center space-x-1 px-3 py-1.5 rounded-full ${currentPlan.ragActive ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-700'}`}>
-          <Database size={16} className="mr-1" />
-          <span className="text-sm font-medium">
-            {currentPlan.ragActive 
-              ? "Plan generated with knowledge augmentation (RAG)" 
-              : "Plan generated without knowledge augmentation"}
-          </span>
-        </div>
-      </div>
-    );
-  };
 
   // Base layout that always renders to prevent blank screen
   const renderLayout = () => {
@@ -245,10 +234,38 @@ const Plan: React.FC = () => {
             paddingTop: `calc(${HEADER_HEIGHT}px + max(${insets.top}px, env(safe-area-inset-top, 20px)) + 20px)`,
             paddingLeft: Math.max(insets.left, 16),
             paddingRight: Math.max(insets.right, 16),
-            paddingBottom: 20,
+            paddingBottom: Math.max(insets.bottom + 80, 96), // 64px min height + 16px padding + safe area
           }}
         >
           <div className="w-full max-w-md mx-auto px-4">
+          
+          {/* Debug: Paywall Test Button - Remove in production */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800 mb-2">
+                Debug: Premium Status = {localStorage.getItem('isPremium') === 'true' ? '✅ Premium' : '❌ Free'}
+              </p>
+              <Button 
+                onClick={() => navigate('/setup-1')}
+                variant="outline"
+                size="sm"
+                className="mr-2"
+              >
+                🧪 Test Setup Flow
+              </Button>
+              <Button 
+                onClick={() => {
+                  console.log('Premium Access:', localStorage.getItem('isPremium'));
+                  console.log('Subscription Type:', localStorage.getItem('subscriptionType'));
+                }}
+                variant="outline"
+                size="sm"
+              >
+                🔍 Check Status
+              </Button>
+            </div>
+          )}
+          
           {/* Connection status indicator */}
           {!connectionStatus && (
             <Alert className="mb-4 bg-amber-50 border-amber-200">
@@ -287,8 +304,6 @@ const Plan: React.FC = () => {
               </AlertDescription>
             </Alert>
           )}
-          
-          {renderRagIndicator()}
           
             {renderContent()}
           </div>
@@ -342,7 +357,18 @@ const Plan: React.FC = () => {
     );
   };
 
-  return renderLayout();
+  return (
+    <>
+      {renderLayout()}
+      
+      {/* Paywall Modal */}
+      <PaywallModal 
+        isOpen={isPaywallOpen}
+        onClose={hidePaywall}
+        onPurchase={handlePurchase}
+      />
+    </>
+  );
 };
 
 export default Plan;

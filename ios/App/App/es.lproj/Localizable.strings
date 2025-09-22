@@ -1,0 +1,62 @@
+/* Paywall */
+"We're setting up\neverything for you" = "Estamos configurando\ntodo para ti";
+"Finalizing results..." = "Finalizando resultados...";
+"Start your 3-day FREE\ntrial to continue." = "Inicia tu prueba GRATUITA\nde 3 días para continuar.";
+
+/* Timeline */
+"Today" = "Hoy";
+"Unlock all the app's features like AI\ncalorie scanning and more." = "Desbloquea todas las funciones de la app como\nescaneo de calorías con IA y más.";
+"In 2 Days - Reminder" = "En 2 días - Recordatorio";
+"We'll send you a reminder that your\ntrial is ending soon." = "Te enviaremos un recordatorio de que tu\nprueba está por terminar.";
+"In 3 Days - Billing Starts" = "En 3 días - Empieza la facturación";
+"You'll be charged on %@ unless you cancel anytime before." = "Se te cobrará el %@ a menos que canceles antes.";
+
+/* Pricing */
+"Monthly" = "Mensual";
+"Yearly" = "Anual";
+"/mo" = "/mes";
+"month" = "mes";
+"year" = "año";
+
+/* Actions */
+"No Payment Due Now" = "Sin pago requerido ahora";
+"Start My 3-Day Free Trial" = "Iniciar mi prueba gratuita de 3 días";
+"3 days free, then %@ per %@" = "3 días gratis, luego %@ por %@";
+
+/* Links */
+"Terms of Service" = "Términos de servicio";
+"Privacy Policy" = "Política de privacidad";
+
+/* Notifications */
+"Your free trial ends soon" = "Tu prueba gratuita termina pronto";
+"Your Stride Seeker free trial ends tomorrow. Subscribe to continue enjoying all premium features!" = "Tu prueba gratuita de Stride Seeker termina mañana. ¡Suscríbete para seguir disfrutando de todas las funciones premium!";
+
+/* Restore */
+"Purchases restored successfully" = "Compras restauradas exitosamente";
+"No purchases found to restore" = "No se encontraron compras para restaurar";
+
+/* Errors */
+"Transaction could not be verified" = "No se pudo verificar la transacción";
+"Purchase is pending approval" = "La compra está pendiente de aprobación";
+"Unknown purchase result" = "Resultado de compra desconocido";
+"Purchase was cancelled" = "La compra fue cancelada";
+"Network error occurred" = "Ocurrió un error de red";
+"System error occurred" = "Ocurrió un error del sistema";
+"Not available in your region" = "No disponible en tu región";
+"Not entitled to this product" = "No tienes derecho a este producto";
+"An unknown error occurred" = "Ocurrió un error desconocido";
+
+/* Premium Features */
+"Personalized Training Plan" = "Plan de entrenamiento personalizado";
+"Advanced Analytics" = "Análisis avanzados";
+"Unlimited Workouts" = "Entrenamientos ilimitados";
+"Export Data" = "Exportar datos";
+"AI Coaching" = "Entrenamiento con IA";
+"Nutrition Planning" = "Planificación nutricional";
+
+"Get a custom training plan based on your goals and fitness level" = "Obtén un plan de entrenamiento personalizado basado en tus objetivos y nivel de condición física";
+"Detailed insights and progress tracking" = "Información detallada y seguimiento del progreso";
+"Access to unlimited workout sessions" = "Acceso a sesiones de entrenamiento ilimitadas";
+"Export your data to other fitness apps" = "Exporta tus datos a otras aplicaciones de fitness";
+"Get personalized coaching tips from AI" = "Obtén consejos de entrenamiento personalizados de IA";
+"Personalized nutrition recommendations" = "Recomendaciones nutricionales personalizadas";

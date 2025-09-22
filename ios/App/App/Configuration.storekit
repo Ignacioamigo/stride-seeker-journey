@@ -1,0 +1,130 @@
+{
+  "identifier" : "2B6A7E30",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "compatibilityTimeRate" : 1,
+    "hasStoreKitConfigurationFile" : true,
+    "storefront" : "ESP",
+    "_applicationInternalID" : "TU_NUEVO_APP_ID_AQUI",
+    "_developerTeamID" : "TU_TEAM_ID_AQUI",
+    "_failTransactionsEnabled" : false,
+    "_lastModifiedDate" : 757684800.29145098,
+    "_locale" : "es_ES",
+    "_storefront" : "ESP",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21482209",
+      "localizations" : [
+
+      ],
+      "name" : "Premium Subscription",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6449434110",
+          "introductoryOffer" : {
+            "internalID" : "20749235",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "Acceso completo a todas las funciones premium de Stride Seeker",
+              "displayName" : "Premium Mensual",
+              "locale" : "es_ES"
+            },
+            {
+              "description" : "Full access to all Stride Seeker premium features",
+              "displayName" : "Premium Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "stride.seeker.app.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Premium Monthly",
+          "subscriptionGroupID" : "21482209",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "34.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6449434111",
+          "introductoryOffer" : {
+            "internalID" : "20749236",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "Acceso completo a todas las funciones premium de Stride Seeker por un año completo",
+              "displayName" : "Premium Anual",
+              "locale" : "es_ES"
+            },
+            {
+              "description" : "Full access to all Stride Seeker premium features for a full year",
+              "displayName" : "Premium Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "stride.seeker.app.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Premium Yearly",
+          "subscriptionGroupID" : "21482209",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

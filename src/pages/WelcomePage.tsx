@@ -22,14 +22,18 @@ const WelcomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-runapp-light-purple/30 to-white flex flex-col items-center justify-center p-6">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-runapp-navy mb-2">RunAdaptive</h1>
+        <h1 className="text-4xl font-bold text-runapp-navy mb-2">BeRun</h1>
         <p className="text-xl text-runapp-gray">Tu entrenador personal para correr</p>
       </div>
       
       <div className="max-w-md w-full bg-white rounded-xl p-6 shadow-sm">
         <div className="flex items-center justify-center mb-6">
-          <div className="w-20 h-20 bg-runapp-light-purple rounded-full flex items-center justify-center">
-            <span className="text-3xl">🏃</span>
+          <div className="w-20 h-20">
+            <img 
+              src="/BeRun_appicon_1024_blue1463FF.png" 
+              alt="BeRun Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
         </div>
         

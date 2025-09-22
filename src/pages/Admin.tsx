@@ -5,7 +5,7 @@ import DocumentUploader from "@/components/training/DocumentUploader";
 
 const Admin: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-24">
       <div className="bg-runapp-purple text-white p-4">
         <h1 className="text-xl font-bold mb-1">Administración</h1>
         <p className="text-sm opacity-90">Gestión de documentos para entrenamiento</p>

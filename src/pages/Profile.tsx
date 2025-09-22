@@ -40,7 +40,7 @@ const Profile: React.FC = () => {
           paddingTop: `calc(${HEADER_HEIGHT}px + max(${insets.top}px, env(safe-area-inset-top, 20px)) + 20px)`,
           paddingLeft: Math.max(insets.left, 16),
           paddingRight: Math.max(insets.right, 16),
-          paddingBottom: 16,
+          paddingBottom: Math.max(insets.bottom + 80, 96), // 64px min height + 16px padding + safe area
         }}
       >
         <div className="w-full max-w-md mx-auto px-4">

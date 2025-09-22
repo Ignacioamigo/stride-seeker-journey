@@ -20,8 +20,12 @@ const NameQuestion: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-runapp-light-purple/30 to-white">
         <div className="text-center">
-          <div className="w-12 h-12 bg-runapp-light-purple rounded-full flex items-center justify-center mb-4 animate-pulse">
-            <span className="text-xl">🏃</span>
+          <div className="w-12 h-12 mb-4 animate-pulse">
+            <img 
+              src="/BeRun_appicon_1024_blue1463FF.png" 
+              alt="BeRun Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <p className="text-runapp-gray">Cargando...</p>
         </div>

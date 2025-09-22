@@ -162,6 +162,11 @@ body {
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
   min-height: calc(64px + env(safe-area-inset-bottom, 0px));
   background: white !important;
+  /* Webkit stability fixes for iOS to prevent misalignment */
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .nav-item {

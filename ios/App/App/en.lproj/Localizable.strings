@@ -1,0 +1,62 @@
+/* Paywall */
+"We're setting up\neverything for you" = "We're setting up\neverything for you";
+"Finalizing results..." = "Finalizing results...";
+"Start your 3-day FREE\ntrial to continue." = "Start your 3-day FREE\ntrial to continue.";
+
+/* Timeline */
+"Today" = "Today";
+"Unlock all the app's features like AI\ncalorie scanning and more." = "Unlock all the app's features like AI\ncalorie scanning and more.";
+"In 2 Days - Reminder" = "In 2 Days - Reminder";
+"We'll send you a reminder that your\ntrial is ending soon." = "We'll send you a reminder that your\ntrial is ending soon.";
+"In 3 Days - Billing Starts" = "In 3 Days - Billing Starts";
+"You'll be charged on %@ unless you cancel anytime before." = "You'll be charged on %@ unless you cancel anytime before.";
+
+/* Pricing */
+"Monthly" = "Monthly";
+"Yearly" = "Yearly";
+"/mo" = "/mo";
+"month" = "month";
+"year" = "year";
+
+/* Actions */
+"No Payment Due Now" = "No Payment Due Now";
+"Start My 3-Day Free Trial" = "Start My 3-Day Free Trial";
+"3 days free, then %@ per %@" = "3 days free, then %@ per %@";
+
+/* Links */
+"Terms of Service" = "Terms of Service";
+"Privacy Policy" = "Privacy Policy";
+
+/* Notifications */
+"Your free trial ends soon" = "Your free trial ends soon";
+"Your Stride Seeker free trial ends tomorrow. Subscribe to continue enjoying all premium features!" = "Your Stride Seeker free trial ends tomorrow. Subscribe to continue enjoying all premium features!";
+
+/* Restore */
+"Purchases restored successfully" = "Purchases restored successfully";
+"No purchases found to restore" = "No purchases found to restore";
+
+/* Errors */
+"Transaction could not be verified" = "Transaction could not be verified";
+"Purchase is pending approval" = "Purchase is pending approval";
+"Unknown purchase result" = "Unknown purchase result";
+"Purchase was cancelled" = "Purchase was cancelled";
+"Network error occurred" = "Network error occurred";
+"System error occurred" = "System error occurred";
+"Not available in your region" = "Not available in your region";
+"Not entitled to this product" = "Not entitled to this product";
+"An unknown error occurred" = "An unknown error occurred";
+
+/* Premium Features */
+"Personalized Training Plan" = "Personalized Training Plan";
+"Advanced Analytics" = "Advanced Analytics";
+"Unlimited Workouts" = "Unlimited Workouts";
+"Export Data" = "Export Data";
+"AI Coaching" = "AI Coaching";
+"Nutrition Planning" = "Nutrition Planning";
+
+"Get a custom training plan based on your goals and fitness level" = "Get a custom training plan based on your goals and fitness level";
+"Detailed insights and progress tracking" = "Detailed insights and progress tracking";
+"Access to unlimited workout sessions" = "Access to unlimited workout sessions";
+"Export your data to other fitness apps" = "Export your data to other fitness apps";
+"Get personalized coaching tips from AI" = "Get personalized coaching tips from AI";
+"Personalized nutrition recommendations" = "Personalized nutrition recommendations";

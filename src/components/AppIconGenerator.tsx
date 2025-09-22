@@ -1,9 +1,8 @@
 
 import React from 'react';
-import { Activity } from 'lucide-react';
 
-// Este componente genera el ícono de la app para usar en el diseño
-// Para los assets reales de iOS, necesitarás exportar como PNG en las dimensiones correctas
+// Este componente muestra el ícono real de BeRun
+// Usa el archivo PNG real del logo
 
 const AppIconDesign: React.FC<{ size?: number }> = ({ size = 1024 }) => {
   return (
@@ -11,17 +10,21 @@ const AppIconDesign: React.FC<{ size?: number }> = ({ size = 1024 }) => {
       style={{
         width: size,
         height: size,
-        backgroundColor: '#4C1D95', // runapp-purple
         borderRadius: size * 0.2, // iOS icon corner radius ~20%
+        overflow: 'hidden',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
       }}
     >
-      <Activity 
-        size={size * 0.6} 
-        color="white" 
-        strokeWidth={size * 0.01}
+      <img 
+        src="/BeRun_appicon_1024_blue1463FF.png"
+        alt="BeRun App Icon"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }}
       />
     </div>
   );

@@ -23,7 +23,13 @@ const BottomNav: React.FC = () => {
 
   return (
     <div 
+      className="no-select"
       style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        width: '100%',
         backgroundColor: 'white',
         borderTop: '1px solid #e5e7eb',
         boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
@@ -32,7 +38,12 @@ const BottomNav: React.FC = () => {
         paddingLeft: Math.max(insets.left + 24, 24),
         paddingRight: Math.max(insets.right + 24, 24),
         minHeight: 64 + insets.bottom,
-        flexShrink: 0,
+        zIndex: 50,
+        // Webkit stability fixes for iOS
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+        WebkitBackfaceVisibility: 'hidden',
+        backfaceVisibility: 'hidden',
       }}
     >
       <nav className="flex justify-between items-center no-select">
