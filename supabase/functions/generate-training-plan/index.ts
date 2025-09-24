@@ -21,6 +21,15 @@ interface UserProfile {
   experienceLevel: string | null;
   injuries: string;
   completedOnboarding?: boolean;
+  selectedDays?: any[];
+  targetRace?: {
+    id: string;
+    name: string;
+    location: string;
+    date: string;
+    distance: string;
+    type: string;
+  } | null;
 }
 
 interface RequestBody {
@@ -142,6 +151,7 @@ serve(async (req) => {
     }
 
     console.log("Processing request with user profile:", JSON.stringify(userProfile));
+    console.log("Target race info:", userProfile.targetRace ? JSON.stringify(userProfile.targetRace) : "No target race selected");
     
     // Log user selected days for debugging
     console.log("User selected days:", userProfile.selectedDays);
@@ -398,6 +408,13 @@ serve(async (req) => {
       ? userProfile.selectedDays.filter(d => d.selected).map(d => `${d.name} (${d.date})`).join(', ')
       : 'No especificados - usar distribución general';
     
+    // Target race information
+    const targetRaceInfo = userProfile.targetRace 
+      ? `\nCarrera objetivo: ${userProfile.targetRace.name} (${userProfile.targetRace.distance}) - ${userProfile.targetRace.location} - ${new Date(userProfile.targetRace.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'})}`
+      : '';
+    
+    console.log("Target race info for prompt:", targetRaceInfo || "No target race information");
+    
     const userProfileSection = `\nPERFIL DEL USUARIO:
 Nombre: ${userProfile.name}
 Edad: ${userProfile.age || 'No especificada'}
@@ -405,7 +422,7 @@ Sexo: ${userProfile.gender || 'No especificado'}
 Nivel de experiencia: ${userProfile.experienceLevel || 'No especificado'}
 Ritmo actual: ${userProfile.pace || 'No especificado'} min/km
 Distancia máxima: ${userProfile.maxDistance || 'No especificada'} km
-Objetivo: ${userProfile.goal}
+Objetivo: ${userProfile.goal}${targetRaceInfo}
 Lesiones o condiciones: ${userProfile.injuries || 'Ninguna'}
 Frecuencia semanal deseada: ${userProfile.weeklyWorkouts || '3'} entrenamientos por semana
 Días específicos seleccionados: ${selectedDaysInfo}\n`;
@@ -439,8 +456,13 @@ ${previousWeekResults.workouts.map((w: any) =>
     // Main instruction with dates
     const todayDate = new Date().toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'});
     
+    // Build target race description for main instruction
+    const targetRaceDescription = userProfile.targetRace 
+      ? ` y se está preparando para ${userProfile.targetRace.name} (${userProfile.targetRace.distance}) el ${new Date(userProfile.targetRace.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'})}`
+      : '';
+
     const mainInstruction = `\nINSTRUCCIÓN:
-Genera un plan de entrenamiento ${hasSelectedDays ? 'para los días específicos seleccionados por el usuario' : 'para los próximos días'} adecuado para ${userProfile.name}, un corredor ${userProfile.age ? `de ${userProfile.age} años` : ''} con ritmo ${userProfile.pace || 'no especificado'}, cuyo objetivo es ${userProfile.goal}.
+Genera un plan de entrenamiento ${hasSelectedDays ? 'para los días específicos seleccionados por el usuario' : 'para los próximos días'} adecuado para ${userProfile.name}, un corredor ${userProfile.age ? `de ${userProfile.age} años` : ''} con ritmo ${userProfile.pace || 'no especificado'}, cuyo objetivo es ${userProfile.goal}${targetRaceDescription}.
 
 HOY ES: ${todayDate}
 
@@ -456,9 +478,9 @@ ${hasSelectedDays ? 'DÍAS DE ENTRENAMIENTO FUTUROS SELECCIONADOS:' : 'DÍAS FUT
 
 IMPORTANTE:
 1. La distancia máxima del usuario es ${userProfile.maxDistance}km - NO crees entrenamientos que excedan esta distancia a menos que el usuario esté entrenando para un maratón y tenga experiencia suficiente.
-2. La variedad es esencial. Crea diferentes tipos de entrenamientos (intervalos, tempo, carrera larga) alineados con el objetivo del usuario.
-3. NO incluyas ninguna marca de formato como \`\`\`json o \`\`\`. Responde directamente con el objeto JSON sin ningún envoltorio.
-4. Genera una respuesta en formato JSON siguiendo exactamente esta estructura:
+2. La variedad es esencial. Crea diferentes tipos de entrenamientos (intervalos, tempo, carrera larga) alineados con el objetivo del usuario.${userProfile.targetRace ? `\n3. En la descripción del plan, DEBES mencionar que también se está preparando para ${userProfile.targetRace.name} (además del objetivo general). Esto debe aparecer de forma natural en el texto descriptivo.` : ''}
+${userProfile.targetRace ? '4' : '3'}. NO incluyas ninguna marca de formato como \`\`\`json o \`\`\`. Responde directamente con el objeto JSON sin ningún envoltorio.
+${userProfile.targetRace ? '5' : '4'}. Genera una respuesta en formato JSON siguiendo exactamente esta estructura:
 {
   "name": "...",
   "description": "...",

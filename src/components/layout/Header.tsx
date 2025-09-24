@@ -2,7 +2,7 @@ import React from "react";
 import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
 interface HeaderProps {
-  title: string;
+  title: string | React.ReactNode;
   subtitle?: string;
   bgColor?: string;
 }
@@ -11,7 +11,7 @@ const HEADER_HEIGHT = 44;
 const RADIUS_TOP = 28;
 const RADIUS_BOTTOM = 0;
 
-const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" }) => {
+const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#1463FF" }) => {
   const insets = useSafeAreaInsets();
   const headerHeight = insets.top + HEADER_HEIGHT;
   const [scrolled, setScrolled] = React.useState(false);
@@ -58,12 +58,22 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#B58CF4" })
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
+        // 🔥 MÁXIMA ESTABILIDAD ANTI-DESCUADRE
         willChange: "transform",
         transform: "translate3d(0, 0, 0)",
         WebkitBackfaceVisibility: "hidden",
         backfaceVisibility: "hidden",
         WebkitTransform: "translate3d(0, 0, 0)",
         contain: "layout style paint",
+        // Prevenir cualquier movimiento inesperado
+        boxSizing: "border-box",
+        WebkitFontSmoothing: "antialiased",
+        MozOsxFontSmoothing: "grayscale",
+        // Forzar posición absoluta
+        position: "fixed" as const,
+        top: "0 !important" as any,
+        left: "0 !important" as any,
+        right: "0 !important" as any,
       }}
     >
       <h1

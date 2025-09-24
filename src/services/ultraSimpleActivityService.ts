@@ -145,19 +145,44 @@ export const publishActivityUltraSimple = async (data: WorkoutPublishData): Prom
 };
 
 /**
- * Obtener actividades desde published_activities_simple
+ * Obtener actividades desde published_activities_simple FILTRADAS POR USUARIO
  */
 export const getPublishedActivitiesUltraSimple = async () => {
   console.log('📊 [ULTRA SIMPLE] === INICIANDO OBTENCIÓN DE ACTIVIDADES ===');
   
-  // MÉTODO 1: Supabase con timeout
+  // OBTENER USUARIO ACTUAL PRIMERO
+  let currentUserId = null;
   try {
-    console.log('☁️ [ULTRA SIMPLE] Intentando Supabase...');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      currentUserId = user.id;
+      console.log('👤 [ULTRA SIMPLE] Usuario autenticado encontrado:', user.email);
+    } else {
+      console.log('👤 [ULTRA SIMPLE] No hay usuario autenticado - modo anónimo');
+    }
+  } catch (authError) {
+    console.log('👤 [ULTRA SIMPLE] Error obteniendo usuario:', authError);
+  }
+  
+  // MÉTODO 1: Supabase con timeout Y FILTRO POR USUARIO
+  try {
+    console.log('☁️ [ULTRA SIMPLE] Intentando Supabase con filtro de usuario...');
     
-    // Crear promesa con timeout
-    const supabasePromise = supabase
+    // Crear query con filtro por usuario
+    let query = supabase
       .from('published_activities_simple')
-      .select('*')
+      .select('*');
+    
+    // Filtrar por usuario autenticado o actividades anónimas
+    if (currentUserId) {
+      query = query.eq('user_id', currentUserId);
+      console.log('🔍 [ULTRA SIMPLE] Filtrando por user_id:', currentUserId);
+    } else {
+      query = query.is('user_id', null);
+      console.log('🔍 [ULTRA SIMPLE] Filtrando actividades anónimas (user_id IS NULL)');
+    }
+    
+    const supabasePromise = query
       .order('created_at', { ascending: false })
       .limit(50);
     
@@ -167,9 +192,11 @@ export const getPublishedActivitiesUltraSimple = async () => {
     
     const { data, error } = await Promise.race([supabasePromise, timeoutPromise]) as any;
 
-    if (!error && data && data.length > 0) {
-      console.log('✅ [ULTRA SIMPLE] Actividades desde Supabase:', data.length);
-      console.log('📊 [ULTRA SIMPLE] Primera actividad:', data[0]);
+    if (!error && data) {
+      console.log(`✅ [ULTRA SIMPLE] Actividades desde Supabase (filtradas): ${data.length} actividades`);
+      if (data.length > 0) {
+        console.log('📊 [ULTRA SIMPLE] Primera actividad:', data[0]);
+      }
       return data;
     } else {
       console.log('⚠️ [ULTRA SIMPLE] Sin datos en Supabase:', error?.message || 'Sin datos');
@@ -179,12 +206,20 @@ export const getPublishedActivitiesUltraSimple = async () => {
     console.error('❌ [ULTRA SIMPLE] Error con Supabase:', supabaseError);
   }
 
-  // MÉTODO 2: localStorage
+  // MÉTODO 2: localStorage CON FILTRO POR USUARIO
   try {
     console.log('📱 [ULTRA SIMPLE] Intentando localStorage...');
     const stored = localStorage.getItem('publishedActivities');
-    const activities = stored ? JSON.parse(stored) : [];
-    console.log('📱 [ULTRA SIMPLE] Actividades desde localStorage:', activities.length);
+    let activities = stored ? JSON.parse(stored) : [];
+    
+    // Filtrar actividades por usuario en localStorage también
+    if (currentUserId) {
+      activities = activities.filter((activity: any) => activity.user_id === currentUserId);
+      console.log(`📱 [ULTRA SIMPLE] Actividades desde localStorage (filtradas por user_id): ${activities.length}`);
+    } else {
+      activities = activities.filter((activity: any) => !activity.user_id);
+      console.log(`📱 [ULTRA SIMPLE] Actividades desde localStorage (anónimas): ${activities.length}`);
+    }
     
     if (activities.length > 0) {
       console.log('📊 [ULTRA SIMPLE] Primera actividad localStorage:', activities[0]);

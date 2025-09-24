@@ -20,21 +20,27 @@ html, body {
 }
 
 
-/* 🔥 SOLUCIÓN DEFINITIVA ANTI-DESCUADRE */
+/* 🔥 SOLUCIÓN SUPER DEFINITIVA ANTI-DESCUADRE */
 html {
   height: 100%;
   height: -webkit-fill-available;
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
-  /* GPU Layer forzado */
+  /* GPU Layer forzado con máxima estabilidad */
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
-  /* Máxima estabilidad */
+  /* Máxima estabilidad anti-descuadre */
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   perspective: 1000px;
   contain: layout style paint;
   will-change: auto;
+  /* Prevenir cualquier reflow inesperado */
+  overflow-x: hidden;
+  position: relative;
+  /* iOS fixes específicos */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -86,24 +92,24 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 262 60% 70%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 220 100% 54%; /* #1463FF in HSL */
+    --primary-foreground: 0 0% 100%; /* White text */
 
-    --secondary: 262 83% 58%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 92% 71%; /* #5A92FF lighter variant */
+    --secondary-foreground: 0 0% 100%; /* White text */
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 260 96% 95%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 220 100% 96%; /* Very light #1463FF variant */
+    --accent-foreground: 220 92% 25%; /* Dark blue text */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 262 83% 58%;
+    --ring: 220 100% 54%; /* #1463FF for focus rings */
 
     --radius: 0.5rem;
   }
@@ -162,11 +168,19 @@ body {
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
   min-height: calc(64px + env(safe-area-inset-bottom, 0px));
   background: white !important;
-  /* Webkit stability fixes for iOS to prevent misalignment */
+  /* MÁXIMA ESTABILIDAD ANTI-DESCUADRE */
   will-change: transform;
-  transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+  contain: layout style paint;
+  /* Prevenir cualquier movimiento */
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
 }
 
 .nav-item {
@@ -210,12 +224,31 @@ body {
     min-height: -webkit-fill-available !important;
   }
   
-  /* Forzar estabilidad de elementos fixed en cambios de estado iOS */
-  .no-select[style*="position: fixed"] {
+  /* 🔥 SUPER FORZAR ESTABILIDAD DE ELEMENTOS FIXED ANTI-DESCUADRE */
+  .no-select[style*="position: fixed"],
+  [style*="position: fixed"],
+  .fixed {
     will-change: transform !important;
-    transform: translateZ(0) !important;
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
     -webkit-backface-visibility: hidden !important;
     backface-visibility: hidden !important;
+    contain: layout style paint !important;
+    /* iOS crítico: prevenir cualquier offset inesperado */
+    box-sizing: border-box !important;
+    -webkit-font-smoothing: antialiased !important;
+  }
+  
+  /* Estabilidad específica para botones */
+  button,
+  .btn,
+  [role="button"] {
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    -webkit-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
+    will-change: auto !important;
+    contain: layout style paint !important;
   }
 }
 
@@ -281,4 +314,73 @@ input[type="file"] {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* 🔥 CLASES ANTI-DESCUADRE GLOBALES */
+.layout-stable {
+  transform: translate3d(0, 0, 0) !important;
+  -webkit-transform: translate3d(0, 0, 0) !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  will-change: auto !important;
+  contain: layout style paint !important;
+  box-sizing: border-box !important;
+}
+
+.layout-stable-fixed {
+  position: fixed !important;
+  transform: translate3d(0, 0, 0) !important;
+  -webkit-transform: translate3d(0, 0, 0) !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  will-change: transform !important;
+  contain: layout style paint !important;
+  box-sizing: border-box !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
+.layout-stable-button {
+  transform: translateZ(0) !important;
+  -webkit-transform: translateZ(0) !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  contain: layout style paint !important;
+  will-change: auto !important;
+  min-height: 48px !important;
+  box-sizing: border-box !important;
+}
+
+/* Aplicar automáticamente a elementos críticos */
+.runapp-container,
+.plan-container,
+.content-container {
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: layout style paint;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Asegurar estabilidad máxima en iOS Safari/Capacitor */
+@supports (-webkit-touch-callout: none) {
+  html, body, #root {
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+  }
+  
+  /* Todos los elementos position fixed */
+  *[style*="position: fixed"],
+  *[style*="position:fixed"],
+  .fixed {
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    will-change: transform !important;
+    contain: layout style paint !important;
+  }
 }

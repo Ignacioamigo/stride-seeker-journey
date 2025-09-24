@@ -21,7 +21,7 @@ import { useLayoutStability } from "@/hooks/useLayoutStability";
 const HEADER_HEIGHT = 44;
 
 const Plan: React.FC = () => {
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const navigate = useNavigate();
   const { isPremium, showPaywall: showSubscriptionPaywall } = useSubscription();
   const { isOpen: isPaywallOpen, showPaywall, hidePaywall, handlePurchase, checkPremiumAccess } = usePaywall();
@@ -34,6 +34,7 @@ const Plan: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [generationStage, setGenerationStage] = useState<'init' | 'api' | 'complete'>('init');
   const [connectionStatus, setConnectionStatus] = useState<boolean>(navigator.onLine);
+  const [raceInput, setRaceInput] = useState<string>(user.targetRace?.name || "");
   const insets = useSafeAreaInsets();
   const headerHeight = insets.top + HEADER_HEIGHT;
 
@@ -96,6 +97,23 @@ const Plan: React.FC = () => {
     };
   }, []);
 
+  const handleRaceInputChange = (value: string) => {
+    setRaceInput(value);
+    // Crear un objeto de carrera simple cuando hay texto
+    const targetRace = value.trim() ? {
+      id: 'manual-' + Date.now(),
+      name: value.trim(),
+      location: 'Ubicación no especificada',
+      date: new Date().toISOString(),
+      distance: 'Distancia no especificada',
+      type: 'carrera_popular' as const
+    } : null;
+    
+    // Actualizar inmediatamente el contexto del usuario
+    updateUser({ targetRace });
+    console.log('🎯 Carrera objetivo actualizada:', targetRace?.name || 'Sin carrera');
+  };
+
   const handleGeneratePlan = async () => {
     if (!user.completedOnboarding) {
       toast({
@@ -135,7 +153,9 @@ const Plan: React.FC = () => {
         goal: user.goal,
         maxDistance: user.maxDistance,
         pace: user.pace,
-        weeklyWorkouts: user.weeklyWorkouts
+        weeklyWorkouts: user.weeklyWorkouts,
+        targetRace: user.targetRace,
+        selectedDays: user.selectedDays
       });
       
       // API phase - generating the plan
@@ -224,10 +244,22 @@ const Plan: React.FC = () => {
         }}
       >
         {/* Header - let it handle its own fixed positioning */}
-        <Header title="Plan de entrenamiento" subtitle="Tu semana personalizada" />
+        <Header 
+          title={
+            <div className="flex items-center justify-center w-full">
+              <img 
+                src="/BeRun_mark_white_transparent.png" 
+                alt="BeRun" 
+                className="h-10 w-auto object-contain"
+              />
+            </div>
+          } 
+          subtitle="" 
+        />
         
         {/* Scrollable Content */}
         <div 
+          className="layout-stable"
           style={{
             flex: 1,
             overflow: 'auto',
@@ -237,7 +269,7 @@ const Plan: React.FC = () => {
             paddingBottom: Math.max(insets.bottom + 80, 96), // 64px min height + 16px padding + safe area
           }}
         >
-          <div className="w-full max-w-md mx-auto px-4">
+          <div className="w-full max-w-md mx-auto px-4 layout-stable plan-container">
           
           {/* Debug: Paywall Test Button - Remove in production */}
           {process.env.NODE_ENV === 'development' && (
@@ -341,6 +373,26 @@ const Plan: React.FC = () => {
             : "Genera tu plan de entrenamiento personalizado basado en tu perfil y objetivos."
           }
         </p>
+        
+        {/* Campo para carrera objetivo */}
+        <div className="mb-4 text-left">
+          <label className="block text-sm font-medium text-runapp-navy mb-2">
+            ¿Te preparas para alguna carrera específica? (Opcional)
+          </label>
+          <input
+            type="text"
+            value={raceInput}
+            onChange={(e) => handleRaceInputChange(e.target.value)}
+            placeholder="Ej: San Silvestre Vallecana, Maratón de Madrid..."
+            className="w-full px-4 py-3 border border-runapp-purple/20 rounded-xl bg-white focus:border-runapp-purple focus:outline-none text-runapp-dark placeholder-runapp-gray/60"
+          />
+          {raceInput && (
+            <p className="text-xs text-runapp-purple mt-1">
+              ✓ Esta carrera se mencionará en tu plan de entrenamiento
+            </p>
+          )}
+        </div>
+        
         <RunButton 
           onClick={handleGeneratePlan}
           className="w-full"

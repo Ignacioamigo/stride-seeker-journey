@@ -55,7 +55,13 @@ const NameQuestion: React.FC = () => {
       
       <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-runapp-navy mb-2">RunAdaptive</h1>
+          <div className="flex items-center justify-center mb-2">
+            <img 
+              src="/BeRun_full_1024_blue1463FF.png" 
+              alt="BeRun Logo" 
+              className="h-16 object-contain"
+            />
+          </div>
           <p className="text-lg text-runapp-gray">Tu entrenador personal para correr</p>
         </div>
         

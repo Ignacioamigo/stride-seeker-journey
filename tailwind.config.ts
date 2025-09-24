@@ -54,12 +54,31 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				runapp: {
-					purple: "#9f7aea",
-					"deep-purple": "#805ad5",
-					"light-purple": "#d6bcfa",
+					// Primary BeRun blue (#1463FF) and variations
+					purple: "#1463FF", // Main brand color
+					"deep-purple": "#0E45B2", // Darker shade
+					"light-purple": "#7EA9FF", // Light tint
+					"extra-light-purple": "#5A92FF", // Medium tint
+					"darkest-purple": "#0B368C", // Darkest shade
+					// Supporting colors
 					"navy": "#1a365d",
 					"gray": "#4a5568",
 					"success": "#48bb78",
+				},
+				berun: {
+					// Main brand colors based on #1463FF
+					primary: "#1463FF",
+					"primary-light": "#377AFF",
+					"primary-lighter": "#5A92FF", 
+					"primary-lightest": "#7EA9FF",
+					"primary-dark": "#1154D9",
+					"primary-darker": "#0E45B2",
+					"primary-darkest": "#0B368C",
+					// Supporting palette
+					"navy": "#1a365d",
+					"gray": "#4a5568",
+					"success": "#48bb78",
+					"background": "#f9fafb",
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',

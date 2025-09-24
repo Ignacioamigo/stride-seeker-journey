@@ -320,6 +320,21 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
         </div>
         <p className="text-runapp-gray mb-4 text-sm">{plan.description}</p>
         
+        {/* Mostrar carrera objetivo actual si existe */}
+        {window.localStorage.getItem('runAdaptiveUser') && (() => {
+          try {
+            const userData = JSON.parse(window.localStorage.getItem('runAdaptiveUser') || '{}');
+            return userData.targetRace ? (
+              <div className="bg-runapp-light-purple/20 rounded-lg p-3 mb-4">
+                <p className="text-xs text-runapp-purple font-medium mb-1">🎯 Carrera objetivo:</p>
+                <p className="text-sm text-runapp-navy font-semibold">{userData.targetRace.name}</p>
+              </div>
+            ) : null;
+          } catch {
+            return null;
+          }
+        })()}
+        
         {todaysWorkout && todaysWorkout.type !== 'descanso' && (
           <RunButton 
             onClick={() => {

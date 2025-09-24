@@ -16,7 +16,7 @@ const config: CapacitorConfig = {
     },
     LocalNotifications: {
       smallIcon: "ic_stat_icon_config_sample",
-      iconColor: "#488AFF",
+      iconColor: "#1463FF",
       sound: "beep.wav",
     },
     Geolocation: {
