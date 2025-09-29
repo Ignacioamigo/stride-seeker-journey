@@ -40,11 +40,27 @@ export const saveSimpleWorkout = async (
       weekNumber
     });
 
-    // Verificar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Verificar usuario autenticado - si no hay, crear sesión
+    let { data: { user }, error: authError } = await supabase.auth.getUser();
+    
     if (authError || !user) {
-      console.error('❌ [SimpleWorkouts] Usuario no autenticado:', authError);
-      return false;
+      console.log('ℹ️ [SimpleWorkouts] Usuario no autenticado, creando sesión anónima...');
+      
+      try {
+        // Crear sesión anónima automáticamente
+        const { data: authData, error: signInError } = await supabase.auth.signInAnonymously();
+        
+        if (signInError || !authData.user) {
+          console.error('❌ [SimpleWorkouts] Error creando sesión anónima:', signInError);
+          return false;
+        }
+        
+        user = authData.user;
+        console.log('✅ [SimpleWorkouts] Sesión anónima creada:', user.id);
+      } catch (sessionError) {
+        console.error('❌ [SimpleWorkouts] Error en creación de sesión:', sessionError);
+        return false;
+      }
     }
 
     // Preparar datos del entrenamiento
@@ -93,11 +109,27 @@ export const getUserWorkouts = async (): Promise<SimpleWorkout[]> => {
   try {
     console.log('📊 [SimpleWorkouts] Obteniendo entrenamientos del usuario...');
 
-    // Verificar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Verificar usuario autenticado - si no hay, crear sesión
+    let { data: { user }, error: authError } = await supabase.auth.getUser();
+    
     if (authError || !user) {
-      console.error('❌ [SimpleWorkouts] Usuario no autenticado:', authError);
-      return [];
+      console.log('ℹ️ [SimpleWorkouts] Usuario no autenticado, creando sesión anónima...');
+      
+      try {
+        // Crear sesión anónima automáticamente
+        const { data: authData, error: signInError } = await supabase.auth.signInAnonymously();
+        
+        if (signInError || !authData.user) {
+          console.error('❌ [SimpleWorkouts] Error creando sesión anónima:', signInError);
+          return [];
+        }
+        
+        user = authData.user;
+        console.log('✅ [SimpleWorkouts] Sesión anónima creada para lectura:', user.id);
+      } catch (sessionError) {
+        console.error('❌ [SimpleWorkouts] Error en creación de sesión:', sessionError);
+        return [];
+      }
     }
 
     // Obtener entrenamientos del usuario ordenados por fecha descendente
@@ -132,11 +164,27 @@ export const getUserWorkoutsByDateRange = async (
   try {
     console.log(`📅 [SimpleWorkouts] Obteniendo entrenamientos desde ${startDate} hasta ${endDate}`);
 
-    // Verificar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Verificar usuario autenticado - si no hay, crear sesión
+    let { data: { user }, error: authError } = await supabase.auth.getUser();
+    
     if (authError || !user) {
-      console.error('❌ [SimpleWorkouts] Usuario no autenticado:', authError);
-      return [];
+      console.log('ℹ️ [SimpleWorkouts] Usuario no autenticado, creando sesión anónima...');
+      
+      try {
+        // Crear sesión anónima automáticamente
+        const { data: authData, error: signInError } = await supabase.auth.signInAnonymously();
+        
+        if (signInError || !authData.user) {
+          console.error('❌ [SimpleWorkouts] Error creando sesión anónima:', signInError);
+          return [];
+        }
+        
+        user = authData.user;
+        console.log('✅ [SimpleWorkouts] Sesión anónima creada para filtrado por fechas:', user.id);
+      } catch (sessionError) {
+        console.error('❌ [SimpleWorkouts] Error en creación de sesión:', sessionError);
+        return [];
+      }
     }
 
     // Obtener entrenamientos en el rango de fechas

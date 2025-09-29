@@ -34,10 +34,10 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#1463FF" })
     <div
       className="no-select"
       style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
+        position: "fixed" as const,
+        top: "0 !important" as any,
+        left: "0 !important" as any,
+        right: "0 !important" as any,
         width: "100%",
         zIndex: 100,
         background: bgColor,
@@ -69,11 +69,6 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#1463FF" })
         boxSizing: "border-box",
         WebkitFontSmoothing: "antialiased",
         MozOsxFontSmoothing: "grayscale",
-        // Forzar posición absoluta
-        position: "fixed" as const,
-        top: "0 !important" as any,
-        left: "0 !important" as any,
-        right: "0 !important" as any,
       }}
     >
       <h1

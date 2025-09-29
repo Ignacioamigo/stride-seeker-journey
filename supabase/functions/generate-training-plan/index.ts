@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -91,7 +90,7 @@ function generateDatesForSelectedDays(selectedDays: any[]): { date: Date, dayNam
   // Get dates for the next 4 weeks to ensure we have enough training dates
   for (let week = 0; week < 4; week++) {
     for (const selectedDay of actualSelectedDays) {
-      const dayId = selectedDay.id; // 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
+      const dayId = selectedDay.day || selectedDay.id; // 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
       
       // Calculate the date for this day in the current week iteration
       const targetDate = new Date(today);
@@ -137,8 +136,29 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Received request to generate training plan");
+    console.log("Request method:", req.method);
+    console.log("Request headers:", Object.fromEntries(req.headers.entries()));
+    
     // 1. Get data from the request
-    const { userProfile, previousWeekResults, customPrompt } = await req.json() as RequestBody;
+    const requestText = await req.text();
+    console.log("Raw request body:", requestText.substring(0, 500) + "...");
+    
+    let requestBody;
+    try {
+      requestBody = JSON.parse(requestText);
+    } catch (parseError) {
+      console.error('Failed to parse request JSON:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        },
+      );
+    }
+    
+    const { userProfile, previousWeekResults, customPrompt } = requestBody as RequestBody;
     if (!userProfile || !userProfile.goal) {
       console.error('Missing required user profile information:', userProfile);
       return new Response(
@@ -186,7 +206,7 @@ serve(async (req) => {
     let ragStrategy = 'none';
     
     try {
-      console.log("Starting advanced RAG process...");
+      console.log("🚀 FORCING RAG ACTIVATION - Starting advanced RAG process...");
       
       // Enhanced user query construction
       const selectedDaysText = userProfile.selectedDays && userProfile.selectedDays.length > 0 
@@ -198,44 +218,27 @@ serve(async (req) => {
       const contextualQuery = `Entrenamiento para ${userProfile.goal.toLowerCase()} nivel ${userProfile.experienceLevel} ritmo ${userProfile.pace} distancia máxima ${userProfile.maxDistance}km`;
       const detailedQuery = `Corredor ${userProfile.experienceLevel} de ${userProfile.age} años, objetivo: ${userProfile.goal}, ritmo actual: ${userProfile.pace}, máximo ${userProfile.maxDistance}km, ${userProfile.weeklyWorkouts} entrenamientos/semana`;
       
-      console.log("Multi-query RAG approach:", {baseQuery, contextualQuery, detailedQuery});
+      console.log("🚀 FORCED RAG: Multi-query approach:", {baseQuery, contextualQuery, detailedQuery});
       
       // RAG Strategy: Use semantic search with embeddings
       let fragments = [];
       let queryEmbedding = null;
       
-      // Try to generate embedding first
-      const embeddingRes = await fetch(
-        `${supabaseUrl}/functions/v1/generate-embedding`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`
-          },
-          body: JSON.stringify({ text: contextualQuery })
-        }
-      );
+      // FORCE RAG: Skip embedding generation, use sample from database directly
+      console.log("🚀 FORCED RAG: Using sample embedding directly from database");
       
-      if (embeddingRes.ok) {
-        const embeddingData = await embeddingRes.json();
-        if (embeddingData.embedding && Array.isArray(embeddingData.embedding)) {
-          console.log("✅ Embedding generated successfully with dimensions:", embeddingData.embedding.length);
-          queryEmbedding = embeddingData.embedding;
-        }
+      const { data: sampleFragment, error: sampleError } = await supabase
+        .from('fragments')
+        .select('embedding')
+        .limit(1)
+        .single();
+        
+      if (!sampleError && sampleFragment?.embedding) {
+        queryEmbedding = sampleFragment.embedding;
+        console.log("🚀 FORCED RAG: Using sample embedding with dimensions:", queryEmbedding.length);
       } else {
-        console.log("⚠️ Embedding generation failed, using sample embedding from database");
-        // Fallback: use a sample embedding from the database
-        const { data: sampleFragment, error: sampleError } = await supabase
-          .from('fragments')
-          .select('embedding')
-          .limit(1)
-          .single();
-          
-        if (!sampleError && sampleFragment?.embedding) {
-          queryEmbedding = sampleFragment.embedding;
-          console.log("✅ Using sample embedding with dimensions:", queryEmbedding.length);
-        }
+        console.log("❌ FORCED RAG: Could not get sample embedding:", sampleError);
+        throw new Error("Cannot get sample embedding for forced RAG");
       }
       
       // If we have an embedding (generated or sample), use semantic search
@@ -505,14 +508,14 @@ ${userProfile.targetRace ? '5' : '4'}. Genera una respuesta en formato JSON sigu
     
     // Build the final prompt
     const prompt = `${systemPrompt}\n${userProfileSection}${ragSection}${previousResultsSection}${customPromptSection}${mainInstruction}`;
-    console.log("Prepared prompt for Gemini:", prompt.substring(0, 200) + "...");
+    console.log("Prepared prompt for OpenAI:", prompt.substring(0, 200) + "...");
     console.log("RAG active:", ragActive ? "YES" : "NO");
     console.log("RAG context length:", contextText.length);
 
-    // 5. Call Gemini
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    // 5. Call OpenAI
+    const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) {
-      console.error('GEMINI_API_KEY not configured');
+      console.error('OPENAI_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'Server configuration error', details: 'AI service not configured' }),
         {
@@ -522,20 +525,42 @@ ${userProfile.targetRace ? '5' : '4'}. Genera una respuesta en formato JSON sigu
       );
     }
     
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    console.log("Calling Gemini API...");
+    console.log("Calling OpenAI API with new client syntax...");
     
-    let result;
+    let text;
     try {
-      result = await model.generateContent(prompt);
-    } catch (geminiError) {
-      console.error("Gemini API error:", geminiError);
+      // Crear cliente OpenAI usando import dinámico para Deno
+      const openaiModule = await import('https://deno.land/x/openai@v4.28.0/mod.ts');
+      const OpenAI = openaiModule.default;
+      
+      const client = new OpenAI({
+        apiKey: apiKey,
+      });
+
+      const response = await client.chat.completions.create({
+        model: 'gpt-4o-mini', // Modelo más económico disponible
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un entrenador personal experto en planes de running. Generas planes de entrenamiento personalizados en formato JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.7
+      });
+
+      text = response.choices[0].message.content;
+    } catch (openaiError) {
+      console.error("OpenAI API error:", openaiError);
       return new Response(
         JSON.stringify({ 
           error: 'AI service error', 
           details: 'Failed to generate training plan content',
-          originalError: geminiError.message 
+          originalError: openaiError.message 
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -543,10 +568,7 @@ ${userProfile.targetRace ? '5' : '4'}. Genera una respuesta en formato JSON sigu
         },
       );
     }
-    
-    const response = await result.response;
-    const text = response.text();
-    console.log("Received response from Gemini:", text.substring(0, 200) + "...");
+    console.log("Received response from OpenAI:", text.substring(0, 200) + "...");
 
     // 6. Parse the response and return the plan
     try {
@@ -569,17 +591,17 @@ ${userProfile.targetRace ? '5' : '4'}. Genera una respuesta en formato JSON sigu
         }
       }
       
-      // 7. Store the plan in Supabase
-      console.log("Storing training plan in Supabase...");
+      // 7. Store the plan in Supabase (only for authenticated users)
+      console.log("Checking if user is authenticated for data storage...");
       
       try {
-        // First, check if we have a user profile in the database
-        let userProfileId = null;
-        
         // Get the authenticated user (if any)
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         
         if (user) {
+          console.log("✅ User is authenticated, proceeding with database storage");
+          let userProfileId = null;
+          
           // Check if profile already exists in database for authenticated user
           const { data: existingProfile } = await supabase
             .from('user_profiles')
@@ -590,59 +612,43 @@ ${userProfile.targetRace ? '5' : '4'}. Genera una respuesta en formato JSON sigu
           if (existingProfile) {
             userProfileId = existingProfile.id;
             console.log("Using existing user profile:", userProfileId);
-          }
-        }
-        
-        // If no profile exists, create one (works for both authenticated and anonymous users)
-        if (!userProfileId) {
-          console.log("Creating new user profile. User authenticated:", !!user);
-          
-          console.log("Attempting to insert user profile with data:", {
-            user_auth_id: user?.id || null,
-            name: userProfile.name,
-            age: userProfile.age,
-            gender: userProfile.gender,
-            height: userProfile.height,
-            weight: userProfile.weight
-          });
-          
-          const { data: userProfileData, error: userProfileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              user_auth_id: user?.id || null,  // user_auth_id (null para usuarios anónimos)
-              name: userProfile.name,
-              age: userProfile.age,
-              gender: userProfile.gender,
-              height: userProfile.height,  // ¡AÑADIR height!
-              weight: userProfile.weight,  // ¡AÑADIR weight!
-              max_distance: userProfile.maxDistance,
-              pace: userProfile.pace,
-              goal: userProfile.goal,
-              weekly_workouts: userProfile.weeklyWorkouts,
-              experience_level: userProfile.experienceLevel,
-              injuries: userProfile.injuries
-            })
-            .select('id')
-            .single();
-          
-          if (userProfileError) {
-            console.error("❌ ERROR saving user profile:", userProfileError);
-            console.error("Error details:", JSON.stringify(userProfileError, null, 2));
           } else {
-            console.log("✅ User profile saved successfully:", userProfileData);
-            userProfileId = userProfileData.id;
+            // Create new profile for authenticated user
+            console.log("Creating new user profile for authenticated user");
+            
+            const { data: userProfileData, error: userProfileError } = await supabase
+              .from('user_profiles')
+              .insert({
+                user_auth_id: user.id,
+                name: userProfile.name,
+                age: userProfile.age,
+                gender: userProfile.gender,
+                height: userProfile.height,
+                weight: userProfile.weight,
+                max_distance: userProfile.maxDistance,
+                pace: userProfile.pace,
+                goal: userProfile.goal,
+                weekly_workouts: userProfile.weeklyWorkouts,
+                experience_level: userProfile.experienceLevel,
+                injuries: userProfile.injuries
+              })
+              .select('id')
+              .single();
+            
+            if (userProfileError) {
+              console.error("❌ ERROR saving user profile:", userProfileError);
+            } else {
+              console.log("✅ User profile saved successfully:", userProfileData);
+              userProfileId = userProfileData.id;
+            }
           }
+        } else {
+          console.log("ℹ️ No authenticated user found, skipping database storage");
+          console.log("Plan will be returned directly without database persistence");
         }
         
-        // Ensure we have a valid userProfileId before saving training plan
-        if (!userProfileId) {
-          console.error("❌ CRITICAL: Cannot save training plan - userProfileId is null");
-          console.log("🔍 Debug info:", {
-            userAuthenticated: !!user,
-            userAuthId: user?.id || 'null',
-            profileCreationAttempted: true
-          });
-        } else {
+        // Save training plan only if user is authenticated and we have userProfileId  
+        if (user && userProfileId) {
           console.log("✅ About to save training plan with userProfileId:", userProfileId);
           console.log("📋 Training plan data:", {
             user_id: userProfileId,

@@ -36,7 +36,7 @@ export const uploadTrainingDocument = async (file: File): Promise<boolean> => {
     
     if (!navigator.onLine) {
       console.error("No internet connection");
-      connectionError = "No internet connection. The document cannot be uploaded without conexión a internet.";
+      connectionError = "Sin conexión a internet. El documento no se puede subir sin conexión a internet.";
       return false;
     }
     
@@ -904,6 +904,15 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
       requestBody.customPrompt = request.customPrompt;
     }
     
+    console.log("Request body being sent:", {
+      ...requestBody,
+      userProfile: {
+        ...requestBody.userProfile,
+        // Redact sensitive info for logs
+        name: requestBody.userProfile?.name?.substring(0, 3) + "...",
+      }
+    });
+    
     const { data, error } = await supabase.functions.invoke('generate-training-plan', {
       body: requestBody
     });
@@ -914,6 +923,9 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
       console.error("Error name:", error.name);
       console.error("Error context:", error.context);
       console.error("Error message:", error.message);
+      
+      // Log the response data for debugging
+      console.error("Response data:", data);
       
       // Proporcionar mensaje de error más específico
       let errorMessage = "Error de conexión con el servidor";
@@ -928,10 +940,13 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
             errorMessage = "Servicio de inteligencia artificial no configurado. Contacta al administrador.";
           } else if (data.error.includes('Invalid response format')) {
             errorMessage = "Error procesando la respuesta del servicio. Intenta de nuevo.";
+          } else {
+            // Include the specific error from the response
+            errorMessage = `Error del servidor: ${data.error}`;
           }
         }
       }
-      if (error.message && !errorMessage.includes("límite de uso")) {
+      if (error.message && !errorMessage.includes("límite de uso") && !errorMessage.includes("Error del servidor:")) {
         errorMessage += `: ${error.message}`;
       }
       
