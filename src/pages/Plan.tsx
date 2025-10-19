@@ -4,6 +4,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import { generateTrainingPlan, loadLatestPlan, isOfflineMode, getConnectionError } from "@/services/planService";
+import { syncPlanWithDatabase } from "@/services/syncPlanService";
 import { toast } from "@/components/ui/use-toast";
 import { subscriptionService, PremiumFeature, useSubscription } from "@/services/subscriptionService";
 import PaywallModal from "@/components/paywall/PaywallModal";
@@ -60,13 +61,24 @@ const Plan: React.FC = () => {
         console.log("Attempting to load existing plan...");
         
         try {
-          const plan = await loadLatestPlan();
+          let plan = await loadLatestPlan();
           
           if (plan) {
             console.log("Plan loaded successfully:", plan.name);
-            setCurrentPlan(plan);
-            // Log para depuración: mostrar el plan actualizado
-            console.log('[Plan.tsx] Plan actualizado tras loadPlan:', plan);
+            
+            // 🔄 SINCRONIZAR con Supabase para asegurar training_sessions
+            console.log("🔄 Sincronizando plan con Supabase...");
+            const syncedPlan = await syncPlanWithDatabase(plan);
+            
+            if (syncedPlan) {
+              console.log("✅ Plan sincronizado con training_sessions correctas");
+              setCurrentPlan(syncedPlan);
+              console.log('[Plan.tsx] Plan actualizado tras sync:', syncedPlan);
+            } else {
+              console.warn("⚠️ No se pudo sincronizar, usando plan original");
+              setCurrentPlan(plan);
+              console.log('[Plan.tsx] Plan actualizado tras loadPlan:', plan);
+            }
           } else {
             console.log("No existing plan found");
             

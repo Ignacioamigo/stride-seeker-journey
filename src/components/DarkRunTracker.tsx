@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Square, MapPin } from 'lucide-react';
 import { useSimpleGPSTracker } from '@/hooks/useSimpleGPSTracker';
@@ -28,6 +28,22 @@ const DarkRunTracker: React.FC = () => {
   const [screenState, setScreenState] = useState<ScreenState>('pre-run');
   const [completedSession, setCompletedSession] = useState<RunSession | null>(null);
   const [publishedActivity, setPublishedActivity] = useState<PublishedActivity | null>(null);
+  const [trainingSessionId, setTrainingSessionId] = useState<string | null>(null);
+
+  // Leer training_session_id de localStorage al cargar el componente
+  useEffect(() => {
+    const sessionId = localStorage.getItem('active_training_session_id');
+    if (sessionId) {
+      setTrainingSessionId(sessionId);
+      console.log('🎯 [DARK RUN TRACKER] Training session ID detectado:', sessionId);
+      
+      toast({
+        title: "Entrenamiento del plan",
+        description: "Este entrenamiento se vinculará a tu plan automáticamente.",
+        duration: 3000,
+      });
+    }
+  }, []);
 
   const formatDistance = (meters: number): string => {
     if (meters < 1000) {
@@ -64,7 +80,9 @@ const DarkRunTracker: React.FC = () => {
   const handlePublishActivity = async (workoutData: WorkoutPublishData) => {
     try {
       console.log('🚀 [DARK RUN TRACKER] Publicando actividad con servicio ULTRA SIMPLE...');
-      const activityId = await publishActivityUltraSimple(workoutData);
+      
+      // Pasar training_session_id si existe
+      const activityId = await publishActivityUltraSimple(workoutData, trainingSessionId);
       
       const publishedActivity: PublishedActivity = {
         id: activityId,
@@ -84,9 +102,21 @@ const DarkRunTracker: React.FC = () => {
       setPublishedActivity(publishedActivity);
       setScreenState('details');
       
+      // Limpiar training_session_id después de publicar
+      if (trainingSessionId) {
+        localStorage.removeItem('active_training_session_id');
+        setTrainingSessionId(null);
+        console.log('✅ [DARK RUN TRACKER] Training session vinculado y completado');
+        
+        // Disparar evento para que el plan se actualice
+        window.dispatchEvent(new Event('workoutCompleted'));
+      }
+      
       toast({
         title: "¡Actividad publicada!",
-        description: "Tu entrenamiento ha sido guardado exitosamente.",
+        description: trainingSessionId 
+          ? "Tu entrenamiento del plan ha sido completado automáticamente." 
+          : "Tu entrenamiento ha sido guardado exitosamente.",
       });
     } catch (error) {
       console.error('Error publishing activity:', error);

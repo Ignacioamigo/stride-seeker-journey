@@ -7,17 +7,36 @@ import { saveWorkoutSimple } from './simpleWorkoutService';
  * Guarda actividades en la nueva tabla SIN complicaciones
  */
 
-export const publishActivityUltraSimple = async (data: WorkoutPublishData): Promise<string> => {
+export const publishActivityUltraSimple = async (
+  data: WorkoutPublishData, 
+  trainingSessionId?: string | null
+): Promise<string> => {
   console.log('🚀 [ULTRA SIMPLE] Guardando actividad:', data.title);
+  console.log('🎯 [ULTRA SIMPLE] Training session ID:', trainingSessionId || 'ninguno');
   
   const fallbackId = `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
   try {
     // 1. GUARDAR EN workouts_simple (para estadísticas)
-    console.log('📊 [ULTRA SIMPLE] Guardando en workouts_simple...');
+    console.log('📊 [ULTRA SIMPLE] Guardando actividad:', data.title);
     
     const distanceKm = Math.round(data.runSession.distance / 1000 * 100) / 100;
-    const durationSeconds = data.runSession.duration;
+    
+    // ✅ FIX: Convertir duration de STRING (HH:MM:SS) a segundos
+    let durationSeconds = 0;
+    const durationString = data.runSession.duration; // "00:30:00"
+    
+    if (typeof durationString === 'string' && durationString.includes(':')) {
+      const parts = durationString.split(':');
+      const hours = parseInt(parts[0]) || 0;
+      const minutes = parseInt(parts[1]) || 0;
+      const seconds = parseInt(parts[2]) || 0;
+      durationSeconds = hours * 3600 + minutes * 60 + seconds;
+    } else if (typeof durationString === 'number') {
+      // Si por alguna razón ya es número, usarlo directamente
+      durationSeconds = durationString;
+    }
+    
     const durationMinutes = Math.round(durationSeconds / 60);
     
     // Formatear duración como HH:MM:SS de manera SEGURA
@@ -48,24 +67,44 @@ export const publishActivityUltraSimple = async (data: WorkoutPublishData): Prom
     
     console.log('📊 [ULTRA SIMPLE] Guardado en workouts_simple:', workoutSaved);
 
-    // 2. OBTENER USUARIO
+    // 2. OBTENER USUARIO Y SU NOMBRE
     let userEmail = 'anonimo@app.com';
     let userId = null;
+    let userName = 'Usuario Anónimo';
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) {
-        userEmail = user.email;
+      if (user) {
         userId = user.id;
-        console.log('👤 [ULTRA SIMPLE] Usuario autenticado:', userEmail);
+        userEmail = user.email || 'anonimo@app.com';
+        
+        // Obtener nombre del perfil
+        try {
+          const { data: userProfile } = await supabase
+            .from('user_profiles')
+            .select('name')
+            .eq('user_auth_id', user.id)
+            .single();
+          
+          if (userProfile && userProfile.name) {
+            userName = userProfile.name;
+            console.log('👤 [ULTRA SIMPLE] Usuario encontrado:', userName);
+          } else {
+            console.log('⚠️ [ULTRA SIMPLE] Perfil sin nombre, usando default');
+          }
+        } catch (profileError) {
+          console.log('⚠️ [ULTRA SIMPLE] Error obteniendo perfil, usando nombre default');
+        }
       }
     } catch (authError) {
-      console.log('👤 [ULTRA SIMPLE] Usuario anónimo');
+      console.log('👤 [ULTRA SIMPLE] Usuario anónimo sin autenticación');
     }
 
     // 3. DATOS ULTRA SIMPLES para published_activities_simple
     const activityData = {
       user_id: userId,
+      user_name: userName, // ✅ Nombre real del usuario
+      training_session_id: trainingSessionId || null, // ✅ NUEVO: Vincular con sesión del plan
       title: data.title.trim(),
       description: data.description?.trim() || `Entrenamiento completado: ${distanceKm} km en ${durationFormatted}`,
       distance: distanceKm, // En km (como en la imagen)
@@ -77,6 +116,12 @@ export const publishActivityUltraSimple = async (data: WorkoutPublishData): Prom
       is_public: data.isPublic !== false,
       gps_points: data.runSession.gpsPoints?.slice(0, 50) || [] // Limitar puntos GPS
     };
+    
+    // Log especial si hay training_session_id
+    if (trainingSessionId) {
+      console.log('🎯 [ULTRA SIMPLE] Esta actividad se vinculará a la sesión:', trainingSessionId);
+      console.log('⚡ [ULTRA SIMPLE] El trigger auto-completará la sesión automáticamente');
+    }
 
     console.log('💾 [ULTRA SIMPLE] Datos para published_activities_simple:', activityData);
 

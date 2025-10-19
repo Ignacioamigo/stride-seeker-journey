@@ -134,7 +134,7 @@ const Activities: React.FC = () => {
           likes: Math.max(0, parseInt(activity.likes) || 0),
           comments: Math.max(0, parseInt(activity.comments) || 0),
           userProfile: {
-            name: (activity.user_email?.split('@')[0]) || 'Usuario'
+            name: activity.user_name || (activity.user_email?.split('@')[0]) || 'Usuario'
           }
         };
         

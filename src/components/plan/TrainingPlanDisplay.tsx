@@ -1,8 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { WorkoutPlan, Workout } from "@/types";
 import RunButton from "@/components/ui/RunButton";
-import { Calendar, Loader2, WifiOff } from "lucide-react";
+import { Calendar, Loader2, WifiOff, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import WorkoutCompletionForm from './WorkoutCompletionForm';
 import { generateNextWeekPlan } from '@/services/planService';
@@ -23,9 +23,10 @@ const WorkoutCard: React.FC<{
   planId: string;
   weekNumber?: number;
   onComplete: (workoutId: string, actualDistance: number | null, actualDuration: string | null) => Promise<void>;
+  onStartWorkout: (workoutId: string) => void;
   expanded: boolean;
   onToggleExpand: () => void;
-}> = ({ workout, planId, weekNumber, onComplete, expanded, onToggleExpand }) => {
+}> = ({ workout, planId, weekNumber, onComplete, onStartWorkout, expanded, onToggleExpand }) => {
   // No mostrar los entrenamientos de tipo "descanso"
   if (workout.type === 'descanso') {
     return null;
@@ -97,7 +98,19 @@ const WorkoutCard: React.FC<{
         </span>
       </div>
       
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center gap-2">
+        {/* Botón Iniciar Entrenamiento - A la izquierda */}
+        {!workout.completed && (
+          <button 
+            onClick={() => onStartWorkout(workout.id)}
+            className="flex items-center gap-2 px-4 py-2 bg-runapp-purple text-white rounded-lg text-sm font-semibold hover:bg-runapp-deep-purple transition-colors"
+          >
+            <Play className="w-4 h-4" />
+            Iniciar entrenamiento
+          </button>
+        )}
+        
+        {/* Botón Meter datos - A la derecha */}
         <button 
           onClick={() => {
             onToggleExpand();
@@ -114,7 +127,7 @@ const WorkoutCard: React.FC<{
               }, 100);
             }
           }}
-          className="text-xs text-runapp-purple hover:underline"
+          className="text-xs text-runapp-purple hover:underline ml-auto"
         >
           {expanded ? 'Ocultar formulario' : 'Meter datos entrenamiento'}
         </button>
@@ -137,6 +150,43 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const [isGeneratingNextWeek, setIsGeneratingNextWeek] = useState(false);
   const { showWeeklyFeedback, isGeneratingFeedback } = useWeeklyFeedback();
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Listener para actualizar el plan cuando se complete un entrenamiento GPS
+  useEffect(() => {
+    const handleWorkoutCompleted = () => {
+      console.log('🎉 [TRAINING PLAN] Entrenamiento completado, actualizando plan...');
+      setRefreshKey(prev => prev + 1);
+      
+      // Recargar el plan desde Supabase para ver los cambios
+      setTimeout(() => {
+        window.location.reload(); // Temporal: recargar página para ver cambios
+      }, 1000);
+    };
+    
+    window.addEventListener('workoutCompleted', handleWorkoutCompleted);
+    
+    return () => {
+      window.removeEventListener('workoutCompleted', handleWorkoutCompleted);
+    };
+  }, []);
+  
+  // Función para iniciar entrenamiento con GPS
+  const handleStartWorkout = (workoutId: string) => {
+    console.log('🚀 Iniciando entrenamiento con GPS para workout:', workoutId);
+    console.log('📋 Workout ID que se guardará:', workoutId);
+    
+    // Guardar el training_session_id en localStorage para que el GPS tracker lo use
+    localStorage.setItem('active_training_session_id', workoutId);
+    
+    toast({
+      title: "Iniciando GPS",
+      description: "Te llevaremos al tracker para que inicies tu entrenamiento.",
+    });
+    
+    // Navegar al GPS tracker (ruta correcta: /train)
+    navigate('/train');
+  };
   
   // Sort workouts by date if dates are available
   const sortedWorkouts = [...plan.workouts].sort((a, b) => {
@@ -375,6 +425,7 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
               planId={plan.id}
               weekNumber={plan.weekNumber}
               onComplete={handleCompleteWorkout}
+              onStartWorkout={handleStartWorkout}
               expanded={expandedWorkoutId === workout.id}
               onToggleExpand={() => setExpandedWorkoutId(
                 expandedWorkoutId === workout.id ? null : workout.id
