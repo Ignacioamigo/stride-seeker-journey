@@ -45,7 +45,7 @@ const PaceQuestion: React.FC = () => {
     e.preventDefault();
     const pace = `${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`;
     updateUser({ pace });
-    navigate("/onboarding/goal");
+    navigate("/onboarding/target-distance");
   };
 
   const handleMinutesChange = (e: React.ChangeEvent<HTMLInputElement>) => {

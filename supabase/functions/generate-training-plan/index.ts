@@ -16,6 +16,11 @@ interface UserProfile {
   maxDistance: number | null;
   pace: string | null;
   goal: string;
+  // Nuevos campos para objetivos específicos
+  targetDistance: number | null; // Distancia objetivo en km
+  targetPace: number | null; // Ritmo objetivo en min/km
+  targetTimeframe: number | null; // Tiempo objetivo
+  targetTimeframeUnit: 'days' | 'months' | null; // Unidad del tiempo objetivo
   weeklyWorkouts: number | null;
   experienceLevel: string | null;
   injuries: string;
@@ -75,7 +80,7 @@ function generateDatesForSelectedDays(selectedDays: any[]): { date: Date, dayNam
   
   console.log("Selected days received:", selectedDays);
   
-  const dates = [];
+  const dates: { date: Date, dayName: string }[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
@@ -87,62 +92,61 @@ function generateDatesForSelectedDays(selectedDays: any[]): { date: Date, dayNam
     return generateDatesFromToday();
   }
   
-  // Get dates for the next 4 weeks to ensure we have enough training dates
-  for (let week = 0; week < 4; week++) {
-    for (const selectedDay of actualSelectedDays) {
-      const dayId = selectedDay.day || selectedDay.id; // 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
-      
-      // Find the next occurrence of this day of the week
-      const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      
-      // Convert dayId (0=Mon, 1=Tue, etc.) to JavaScript day format (0=Sun, 1=Mon, etc.)
-      const jsTargetDay = dayId === 6 ? 0 : dayId + 1; // Convert: 6(Sunday) -> 0, others -> +1
-      
-      // Calculate days to add to get to the target day (for the first week)
-      let daysToAdd = jsTargetDay - currentDayOfWeek;
-      
-      // Special logic for when it's today (daysToAdd = 0)
-      if (daysToAdd === 0) {
-        // If it's today, we need to decide: start today or next week?
-        // For better weekly distribution, if we have multiple days selected,
-        // it's better to start next week to keep them in the same week
-        if (actualSelectedDays.length > 1) {
-          daysToAdd = 7; // Start next week for better distribution
-        }
-        // If only one day selected, we can start today
-      } else if (daysToAdd < 0) {
-        // If the day has already passed this week, go to next week
-        daysToAdd += 7;
-      }
-      
-      // Add the week offset (0, 7, 14, 21 days)
-      const totalDaysToAdd = daysToAdd + (week * 7);
-      
-      // Create target date
-      const targetDate = new Date(today);
-      targetDate.setDate(today.getDate() + totalDaysToAdd);
-      targetDate.setHours(0, 0, 0, 0);
-      
-      // Create a new date object to avoid reference issues
-      const dayName = selectedDay.name;
-      dates.push({ date: new Date(targetDate.getTime()), dayName });
-    }
+  // NUEVA LÓGICA: Siempre empezar desde la semana siguiente
+  // Calcular el lunes de la próxima semana
+  const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const daysUntilNextMonday = currentDayOfWeek === 0 ? 1 : 8 - currentDayOfWeek; // Si es domingo, lunes es mañana; si no, calcular días hasta el próximo lunes
+  const nextMonday = new Date(today);
+  nextMonday.setDate(today.getDate() + daysUntilNextMonday);
+  nextMonday.setHours(0, 0, 0, 0);
+  
+  console.log("Today is:", today.toISOString().split('T')[0], "Next Monday:", nextMonday.toISOString().split('T')[0]);
+  
+  // Generate dates ONLY for the next week (not 4 weeks)
+  // Each week generates a new plan, so we only need one week at a time
+  for (const selectedDay of actualSelectedDays) {
+    const dayId = selectedDay.day || selectedDay.id; // 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
+    
+    // Convert dayId (0=Mon, 1=Tue, etc.) to JavaScript day format (0=Sun, 1=Mon, etc.)
+    const jsTargetDay = dayId === 6 ? 0 : dayId + 1; // Convert: 6(Sunday) -> 0, others -> +1
+    
+    // Calculate days to add from next Monday to get to the target day
+    let daysToAdd = jsTargetDay - 1; // 1 = Monday in JS, so subtract 1 to get offset from Monday
+    if (daysToAdd < 0) daysToAdd += 7; // Handle Sunday (0) case
+    
+    // Create target date starting from next Monday (only for this week)
+    const targetDate = new Date(nextMonday);
+    targetDate.setDate(nextMonday.getDate() + daysToAdd);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    // Create a new date object to avoid reference issues
+    const dayName = selectedDay.name;
+    dates.push({ date: new Date(targetDate.getTime()), dayName });
   }
   
   // Sort by date to maintain chronological order
   dates.sort((a, b) => a.date.getTime() - b.date.getTime());
   
-  console.log("Generated dates:", dates.map(d => ({ date: d.date.toISOString().split('T')[0], dayName: d.dayName })));
+  console.log("Generated dates (next week only):", dates.map(d => ({ date: d.date.toISOString().split('T')[0], dayName: d.dayName })));
   
-  // Return the first 14 dates
-  return dates.slice(0, 14);
+  return dates;
 }
 
 // Función nueva para distribuir días cuando solo se especifica cantidad
 function generateDatesForWeeklyWorkouts(weeklyWorkouts: number): { date: Date, dayName: string }[] {
-  const dates = [];
+  const dates: { date: Date, dayName: string }[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  
+  // NUEVA LÓGICA: Siempre empezar desde la semana siguiente
+  // Calcular el lunes de la próxima semana
+  const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const daysUntilNextMonday = currentDayOfWeek === 0 ? 1 : 8 - currentDayOfWeek; // Si es domingo, lunes es mañana; si no, calcular días hasta el próximo lunes
+  const nextMonday = new Date(today);
+  nextMonday.setDate(today.getDate() + daysUntilNextMonday);
+  nextMonday.setHours(0, 0, 0, 0);
+  
+  console.log("Today is:", today.toISOString().split('T')[0], "Next Monday:", nextMonday.toISOString().split('T')[0]);
   
   // Distribución inteligente de días según la cantidad
   let dayDistribution: number[] = [];
@@ -175,50 +179,31 @@ function generateDatesForWeeklyWorkouts(weeklyWorkouts: number): { date: Date, d
   
   console.log(`Distributing ${weeklyWorkouts} workouts across days: ${dayDistribution}`);
   
-  // Generar fechas para las próximas 4 semanas
-  for (let week = 0; week < 4; week++) {
-    for (const dayIndex of dayDistribution) {
-      const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      
-      // Convert dayId (0=Mon, 1=Tue, etc.) to JavaScript day format (0=Sun, 1=Mon, etc.)
-      const jsTargetDay = dayIndex === 6 ? 0 : dayIndex + 1;
-      
-      // Calculate days to add (for the first week)
-      let daysToAdd = jsTargetDay - currentDayOfWeek;
-      
-      // Special logic for when it's today (daysToAdd = 0)
-      if (daysToAdd === 0) {
-        // If it's today, we need to decide: start today or next week?
-        // For better weekly distribution, if we have multiple days selected,
-        // it's better to start next week to keep them in the same week
-        if (dayDistribution.length > 1) {
-          daysToAdd = 7; // Start next week for better distribution
-        }
-        // If only one day selected, we can start today
-      } else if (daysToAdd < 0) {
-        // If the day has already passed this week, go to next week
-        daysToAdd += 7;
-      }
-      
-      // Add the week offset (0, 7, 14, 21 days)
-      const totalDaysToAdd = daysToAdd + (week * 7);
-      
-      // Create target date
-      const targetDate = new Date(today);
-      targetDate.setDate(today.getDate() + totalDaysToAdd);
-      targetDate.setHours(0, 0, 0, 0);
-      
-      const dayName = getDayMapping(dayIndex);
-      dates.push({ date: new Date(targetDate.getTime()), dayName });
-    }
+  // Generar fechas SOLO para la próxima semana (no 4 semanas)
+  // Cada semana se genera un nuevo plan
+  for (const dayIndex of dayDistribution) {
+    // Convert dayId (0=Mon, 1=Tue, etc.) to JavaScript day format (0=Sun, 1=Mon, etc.)
+    const jsTargetDay = dayIndex === 6 ? 0 : dayIndex + 1;
+    
+    // Calculate days to add from next Monday to get to the target day
+    let daysToAdd = jsTargetDay - 1; // 1 = Monday in JS, so subtract 1 to get offset from Monday
+    if (daysToAdd < 0) daysToAdd += 7; // Handle Sunday (0) case
+    
+    // Create target date starting from next Monday (only for this week)
+    const targetDate = new Date(nextMonday);
+    targetDate.setDate(nextMonday.getDate() + daysToAdd);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    const dayName = getDayMapping(dayIndex);
+    dates.push({ date: new Date(targetDate.getTime()), dayName });
   }
   
   // Sort by date
   dates.sort((a, b) => a.date.getTime() - b.date.getTime());
   
-  console.log("Generated distributed dates:", dates.map(d => ({ date: d.date.toISOString().split('T')[0], dayName: d.dayName })));
+  console.log("Generated distributed dates (next week only):", dates.map(d => ({ date: d.date.toISOString().split('T')[0], dayName: d.dayName })));
   
-  return dates.slice(0, 14);
+  return dates;
 }
 
 serve(async (req) => {
@@ -316,10 +301,14 @@ serve(async (req) => {
         ? userProfile.selectedDays.filter(d => d.selected).map(d => d.name).join(', ')
         : 'No especificados';
       
-      // Multi-layered query construction for better context retrieval
-      const baseQuery = `${userProfile.goal} ${userProfile.experienceLevel} ${userProfile.pace}`;
-      const contextualQuery = `Entrenamiento para ${userProfile.goal.toLowerCase()} nivel ${userProfile.experienceLevel} ritmo ${userProfile.pace} distancia máxima ${userProfile.maxDistance}km`;
-      const detailedQuery = `Corredor ${userProfile.experienceLevel} de ${userProfile.age} años, objetivo: ${userProfile.goal}, ritmo actual: ${userProfile.pace}, máximo ${userProfile.maxDistance}km, ${userProfile.weeklyWorkouts} entrenamientos/semana`;
+      // Multi-layered query construction for better context retrieval using specific goal fields
+      const timeframeText = userProfile.targetTimeframeUnit === 'days' 
+        ? (userProfile.targetTimeframe === 1 ? "1 día" : `${userProfile.targetTimeframe} días`)
+        : (userProfile.targetTimeframe === 1 ? "1 mes" : `${userProfile.targetTimeframe} meses`);
+      const goalDescription = userProfile.goal || `Correr ${userProfile.targetDistance || 5}km a ${userProfile.targetPace || 5}min/km en ${timeframeText}`;
+      const baseQuery = `${goalDescription} ${userProfile.experienceLevel} ${userProfile.pace}`;
+      const contextualQuery = `Entrenamiento para ${goalDescription.toLowerCase()} nivel ${userProfile.experienceLevel} ritmo ${userProfile.pace} distancia máxima ${userProfile.maxDistance}km`;
+      const detailedQuery = `Corredor ${userProfile.experienceLevel} de ${userProfile.age} años, objetivo: ${goalDescription}, ritmo actual: ${userProfile.pace}, objetivo: ${userProfile.targetDistance}km a ${userProfile.targetPace}min/km en ${timeframeText}, máximo ${userProfile.maxDistance}km, ${userProfile.weeklyWorkouts} entrenamientos/semana`;
       
       console.log("🚀 FORCED RAG: Multi-query approach:", {baseQuery, contextualQuery, detailedQuery});
       
@@ -346,12 +335,20 @@ serve(async (req) => {
       
       // If we have an embedding (generated or sample), use semantic search
       if (queryEmbedding) {
-        // Extract distance goal from objective for better filtering
+        // Extract distance goal from specific target distance or objective for better filtering
         let distanceGoal = '';
-        if (userProfile.goal.toLowerCase().includes('5k')) distanceGoal = '5k';
-        else if (userProfile.goal.toLowerCase().includes('10k')) distanceGoal = '10k';
-        else if (userProfile.goal.toLowerCase().includes('21k') || userProfile.goal.toLowerCase().includes('media maratón')) distanceGoal = '21k';
-        else if (userProfile.goal.toLowerCase().includes('42k') || userProfile.goal.toLowerCase().includes('maratón')) distanceGoal = '42k';
+        if (userProfile.targetDistance) {
+          if (userProfile.targetDistance <= 5) distanceGoal = '5k';
+          else if (userProfile.targetDistance <= 10) distanceGoal = '10k';
+          else if (userProfile.targetDistance <= 21) distanceGoal = '21k';
+          else if (userProfile.targetDistance <= 42) distanceGoal = '42k';
+        } else {
+          // Fallback to parsing goal text
+          if (userProfile.goal.toLowerCase().includes('5k')) distanceGoal = '5k';
+          else if (userProfile.goal.toLowerCase().includes('10k')) distanceGoal = '10k';
+          else if (userProfile.goal.toLowerCase().includes('21k') || userProfile.goal.toLowerCase().includes('media maratón')) distanceGoal = '21k';
+          else if (userProfile.goal.toLowerCase().includes('42k') || userProfile.goal.toLowerCase().includes('maratón')) distanceGoal = '42k';
+        }
         
         console.log(`🎯 RAG Query: "${contextualQuery}" for ${distanceGoal} ${userProfile.experienceLevel}`);
         
@@ -465,8 +462,14 @@ serve(async (req) => {
           if (profile.experienceLevel.includes('avanzado') && filename.includes('-adv-')) score += 0.15;
         }
         
-        // Goal alignment boost
-        if (profile.goal) {
+        // Goal alignment boost using specific target distance
+        if (profile.targetDistance) {
+          if (profile.targetDistance <= 5 && filename.includes('5k-')) score += 0.2;
+          if (profile.targetDistance > 5 && profile.targetDistance <= 10 && filename.includes('10k-')) score += 0.2;
+          if (profile.targetDistance > 10 && profile.targetDistance <= 21 && filename.includes('21k-')) score += 0.2;
+          if (profile.targetDistance > 21 && filename.includes('42k-')) score += 0.2;
+        } else if (profile.goal) {
+          // Fallback to parsing goal text
           const goal = profile.goal.toLowerCase();
           if (goal.includes('5k') && filename.includes('5k-')) score += 0.2;
           if (goal.includes('10k') && filename.includes('10k-')) score += 0.2;
@@ -528,7 +531,8 @@ Sexo: ${userProfile.gender || 'No especificado'}
 Nivel de experiencia: ${userProfile.experienceLevel || 'No especificado'}
 Ritmo actual: ${userProfile.pace || 'No especificado'} min/km
 Distancia máxima: ${userProfile.maxDistance || 'No especificada'} km
-Objetivo: ${userProfile.goal}${targetRaceInfo}
+Objetivo general: ${userProfile.goal}${targetRaceInfo}
+Objetivo específico: ${userProfile.targetDistance ? `${userProfile.targetDistance}km a ${userProfile.targetPace}min/km en ${userProfile.targetTimeframe} ${userProfile.targetTimeframeUnit === 'days' ? 'días' : 'meses'}` : 'No especificado'}
 Lesiones o condiciones: ${userProfile.injuries || 'Ninguna'}
 Frecuencia semanal deseada: ${userProfile.weeklyWorkouts || '3'} entrenamientos por semana
 Días específicos seleccionados: ${selectedDaysInfo}\n`;
@@ -569,6 +573,8 @@ ${previousWeekResults.workouts.map((w: any) =>
 
     const mainInstruction = `\nINSTRUCCIÓN:
 Genera un plan de entrenamiento ${hasSelectedDays ? 'para los días específicos seleccionados por el usuario' : 'para los próximos días'} adecuado para ${userProfile.name}, un corredor ${userProfile.age ? `de ${userProfile.age} años` : ''} con ritmo ${userProfile.pace || 'no especificado'}, cuyo objetivo es ${userProfile.goal}${targetRaceDescription}.
+
+OBJETIVO ESPECÍFICO: ${userProfile.targetDistance ? `El usuario quiere correr ${userProfile.targetDistance}km a un ritmo de ${userProfile.targetPace}min/km en ${userProfile.targetTimeframe} ${userProfile.targetTimeframeUnit === 'days' ? 'días' : 'meses'}.` : 'Objetivo general: ' + userProfile.goal}
 
 HOY ES: ${todayDate}
 
@@ -748,6 +754,10 @@ VALIDACIÓN FINAL: Antes de responder, verifica que:
                 max_distance: userProfile.maxDistance,
                 pace: userProfile.pace,
                 goal: userProfile.goal,
+                target_distance: userProfile.targetDistance,
+                target_pace: userProfile.targetPace,
+                target_timeframe: userProfile.targetTimeframe,
+                target_timeframe_unit: userProfile.targetTimeframeUnit,
                 weekly_workouts: userProfile.weeklyWorkouts,
                 experience_level: userProfile.experienceLevel,
                 injuries: userProfile.injuries

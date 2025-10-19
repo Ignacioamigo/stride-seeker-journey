@@ -9,6 +9,11 @@ export interface UserProfile {
   maxDistance: number | null;
   pace: string | null;
   goal: string;
+  // Nuevos campos para objetivos específicos
+  targetDistance: number | null; // Distancia objetivo en km
+  targetPace: number | null; // Ritmo objetivo en min/km
+  targetTimeframe: number | null; // Tiempo objetivo
+  targetTimeframeUnit: 'days' | 'months' | null; // Unidad del tiempo objetivo
   weeklyWorkouts: number | null;
   selectedDays?: WeekDay[];
   experienceLevel: 'principiante' | 'intermedio' | 'avanzado' | null;

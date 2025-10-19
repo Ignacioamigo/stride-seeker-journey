@@ -21,6 +21,11 @@ const defaultUser: UserProfile = {
   maxDistance: null,
   pace: null,
   goal: '',
+  // Nuevos campos para objetivos específicos
+  targetDistance: null,
+  targetPace: null,
+  targetTimeframe: null,
+  targetTimeframeUnit: null,
   weeklyWorkouts: null,
   selectedDays: [],
   experienceLevel: null,

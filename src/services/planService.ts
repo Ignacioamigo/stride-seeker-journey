@@ -991,44 +991,10 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
       weekNumber: 1
     };
     
-    // Ensure only the requested training days are included
-    // And that user parameters are respected
-    const weeklyWorkouts = request.userProfile.weeklyWorkouts || 3;
-    
-    // Adjust training days to the number specified by the user
-    const activeWorkouts = plan.workouts.filter(w => w.type !== 'descanso');
-    
-    // If there are more active workouts than requested, convert some to rest
-    if (activeWorkouts.length > weeklyWorkouts) {
-      // Ordenar por prioridad: Mantener carreras largas, luego fuerza, luego flexibilidad
-      activeWorkouts.sort((a, b) => {
-        // Priorizar mantener carreras con mayor distancia
-        if (a.type === 'carrera' && b.type === 'carrera') {
-          return (b.distance || 0) - (a.distance || 0);
-        }
-        // Priority: carrera > fuerza > flexibilidad
-        const typePriority = { 'carrera': 3, 'fuerza': 2, 'flexibilidad': 1 };
-        return typePriority[b.type as keyof typeof typePriority] - typePriority[a.type as keyof typeof typePriority];
-      });
-      
-      // Mantener solo los entrenamientos prioritarios
-      const workoutsToKeep = activeWorkouts.slice(0, weeklyWorkouts).map(w => w.id);
-      
-      // Update workouts by converting non-priority ones to rest
-      plan.workouts = plan.workouts.map(workout => {
-        if (workout.type !== 'descanso' && !workoutsToKeep.includes(workout.id)) {
-          return {
-            ...workout,
-            type: 'descanso',
-            title: 'Día de descanso',
-            description: 'Descansa para recuperarte adecuadamente',
-            distance: null,
-            duration: null
-          };
-        }
-        return workout;
-      });
-    }
+    // Note: The Edge Function already generates the correct number of workouts
+    // based on selectedDays or weeklyWorkouts, so we don't need to filter here.
+    // The weeklyWorkouts value represents workouts PER WEEK, not total workouts.
+    // For example: 3 workouts/week over 4 weeks = 12 total workouts.
     
     // Save the generated plan
     await savePlan(plan);

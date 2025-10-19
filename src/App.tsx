@@ -44,7 +44,9 @@ import HeightQuestion from "@/components/onboarding/HeightQuestion";
 import WeightQuestion from "@/components/onboarding/WeightQuestion";
 import MaxDistanceQuestion from "@/components/onboarding/MaxDistanceQuestion";
 import PaceQuestion from "@/components/onboarding/PaceQuestion";
-import GoalQuestion from "@/components/onboarding/GoalQuestion";
+import TargetDistanceQuestion from "@/components/onboarding/TargetDistanceQuestion";
+import TargetPaceQuestion from "@/components/onboarding/TargetPaceQuestion";
+import TargetTimeframeQuestion from "@/components/onboarding/TargetTimeframeQuestion";
 import RacePreparationQuestion from "@/components/onboarding/RacePreparationQuestion";
 import WeeklyWorkoutsQuestion from "@/components/onboarding/WeeklyWorkoutsQuestion";
 import ExperienceQuestion from "@/components/onboarding/ExperienceQuestion";
@@ -106,7 +108,9 @@ const App = () => (
                   <Route path="/onboarding/weight" element={<WeightQuestion />} />
                   <Route path="/onboarding/max-distance" element={<MaxDistanceQuestion />} />
                   <Route path="/onboarding/pace" element={<PaceQuestion />} />
-                  <Route path="/onboarding/goal" element={<GoalQuestion />} />
+                  <Route path="/onboarding/target-distance" element={<TargetDistanceQuestion />} />
+                  <Route path="/onboarding/target-pace" element={<TargetPaceQuestion />} />
+                  <Route path="/onboarding/target-timeframe" element={<TargetTimeframeQuestion />} />
                   <Route path="/onboarding/race-preparation" element={<RacePreparationQuestion />} />
                   <Route path="/onboarding/weekly-workouts" element={<WeeklyWorkoutsQuestion />} />
                   <Route path="/onboarding/experience" element={<ExperienceQuestion />} />
