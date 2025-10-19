@@ -18,10 +18,11 @@ export function useSafeAreaInsets() {
   useEffect(() => {
     const fallbackTimer = setTimeout(() => {
       if (!isReady) {
+        console.log('🔄 SafeAreaInsets: Fallback timer activado');
         setIsReady(true);
         globalReady = true;
       }
-    }, 500); // 500ms máximo de espera
+    }, 200); // Reducido a 200ms para inicialización más rápida
     
     return () => clearTimeout(fallbackTimer);
   }, [isReady]);
@@ -85,13 +86,14 @@ export function useSafeAreaInsets() {
       if (document.readyState === 'complete' || document.readyState === 'interactive') {
         calculateInsets();
       } else {
-        // Múltiples estrategias para asegurar inicialización rápida
-        const timer1 = setTimeout(calculateInsets, 16); // Un frame
+        // Múltiples estrategias para asegurar inicialización ultra-rápida
+        const timer1 = setTimeout(calculateInsets, 8); // Medio frame para máxima velocidad
         const timer2 = setTimeout(() => {
           if (!calculatedRef.current) {
+            console.log('🔄 SafeAreaInsets: Timer de fallback ejecutado');
             calculateInsets();
           }
-        }, 100); // Fallback más rápido
+        }, 50); // Fallback aún más rápido
         
         return () => {
           clearTimeout(timer1);

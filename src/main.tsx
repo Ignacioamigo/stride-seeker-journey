@@ -5,52 +5,56 @@ import { App as CapacitorApp } from '@capacitor/app'
 
 // Import Watch Connectivity Service
 import './services/watchConnectivityService'
+// Import StatusBar Service  
+import { statusBarService } from './services/statusBarService';
 
-// 🔥 SOLUCIÓN DEFINITIVA ANTI-DESCUADRE - MÁXIMO POTENCIAL
+// 🔥 ESTABILIZACIÓN COORDINADA Y SUAVE
+let isInitialStabilization = true;
+let stabilizationCount = 0;
+
 const recalculateViewport = () => {
-  console.log('🔄 MÁXIMO POTENCIAL - Recalculando layout...');
+  stabilizationCount++;
+  console.log(`🔄 Layout recalculation #${stabilizationCount}${isInitialStabilization ? ' (initial)' : ''}`);
   
-  // 1. Variables del viewport
-  const vh = window.innerHeight * 0.01;
-  document.documentElement.style.setProperty('--vh', `${vh}px`);
-  
-  // 2. MÉTODO ULTRA AGRESIVO - Forzar GPU layers en TODO
-  const elementsToFix = [
-    document.documentElement,
-    document.body,
-    document.getElementById('root'),
-    ...Array.from(document.querySelectorAll('[style*="position: fixed"], .fixed, nav, header'))
-  ].filter(Boolean) as HTMLElement[];
-  
-  elementsToFix.forEach((el, index) => {
-    el.style.willChange = 'transform';
-    el.style.transform = 'translate3d(0, 0, 0)';
-    el.style.backfaceVisibility = 'hidden';
-    el.style.webkitBackfaceVisibility = 'hidden';
+  // Durante la primera estabilización, ser más suave
+  if (isInitialStabilization) {
+    // Solo variables críticas durante el arranque inicial
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
     
-    // Reset escalonado para evitar conflictos
+    // Marcar que la inicialización inicial ya pasó
     setTimeout(() => {
-      el.style.willChange = '';
-      el.style.transform = '';
-    }, 50 + (index * 10));
-  });
-  
-  // 3. Múltiples triggers de reflow
-  document.body.offsetHeight;
-  document.documentElement.offsetHeight;
-  window.getComputedStyle(document.body).height;
-  
-  // 4. Forzar redraw del viewport
-  const meta = document.querySelector('meta[name="viewport"]');
-  if (meta) {
-    const content = meta.getAttribute('content');
-    meta.setAttribute('content', content + ', user-scalable=no');
-    setTimeout(() => {
-      meta.setAttribute('content', content || '');
-    }, 50);
+      isInitialStabilization = false;
+    }, 1000);
+    
+    console.log('✅ Initial layout stabilization complete');
+    return;
   }
   
-  console.log('✅ MÁXIMO POTENCIAL - Layout estabilizado');
+  // Para recálculos posteriores, usar la lógica completa pero suave
+  requestAnimationFrame(() => {
+    // 1. Variables del viewport
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+    
+    // 2. Estabilización selectiva y suave
+    const elementsToFix = document.querySelectorAll(
+      '[style*="position: fixed"], .fixed, nav, header'
+    );
+    
+    elementsToFix.forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.style.transform = 'translate3d(0, 0, 0)';
+        el.style.backfaceVisibility = 'hidden';
+        el.style.webkitBackfaceVisibility = 'hidden';
+      }
+    });
+    
+    // 3. Un reflow suave
+    document.body.offsetHeight;
+    
+    console.log('✅ Layout stabilization complete');
+  });
 };
 
 // Handle iOS deep links for Strava (stride://strava-callback?code=...)
@@ -63,32 +67,33 @@ CapacitorApp.addListener('appUrlOpen', ({ url }) => {
   } catch {}
 })
 
-// 🔥 LISTENERS MEJORADOS PARA PREVENIR DESCUADRE
+// 🔥 LISTENERS COORDINADOS PARA PREVENIR DESCUADRE
 CapacitorApp.addListener('appStateChange', (state) => {
   console.log('📱 App state changed:', state.isActive ? 'ACTIVE' : 'BACKGROUND');
-  if (state.isActive) {
-    // Múltiples recálculos para asegurar estabilidad
-    setTimeout(recalculateViewport, 50);
-    setTimeout(recalculateViewport, 200);
-    setTimeout(recalculateViewport, 500);
+  if (state.isActive && !isInitialStabilization) {
+    // Solo un recálculo suave después de la inicialización
+    setTimeout(recalculateViewport, 100);
   }
 });
 
-// Listeners para cambios de viewport
+// Listeners coordinados para cambios de viewport
 window.addEventListener('orientationchange', () => {
   console.log('📱 Orientation changed');
-  setTimeout(recalculateViewport, 100);
-  setTimeout(recalculateViewport, 400);
+  if (!isInitialStabilization) {
+    setTimeout(recalculateViewport, 150); // Un solo recálculo por evento
+  }
 });
 
 window.addEventListener('resize', () => {
   console.log('📱 Window resized');
-  recalculateViewport();
+  if (!isInitialStabilization) {
+    recalculateViewport();
+  }
 });
 
 // Listener para cuando la página se vuelve visible
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) {
+  if (!document.hidden && !isInitialStabilization) {
     console.log('📱 Page became visible');
     setTimeout(recalculateViewport, 100);
   }
@@ -97,11 +102,27 @@ document.addEventListener('visibilitychange', () => {
 // Listener para iOS específico - cuando la app recupera el foco
 window.addEventListener('focus', () => {
   console.log('📱 Window focused');
-  setTimeout(recalculateViewport, 50);
+  if (!isInitialStabilization) {
+    setTimeout(recalculateViewport, 50);
+  }
 });
 
 // Ejecutar recálculo inicial y después de cargar
 recalculateViewport();
 window.addEventListener('load', recalculateViewport);
+
+// Detectar Android de forma simple para CSS
+if (navigator.userAgent.toLowerCase().includes('android')) {
+  document.documentElement.setAttribute('data-android', 'true');
+}
+
+// Inicializar StatusBar service para Android/iOS
+setTimeout(() => {
+  statusBarService.initialize().then(() => {
+    console.log('✅ StatusBar service initialized');
+  }).catch(err => {
+    console.warn('⚠️ StatusBar initialization failed:', err);
+  });
+}, 500); // Dar tiempo para que Capacitor se inicialice
 
 createRoot(document.getElementById("root")!).render(<App />);

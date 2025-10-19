@@ -1,5 +1,5 @@
-import React from "react";
-import { User, Activity, Settings, ChevronRight, Zap, Users, FileText, Shield, Clock, Edit } from "lucide-react";
+import React, { useState } from "react";
+import { User, Activity, Settings, ChevronRight, Zap, Users, FileText, Shield, Clock, Edit, Trash2, AlertTriangle } from "lucide-react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
 import { useNavigate } from "react-router-dom";
@@ -8,17 +8,50 @@ import { Card, CardContent } from "@/components/ui/card";
 import Header from "@/components/layout/Header";
 import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 import { useLayoutStability } from "@/hooks/useLayoutStability";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const HEADER_HEIGHT = 44;
 
 const Profile: React.FC = () => {
-  const { user } = useUser();
+  const { user, deleteAccount } = useUser();
   const navigate = useNavigate();
   const insets = useSafeAreaInsets();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const HEADER_HEIGHT = 44;
   const headerHeight = insets.top + HEADER_HEIGHT;
   
   // Hook para estabilidad de layout
   useLayoutStability();
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setShowDeleteDialog(false); // Cerrar el diálogo inmediatamente
+    
+    try {
+      console.log('Iniciando eliminación de cuenta...');
+      await deleteAccount();
+      console.log('Cuenta eliminada, redirigiendo al onboarding...');
+      // Pequeño delay para asegurar que se completen todas las operaciones
+      setTimeout(() => {
+        navigate('/onboarding', { replace: true });
+      }, 500);
+    } catch (error) {
+      console.error('Error al eliminar la cuenta:', error);
+      setIsDeleting(false);
+      alert('Hubo un error al eliminar tu cuenta. Por favor, inténtalo de nuevo.');
+    }
+  };
 
   return (
     <div 
@@ -282,6 +315,23 @@ const Profile: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="hover:shadow-md transition-shadow cursor-pointer mt-3" onClick={() => setShowDeleteDialog(true)}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-red-600">Eliminar cuenta</h3>
+                      <p className="text-sm text-runapp-gray">Borrar permanentemente mi cuenta</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-runapp-gray" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
         </div>
@@ -289,6 +339,36 @@ const Profile: React.FC = () => {
 
       {/* Fixed Bottom Navigation */}
       <BottomNav />
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader className="space-y-3">
+            <AlertDialogTitle className="flex items-center justify-center gap-2 text-red-600 text-base font-bold">
+              <AlertTriangle className="w-5 h-5" />
+              ¿Estás seguro?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-sm text-gray-700 space-y-2">
+              <p className="font-semibold">Esta acción no se puede deshacer.</p>
+              <p className="text-xs leading-relaxed">
+                Al eliminar tu cuenta se borrarán permanentemente todos tus datos: perfil, planes de entrenamiento, historial de actividades y conexiones.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col gap-2 mt-4">
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={isDeleting}
+              className="w-full bg-red-600 hover:bg-red-700 text-white order-1"
+            >
+              {isDeleting ? 'Eliminando...' : 'Sí, eliminar'}
+            </AlertDialogAction>
+            <AlertDialogCancel disabled={isDeleting} className="w-full order-2">
+              Cancelar
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -2,13 +2,14 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { UserProfile } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-import { resetSession } from '@/services/authService';
+import { resetSession, deleteUserAccount } from '@/services/authService';
 import { removeSavedPlan } from '@/services/planService';
 
 interface UserContextProps {
   user: UserProfile;
   updateUser: (data: Partial<UserProfile>) => void;
   resetUser: () => void;
+  deleteAccount: () => Promise<void>;
 }
 
 const defaultUser: UserProfile = {
@@ -32,6 +33,7 @@ const UserContext = createContext<UserContextProps>({
   user: defaultUser,
   updateUser: () => {},
   resetUser: () => {},
+  deleteAccount: async () => {},
 });
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -126,8 +128,60 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      // Intentar obtener el userId de diferentes fuentes
+      let currentUserId = user.id;
+      
+      console.log('[UserContext] user.id:', currentUserId);
+      
+      // Si no hay user.id, intentar obtenerlo de Supabase Auth
+      if (!currentUserId) {
+        console.log('[UserContext] No hay user.id, obteniendo de Supabase Auth...');
+        const { data: { session } } = await supabase.auth.getSession();
+        currentUserId = session?.user?.id;
+        console.log('[UserContext] Session user.id:', currentUserId);
+      }
+      
+      // Si aún no hay userId, intentar obtenerlo de localStorage
+      if (!currentUserId) {
+        console.log('[UserContext] Intentando obtener de localStorage...');
+        const savedUser = localStorage.getItem('runAdaptiveUser');
+        if (savedUser) {
+          const parsedUser = JSON.parse(savedUser);
+          currentUserId = parsedUser.id;
+          console.log('[UserContext] localStorage user.id:', currentUserId);
+        }
+      }
+      
+      if (!currentUserId) {
+        console.error('[UserContext] No se pudo encontrar currentUserId en ninguna fuente');
+        throw new Error('No hay usuario para eliminar');
+      }
+      
+      console.log('[UserContext] Eliminando cuenta para userId:', currentUserId);
+      
+      // Eliminar cuenta y todos los datos
+      await deleteUserAccount(currentUserId);
+      
+      console.log('[UserContext] Datos eliminados, reseteando estado local...');
+      
+      // Resetear estado local
+      setUser(defaultUser);
+      
+      // Disparar evento de reset
+      window.dispatchEvent(new CustomEvent('resetStats'));
+      window.dispatchEvent(new CustomEvent('accountDeleted'));
+      
+      console.log('[UserContext] Cuenta eliminada exitosamente');
+    } catch (error) {
+      console.error('[UserContext] Error en deleteAccount:', error);
+      throw error; // Re-lanzar el error para que lo capture el componente
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ user, updateUser, resetUser }}>
+    <UserContext.Provider value={{ user, updateUser, resetUser, deleteAccount }}>
       {children}
     </UserContext.Provider>
   );

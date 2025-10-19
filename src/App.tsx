@@ -7,6 +7,7 @@ import { UserProvider, useUser } from "@/context/UserContext";
 import { StatsProvider } from "@/context/StatsContext";
 import { WeeklyFeedbackProvider } from "@/context/WeeklyFeedbackContext";
 import AppLoader from "@/components/AppLoader";
+import AndroidLayoutDebug from "@/components/debug/AndroidLayoutDebug";
 
 // Weekly Feedback Components
 import WeeklyFeedbackModal from "@/components/feedback/WeeklyFeedbackModal";
@@ -120,6 +121,9 @@ const App = () => (
                 
                 {/* Development Testing Component */}
                 <WeeklyFeedbackTester />
+                
+                {/* Android Layout Debug */}
+                <AndroidLayoutDebug />
               </BrowserRouter>
             </AppLoader>
           </WeeklyFeedbackProvider>

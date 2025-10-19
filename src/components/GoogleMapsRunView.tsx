@@ -8,7 +8,7 @@ type GoogleMapsRunViewProps = {
   isTracking: boolean;
 };
 
-const WEB_API_KEY = 'AIzaSyC84gYKVr3KaSXKoujFTMEEx7fk0iHuEzQ';
+const WEB_API_KEY = 'AIzaSyCkANC7p5QdLSGHG3ZHmTvh6T4j6s0mnII';
 
 const GoogleMapsRunView: React.FC<GoogleMapsRunViewProps> = ({ points, currentLocation, isTracking }) => {
   const mapDivRef = useRef<HTMLDivElement | null>(null);

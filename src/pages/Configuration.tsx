@@ -1,17 +1,16 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Mail, Calendar, Ruler, Weight, Target, ChevronLeft, RefreshCw } from 'lucide-react';
+import { User, Mail, Calendar, Ruler, Weight, Target, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@/context/UserContext';
-import { toast } from '@/components/ui/use-toast';
 import Header from '@/components/layout/Header';
 import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
 
 const HEADER_HEIGHT = 44;
 
 const Configuration: React.FC = () => {
-  const { user, resetUser } = useUser();
+  const { user } = useUser();
   const navigate = useNavigate();
   const insets = useSafeAreaInsets();
 
@@ -146,22 +145,6 @@ const Configuration: React.FC = () => {
                 Editar Perfil
               </Button>
               
-              <Button
-                onClick={() => {
-                  resetUser();
-                  toast({
-                    title: "Onboarding reiniciado",
-                    description: "Te redirigiremos al proceso de configuración inicial.",
-                    variant: "default"
-                  });
-                  navigate('/welcome');
-                }}
-                variant="destructive"
-                className="w-full"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reiniciar onboarding
-              </Button>
             </CardContent>
           </Card>
         </div>

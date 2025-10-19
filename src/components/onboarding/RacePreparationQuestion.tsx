@@ -132,7 +132,7 @@ const RacePreparationQuestion: React.FC = () => {
               <input
                 ref={searchRef}
                 type="text"
-                placeholder="Busca carreras por nombre, ciudad o distancia..."
+                placeholder="Busca carreras por nombre"
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 onFocus={() => searchQuery.length >= 2 && setShowResults(true)}

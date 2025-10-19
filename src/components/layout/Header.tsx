@@ -24,7 +24,6 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, bgColor = "#1463FF" })
 
   // Asegurar que el header se renderice correctamente
   React.useEffect(() => {
-    // Forzar un reflow después del montaje para asegurar posicionamiento correcto
     requestAnimationFrame(() => {
       document.body.offsetHeight;
     });

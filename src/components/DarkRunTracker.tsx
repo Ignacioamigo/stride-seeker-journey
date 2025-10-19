@@ -124,7 +124,7 @@ const DarkRunTracker: React.FC = () => {
           }} 
           className="bg-green-500 hover:bg-green-600 text-black font-bold px-8 py-4 rounded-full text-lg"
         >
-          Habilitar permisos GPS
+          Continuar
         </Button>
       </div>
     );

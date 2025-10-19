@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 48;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -15,7 +15,35 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		A738E5E081607D8A08BCF106 /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7C3C628675BC873372117B12 /* Pods_App.framework */; };
+		E23BA31B2E97FE3800BB647B /* StoreKitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23BA3192E97FE3800BB647B /* StoreKitPlugin.swift */; };
+		E23BA31D2E98033F00BB647B /* StoreKitPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = E23BA31C2E98033F00BB647B /* StoreKitPlugin.m */; };
+		E2B5985A2E8581E9001451B1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E2B598592E8581E9001451B1 /* StoreKit.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		E2B598562E857ECD001451B1 /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			fileType = pattern.proxy;
+			inputFiles = (
+			);
+			isEditable = 1;
+			outputFiles = (
+			);
+			script = "# Type a script or drag a script file from your workspace to insert its path.\n";
+		};
+		E2B598572E857ECD001451B1 /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			fileType = pattern.proxy;
+			inputFiles = (
+			);
+			isEditable = 1;
+			outputFiles = (
+			);
+			script = "# Type a script or drag a script file from your workspace to insert its path.\n";
+		};
+/* End PBXBuildRule section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -30,6 +58,10 @@
 		578D8DB667D07E46B5740D08 /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 		754E160A571156952EEB3B76 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
 		7C3C628675BC873372117B12 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		E23BA3192E97FE3800BB647B /* StoreKitPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoreKitPlugin.swift; path = Plugins/StoreKitPlugin.swift; sourceTree = "<group>"; };
+		E23BA31C2E98033F00BB647B /* StoreKitPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = StoreKitPlugin.m; path = Plugins/StoreKitPlugin.m; sourceTree = "<group>"; };
+		E2B598582E8581B0001451B1 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		E2B598592E8581E9001451B1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,6 +70,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A738E5E081607D8A08BCF106 /* Pods_App.framework in Frameworks */,
+				E2B5985A2E8581E9001451B1 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -47,6 +80,7 @@
 		09FFCFDA2215304425C1B55A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E2B598592E8581E9001451B1 /* StoreKit.framework */,
 				7C3C628675BC873372117B12 /* Pods_App.framework */,
 			);
 			name = Frameworks;
@@ -82,6 +116,9 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				E2B598582E8581B0001451B1 /* App.entitlements */,
+				E23BA3192E97FE3800BB647B /* StoreKitPlugin.swift */,
+				E23BA31C2E98033F00BB647B /* StoreKitPlugin.m */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -109,6 +146,8 @@
 				5F83213B560197D5B503CD2C /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
+				E2B598572E857ECD001451B1 /* PBXBuildRule */,
+				E2B598562E857ECD001451B1 /* PBXBuildRule */,
 			);
 			dependencies = (
 			);
@@ -128,7 +167,7 @@
 				TargetAttributes = {
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
-						LastSwiftMigration = 1100;
+						LastSwiftMigration = 1630;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -229,7 +268,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E23BA31B2E97FE3800BB647B /* StoreKitPlugin.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				E23BA31D2E98033F00BB647B /* StoreKitPlugin.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -357,8 +398,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -368,22 +408,24 @@
 			baseConfigurationReference = 578D8DB667D07E46B5740D08 /* Pods-App.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8XU2YSP537;
 				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "BeRun - Entrenador personal de Running";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.1;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = stride.seeker.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -394,18 +436,19 @@
 			baseConfigurationReference = 754E160A571156952EEB3B76 /* Pods-App.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8XU2YSP537;
 				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "BeRun - Entrenador personal de Running";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = stride.seeker.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
@@ -436,9 +479,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCLocalSwiftPackageReference section */
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 504EC2FC1FED79650016851F /* Project object */;
 }

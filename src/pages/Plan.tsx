@@ -36,6 +36,7 @@ const Plan: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<boolean>(navigator.onLine);
   const [raceInput, setRaceInput] = useState<string>(user.targetRace?.name || "");
   const insets = useSafeAreaInsets();
+  
   const headerHeight = insets.top + HEADER_HEIGHT;
 
   // Monitor connection status
@@ -77,7 +78,7 @@ const Plan: React.FC = () => {
           setError(null);
         } catch (error) {
           console.error("Error loading plan:", error);
-          setError(getConnectionError() || error.message || "Error loading training plan.");
+          setError(getConnectionError() || error.message || "Error cargando el plan de entrenamiento.");
         }
       } finally {
         setIsLoading(false);
@@ -117,8 +118,8 @@ const Plan: React.FC = () => {
   const handleGeneratePlan = async () => {
     if (!user.completedOnboarding) {
       toast({
-        title: "Complete your profile",
-        description: "To generate a personalized plan, first complete your profile.",
+        title: "Completa tu perfil",
+        description: "Para generar un plan personalizado, primero completa tu perfil.",
         variant: "destructive",
       });
       return;
@@ -134,8 +135,8 @@ const Plan: React.FC = () => {
 
     if (!navigator.onLine) {
       toast({
-        title: "No connection",
-        description: "You need an internet connection to generate a plan. Please connect and try again.",
+        title: "Sin conexión",
+        description: "Necesitas conexión a internet para generar un plan. Conéctate e inténtalo de nuevo.",
         variant: "destructive",
       });
       return;
@@ -170,16 +171,16 @@ const Plan: React.FC = () => {
       
       
       toast({
-        title: "Plan generated",
-        description: "Your personalized training plan has been created.",
+        title: "Plan generado",
+        description: "Tu plan de entrenamiento personalizado ha sido creado.",
       });
     } catch (error) {
       console.error("Error generating plan:", error);
-      setError(getConnectionError() || error.message || "Error generating training plan.");
+      setError(getConnectionError() || error.message || "Error generando el plan de entrenamiento.");
       
       toast({
         title: "Error",
-        description: "Could not generate plan. Check your internet connection and try again.",
+        description: "No se pudo generar el plan. Verifica tu conexión a internet e inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -205,13 +206,13 @@ const Plan: React.FC = () => {
     const getLoadingMessage = () => {
       switch (generationStage) {
         case 'init':
-          return "Preparing your personalized plan...";
+          return "Ajustando tu plan";
         case 'api':
-          return "Generating your training plan...";
+          return "Ajustando tu plan";
         case 'complete':
-          return "Finalizing your plan...";
+          return "Ajustando tu plan";
         default:
-          return "Loading...";
+          return "Cargando...";
       }
     };
 
@@ -223,7 +224,7 @@ const Plan: React.FC = () => {
             <Loader2 className="h-8 w-8 animate-spin absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white" />
           </div>
           <p className="text-runapp-gray font-medium">{getLoadingMessage()}</p>
-          <p className="text-runapp-gray text-sm mt-2">This may take a moment...</p>
+          <p className="text-runapp-gray text-sm mt-2">Espera unos segundos</p>
         </div>
       </div>
     );

@@ -1,10 +1,5 @@
+import { registerPlugin } from '@capacitor/core';
 import { Capacitor } from '@capacitor/core';
-
-declare global {
-  interface Window {
-    StoreKitPlugin: any;
-  }
-}
 
 export interface StoreKitProduct {
   id: string;
@@ -19,6 +14,7 @@ export interface PurchaseResult {
   transactionId?: string;
   productId?: string;
   reason?: string;
+  error?: string;
 }
 
 export interface RestoreResult {
@@ -31,20 +27,27 @@ export interface RestoreResult {
   }>;
 }
 
+export interface StoreKitPluginInterface {
+  getProducts(options: { ids: string[] }): Promise<{ products: StoreKitProduct[] }>;
+  purchase(options: { id: string }): Promise<PurchaseResult>;
+  restore(): Promise<RestoreResult>;
+  checkStatus(options?: { productId?: string }): Promise<any>;
+}
+
+const StoreKitPluginNative = registerPlugin<StoreKitPluginInterface>('StoreKitPlugin');
+
 class StoreKitService {
-  private plugin: any;
+  private plugin: StoreKitPluginInterface;
 
   constructor() {
-    if (Capacitor.isNativePlatform()) {
-      this.plugin = window.StoreKitPlugin;
-    }
+    this.plugin = StoreKitPluginNative;
   }
 
   /**
    * Check if StoreKit is available (running on native platform)
    */
   isAvailable(): boolean {
-    return Capacitor.isNativePlatform() && this.plugin;
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
   }
 
   /**
@@ -71,7 +74,10 @@ class StoreKitService {
    */
   async purchase(productId: string): Promise<PurchaseResult> {
     if (!this.isAvailable()) {
-      throw new Error('StoreKit not available - running on web platform');
+      return {
+        success: false,
+        error: 'StoreKit not available - running on web platform'
+      };
     }
 
     try {
@@ -79,9 +85,12 @@ class StoreKitService {
       const result = await this.plugin.purchase({ id: productId });
       console.log('✅ Purchase result:', result);
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Purchase error:', error);
-      throw error;
+      return {
+        success: false,
+        error: error?.message || error?.toString() || 'Unknown error occurred'
+      };
     }
   }
 
@@ -128,8 +137,8 @@ class StoreKitService {
    */
   getStrideProductIds() {
     return {
-      monthly: 'stride_seeker_premium_monthly',
-      yearly: 'stride_seeker_premium_yearly'
+      monthly: 'berun_premium_monthly',
+      yearly: 'berun_premium_yearly'
     };
   }
 }

@@ -70,3 +70,98 @@ export const ensureSession = async (): Promise<void> => {
     console.log("[ensureSession] Sesión existente:", session.user?.id);
   }
 };
+
+export const deleteUserAccount = async (userId: string): Promise<void> => {
+  console.log("[deleteUserAccount] Iniciando eliminación de cuenta para usuario:", userId);
+  
+  try {
+    // 1. Eliminar datos del usuario de todas las tablas
+    
+    // Eliminar actividades publicadas
+    const { error: activitiesError } = await supabase
+      .from('published_activities')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (activitiesError) {
+      console.error("[deleteUserAccount] Error eliminando actividades:", activitiesError);
+    }
+    
+    // Eliminar entrenamientos completados
+    const { error: completedError } = await supabase
+      .from('entrenamientos_completados')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (completedError) {
+      console.error("[deleteUserAccount] Error eliminando entrenamientos completados:", completedError);
+    }
+    
+    // Obtener IDs de planes del usuario
+    const { data: userPlans, error: plansError } = await supabase
+      .from('training_plans')
+      .select('id')
+      .eq('user_id', userId);
+    
+    if (plansError) {
+      console.error("[deleteUserAccount] Error obteniendo planes:", plansError);
+    } else if (userPlans && userPlans.length > 0) {
+      const planIds = userPlans.map(plan => plan.id);
+      
+      // Eliminar sesiones de entrenamiento
+      const { error: sessionsError } = await supabase
+        .from('training_sessions')
+        .delete()
+        .in('plan_id', planIds);
+      
+      if (sessionsError) {
+        console.error("[deleteUserAccount] Error eliminando sesiones:", sessionsError);
+      }
+    }
+    
+    // Eliminar planes de entrenamiento
+    const { error: deletePlansError } = await supabase
+      .from('training_plans')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (deletePlansError) {
+      console.error("[deleteUserAccount] Error eliminando planes:", deletePlansError);
+    }
+    
+    // Eliminar conexiones de Strava
+    const { error: stravaError } = await supabase
+      .from('strava_connections')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (stravaError) {
+      console.error("[deleteUserAccount] Error eliminando conexión Strava:", stravaError);
+    }
+    
+    // Eliminar perfil de usuario
+    const { error: profileError } = await supabase
+      .from('user_profile')
+      .delete()
+      .eq('id', userId);
+    
+    if (profileError) {
+      console.error("[deleteUserAccount] Error eliminando perfil:", profileError);
+    }
+    
+    // 2. Limpiar localStorage
+    localStorage.removeItem('runAdaptiveUser');
+    localStorage.removeItem('completedWorkouts');
+    localStorage.removeItem('simpleWorkouts');
+    localStorage.removeItem('savedPlan');
+    
+    // 3. Cerrar sesión y eliminar usuario de auth
+    await supabase.auth.signOut();
+    
+    console.log("[deleteUserAccount] Cuenta eliminada exitosamente");
+    
+  } catch (error) {
+    console.error("[deleteUserAccount] Error general al eliminar cuenta:", error);
+    throw error;
+  }
+};

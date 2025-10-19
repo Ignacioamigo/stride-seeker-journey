@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreKit
+import UIKit
 
 struct PaywallView: View {
     @StateObject private var storeManager = StoreManager()
@@ -8,6 +9,8 @@ struct PaywallView: View {
     @State private var showRestoreAlert = false
     @State private var restoreMessage = ""
     @State private var animateGradient = false
+    @State private var showDiscountCode = false
+    @State private var discountCode = ""
     
     var body: some View {
         NavigationView {
@@ -30,6 +33,9 @@ struct PaywallView: View {
                     
                     // No payment due now
                     noPaymentView
+                    
+                    // Discount Code Section
+                    discountCodeView
                     
                     // CTA Button
                     ctaButtonView
@@ -268,25 +274,98 @@ struct PaywallView: View {
         .padding(.bottom, 20)
     }
     
-    // MARK: - Footer Links View
-    private var footerLinksView: some View {
-        VStack(spacing: 8) {
-            if let product = selectedProduct {
-                Text(String(format: NSLocalizedString("3 days free, then %@ per %@", comment: ""),
-                           storeManager.getProductPrice(product),
-                           product.id.contains("yearly") ? NSLocalizedString("year", comment: "") : NSLocalizedString("month", comment: "")))
+    // MARK: - Discount Code View
+    private var discountCodeView: some View {
+        VStack(spacing: 12) {
+            if !showDiscountCode {
+                Button(action: {
+                    showDiscountCode = true
+                }) {
+                    HStack {
+                        Image(systemName: "tag")
+                            .font(.system(size: 14))
+                        Text("¿Tienes un código de descuento?")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundColor(.secondary)
+                }
+            } else {
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        TextField("Introduce tu código", text: $discountCode)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .font(.system(size: 14))
+                        
+                        Button("Aplicar") {
+                            handleDiscountCode()
+                        }
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                    }
+                    
+                    Button("Cancelar") {
+                        showDiscountCode = false
+                        discountCode = ""
+                    }
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
+                }
             }
+        }
+        .padding(.bottom, 20)
+    }
+    
+    // MARK: - Footer Links View
+    private var footerLinksView: some View {
+        VStack(spacing: 12) {
+            // Subscription Information (Required by Apple)
+            VStack(spacing: 8) {
+                if let product = selectedProduct {
+                    // Subscription Title and Duration
+                    Text(product.id.contains("yearly") ? NSLocalizedString("BeRun Premium - Annual Subscription", comment: "") : NSLocalizedString("BeRun Premium - Monthly Subscription", comment: ""))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    // Price Information
+                    Text(String(format: NSLocalizedString("3 days free, then %@ per %@", comment: ""),
+                               storeManager.getProductPrice(product),
+                               product.id.contains("yearly") ? NSLocalizedString("year", comment: "") : NSLocalizedString("month", comment: "")))
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                    
+                    // Additional pricing details
+                    Text(NSLocalizedString("Auto-renewable subscription. Cancel anytime.", comment: ""))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(.bottom, 4)
             
-            HStack(spacing: 20) {
-                Link(NSLocalizedString("Terms of Service", comment: ""), destination: URL(string: "https://strideseeker.com/terms")!)
-                    .font(.system(size: 14))
-                    .foregroundColor(.blue)
+            // Legal Links (Required by Apple)
+            VStack(spacing: 8) {
+                HStack(spacing: 16) {
+                    Link(NSLocalizedString("Terms of Use (EULA)", comment: ""), destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                        .font(.system(size: 13))
+                        .foregroundColor(.blue)
+                    
+                    Text("•")
+                        .foregroundColor(.secondary)
+                    
+                    Link(NSLocalizedString("Privacy Policy", comment: ""), destination: URL(string: "https://wild-freon-354.notion.site/BeRun-Politica-de-privacidad-27aa985ca317809ebb86decee420e394")!)
+                        .font(.system(size: 13))
+                        .foregroundColor(.blue)
+                }
                 
-                Link(NSLocalizedString("Privacy Policy", comment: ""), destination: URL(string: "https://strideseeker.com/privacy")!)
-                    .font(.system(size: 14))
-                    .foregroundColor(.blue)
+                Text(NSLocalizedString("Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless it is canceled at least 24 hours before the end of the trial period. Your account will be charged for renewal within 24 hours prior to the end of the trial period. You can manage and cancel your subscriptions by going to your account settings on the App Store after purchase.", comment: ""))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 8)
             }
         }
     }
@@ -298,6 +377,26 @@ struct PaywallView: View {
         formatter.dateStyle = .long
         formatter.locale = Locale.current
         return formatter.string(from: billingDate)
+    }
+    
+    private func handleDiscountCode() {
+        if discountCode.trimmingCharacters(in: .whitespacesAndNewlines) == "BeRun2025.gratiss" {
+            // Código válido - bypass del pago
+            UserDefaults.standard.set(true, forKey: "isPremium")
+            UserDefaults.standard.set("discount", forKey: "subscriptionType")
+            UserDefaults.standard.set(Date(), forKey: "trialStartDate")
+            presentationMode.wrappedValue.dismiss()
+        } else {
+            // Código inválido
+            let alert = UIAlertController(title: "Código inválido", message: "El código de descuento no es válido", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            
+            // Present alert
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first {
+                window.rootViewController?.present(alert, animated: true)
+            }
+        }
     }
 }
 

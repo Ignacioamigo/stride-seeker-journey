@@ -55,7 +55,7 @@ const RunTracker: React.FC = () => {
             Para usar el tracking GPS necesitamos acceso a tu ubicación, incluso en segundo plano.
           </p>
           <Button onClick={requestPermissions} className="bg-runapp-purple w-full">
-            Habilitar permisos GPS
+            Continuar
           </Button>
         </CardContent>
       </Card>

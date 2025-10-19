@@ -4,17 +4,28 @@ import StoreKit
 
 @objc(StoreKitPlugin)
 public class StoreKitPlugin: CAPPlugin {
-    private let storeManager = StoreKitManager()
+    private var storeManager: StoreKitManager?
+    
+    override public func load() {
+        Task { @MainActor in
+            self.storeManager = StoreKitManager()
+        }
+    }
     
     @objc func getProducts(_ call: CAPPluginCall) {
         Task { @MainActor in
             do {
+                guard let manager = storeManager else {
+                    call.reject("Store manager not initialized")
+                    return
+                }
+                
                 let ids = call.getArray("ids", String.self) ?? []
                 print("🎯 Getting products for: \(ids)")
                 
-                try await storeManager.loadProducts(ids: ids)
+                try await manager.loadProducts(ids: ids)
                 
-                let mapped = storeManager.products.map { product in
+                let mapped = manager.products.map { product in
                     return [
                         "id": product.id,
                         "price": product.displayPrice,
@@ -35,13 +46,18 @@ public class StoreKitPlugin: CAPPlugin {
     @objc func purchase(_ call: CAPPluginCall) {
         Task { @MainActor in
             do {
+                guard let manager = storeManager else {
+                    call.reject("Store manager not initialized")
+                    return
+                }
+                
                 guard let productId = call.getString("id") else {
                     call.reject("Missing product ID")
                     return
                 }
                 
                 print("🛒 Purchasing: \(productId)")
-                let transaction = try await storeManager.purchase(productId)
+                let transaction = try await manager.purchase(productId)
                 
                 if let tx = transaction {
                     call.resolve([
@@ -64,7 +80,12 @@ public class StoreKitPlugin: CAPPlugin {
     
     @objc func restore(_ call: CAPPluginCall) {
         Task { @MainActor in
-            let transactions = await storeManager.restore()
+            guard let manager = storeManager else {
+                call.reject("Store manager not initialized")
+                return
+            }
+            
+            let transactions = await manager.restore()
             let mapped = transactions.map { tx in
                 return [
                     "id": String(tx.id),
@@ -83,19 +104,24 @@ public class StoreKitPlugin: CAPPlugin {
     
     @objc func checkStatus(_ call: CAPPluginCall) {
         Task { @MainActor in
-            await storeManager.updatePurchasedProducts()
+            guard let manager = storeManager else {
+                call.reject("Store manager not initialized")
+                return
+            }
+            
+            await manager.updatePurchasedProducts()
             
             let productId = call.getString("productId")
             
             if let id = productId {
-                let hasAccess = storeManager.hasActiveSubscription(for: id)
+                let hasAccess = manager.hasActiveSubscription(for: id)
                 call.resolve([
                     "hasAccess": hasAccess,
                     "productId": id
                 ])
             } else {
                 call.resolve([
-                    "purchasedProducts": Array(storeManager.purchasedProducts)
+                    "purchasedProducts": Array(manager.purchasedProducts)
                 ])
             }
         }

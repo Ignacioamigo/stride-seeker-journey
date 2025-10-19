@@ -26,3 +26,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Capacitor
+android/
+ios/
+
+# Android signing (when android/ is unignored)
+# android/app/*.keystore
+# android/app/keystore.properties

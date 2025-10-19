@@ -1,30 +1,19 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, RotateCcw, ChevronLeft, Edit, Mail, Calendar, Ruler, Weight, Target, Activity } from 'lucide-react';
+import { User, ChevronLeft, Edit, Mail, Calendar, Ruler, Weight, Target, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@/context/UserContext';
-import { toast } from '@/components/ui/use-toast';
 import Header from '@/components/layout/Header';
 import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
 
 const HEADER_HEIGHT = 44;
 
 const ProfileSettings: React.FC = () => {
-  const { user, resetUser } = useUser();
+  const { user } = useUser();
   const navigate = useNavigate();
   const insets = useSafeAreaInsets();
 
-  const handleRestartOnboarding = () => {
-    // Resetear el usuario y redirigir al onboarding
-    resetUser();
-    toast({
-      title: "Onboarding reiniciado",
-      description: "Te redirigiremos al proceso de configuración inicial.",
-      variant: "default"
-    });
-    navigate('/welcome');
-  };
 
   const handleEditProfile = () => {
     navigate('/edit-profile');
@@ -136,36 +125,6 @@ const ProfileSettings: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Actions Card */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center text-runapp-navy">
-                <RotateCcw className="w-5 h-5 mr-2" />
-                Acciones
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-3">
-                <div className="p-3 border border-orange-200 rounded-lg bg-orange-50">
-                  <div className="mb-3">
-                    <p className="font-medium text-orange-800">Reiniciar Configuración</p>
-                    <p className="text-sm text-orange-600">
-                      Esto te llevará de vuelta al proceso de configuración inicial. 
-                      Podrás cambiar tu perfil, objetivos y preferencias.
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={handleRestartOnboarding}
-                    variant="outline"
-                    className="w-full border-orange-300 text-orange-700 hover:bg-orange-100"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    Reiniciar Onboarding
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* App Info */}
           <div className="text-center">

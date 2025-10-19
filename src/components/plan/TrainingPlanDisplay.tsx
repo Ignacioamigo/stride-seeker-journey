@@ -302,17 +302,6 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
                 Generado el: {new Date(plan.createdAt).toLocaleDateString('es-ES')}
               </p>
             )}
-            {plan.ragActive !== undefined && (
-              <p className="text-xs mt-1">
-                <span className={`px-2 py-0.5 rounded-full ${
-                  plan.ragActive 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {plan.ragActive ? 'Plan generado con RAG' : 'Plan generado sin RAG'}
-                </span>
-              </p>
-            )}
           </div>
           <div className="p-2 bg-runapp-light-purple rounded-full">
             <Calendar className="text-runapp-purple" size={20} />

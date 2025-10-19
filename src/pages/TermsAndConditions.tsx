@@ -4,6 +4,7 @@ import { ChevronLeft, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
+import { useHeaderPadding } from '@/hooks/utils/useHeaderPadding';
 import { useLayoutStability } from '@/hooks/useLayoutStability';
 
 const HEADER_HEIGHT = 64;
@@ -11,6 +12,7 @@ const HEADER_HEIGHT = 64;
 const TermsAndConditions: React.FC = () => {
   const navigate = useNavigate();
   const insets = useSafeAreaInsets();
+  const { getContentPaddingTop } = useHeaderPadding();
   useLayoutStability();
 
   const handleRedirectToApple = () => {
@@ -49,7 +51,7 @@ const TermsAndConditions: React.FC = () => {
         style={{
           flex: 1,
           overflow: 'auto',
-          paddingTop: `calc(${HEADER_HEIGHT}px + max(${insets.top}px, env(safe-area-inset-top, 20px)) + 20px)`,
+          paddingTop: getContentPaddingTop(20),
           paddingLeft: Math.max(insets.left, 16),
           paddingRight: Math.max(insets.right, 16),
           paddingBottom: 16,

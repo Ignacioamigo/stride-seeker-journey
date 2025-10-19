@@ -20,27 +20,31 @@ html, body {
 }
 
 
-/* 🔥 SOLUCIÓN SUPER DEFINITIVA ANTI-DESCUADRE */
+/* 🔥 ESTABILIZACIÓN GRADUAL Y COORDINADA */
 html {
   height: 100%;
   height: -webkit-fill-available;
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
-  /* GPU Layer forzado con máxima estabilidad */
+  
+  /* Estabilidad inicial suave - sin GPU forzado durante el arranque */
+  position: relative;
+  overflow-x: hidden;
+  
+  /* iOS fixes específicos */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Estabilidad aplicada progresivamente después del arranque */
+html.layout-ready {
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
-  /* Máxima estabilidad anti-descuadre */
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   perspective: 1000px;
   contain: layout style paint;
   will-change: auto;
-  /* Prevenir cualquier reflow inesperado */
-  overflow-x: hidden;
-  position: relative;
-  /* iOS fixes específicos */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -52,11 +56,18 @@ body {
   background-color: #f9fafb;
   position: static;
   width: 100%;
-  /* MÁXIMA ESTABILIDAD */
+  
+  /* Estabilidad inicial suave */
   transform: none;
   -webkit-transform: none;
   backface-visibility: visible;
   -webkit-backface-visibility: visible;
+}
+
+/* Estabilidad aplicada progresivamente */
+body.layout-ready {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 #root {
@@ -67,18 +78,22 @@ body {
   overflow-x: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  /* 🔥 ANTI-DESCUADRE MÁXIMO */
+  
+  /* Estabilidad inicial suave */
+  background-color: #f9fafb !important;
+  position: relative;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* Estabilidad aplicada progresivamente */
+#root.layout-ready {
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   will-change: auto;
   contain: layout style paint;
-  background-color: #f9fafb !important;
-  position: relative;
-  /* Crítico para iOS: asegurar que cubra toda la pantalla */
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
 }
 
 @layer base {
@@ -382,5 +397,13 @@ input[type="file"] {
     -webkit-backface-visibility: hidden !important;
     will-change: transform !important;
     contain: layout style paint !important;
+  }
+}
+
+/* Solo un pequeño ajuste para Android si es necesario */
+@media screen and (max-width: 768px) {
+  /* Solo si el user agent contiene Android */
+  html[data-android="true"] div[style*="position: fixed"][style*="top: 0"] {
+    padding-top: max(env(safe-area-inset-top, 0px), 40px) !important;
   }
 }
