@@ -13,7 +13,7 @@ const WeeklyWorkoutsQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
   const [workouts, setWorkouts] = useState<number>(user.weeklyWorkouts || 3);
   const [selectedDays, setSelectedDays] = useState<WeekDay[]>([]);
-  const [mode, setMode] = useState<'quantity' | 'days'>('quantity');
+  const [mode, setMode] = useState<'quantity' | 'days'>('days'); // Changed default to 'days'
   const navigate = useNavigate();
   const { top, bottom, left, right, isReady } = useSafeAreaInsets();
 
@@ -112,17 +112,6 @@ const WeeklyWorkoutsQuestion: React.FC = () => {
               type="button"
               onClick={handleModeSwitch}
               className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all no-select ${
-                mode === 'quantity' 
-                  ? 'bg-runapp-purple text-white shadow-sm' 
-                  : 'text-gray-600 hover:text-runapp-purple'
-              }`}
-            >
-              📊 Cantidad
-            </button>
-            <button
-              type="button"
-              onClick={handleModeSwitch}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all no-select ${
                 mode === 'days' 
                   ? 'bg-runapp-purple text-white shadow-sm' 
                   : 'text-gray-600 hover:text-runapp-purple'
@@ -130,9 +119,51 @@ const WeeklyWorkoutsQuestion: React.FC = () => {
             >
               🗓️ Días específicos
             </button>
+            <button
+              type="button"
+              onClick={handleModeSwitch}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all no-select ${
+                mode === 'quantity' 
+                  ? 'bg-runapp-purple text-white shadow-sm' 
+                  : 'text-gray-600 hover:text-runapp-purple'
+              }`}
+            >
+              📊 Cantidad
+            </button>
           </div>
 
-          {mode === 'quantity' ? (
+          {mode === 'days' ? (
+            <>
+              <h2 className="text-2xl font-semibold text-runapp-navy mb-2">
+                ¿Qué días quieres entrenar?
+              </h2>
+              <p className="text-runapp-gray mb-6">
+                Selecciona los días específicos con las fechas de esta semana
+              </p>
+              
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <DaySelector
+                  days={selectedDays}
+                  onDayToggle={handleDayToggle}
+                  maxSelections={7}
+                  minSelections={1}
+                />
+                
+                <div className="text-center p-4 bg-runapp-light-purple/20 rounded-lg">
+                  <p className="text-sm text-runapp-navy font-medium">
+                    {selectedDaysCount > 0 
+                      ? `${selectedDaysCount} día${selectedDaysCount > 1 ? 's' : ''} seleccionado${selectedDaysCount > 1 ? 's' : ''}`
+                      : 'Selecciona al menos un día'
+                    }
+                  </p>
+                </div>
+                
+                <RunButton type="submit" disabled={!isValid}>
+                  Continuar
+                </RunButton>
+              </form>
+            </>
+          ) : (
             <>
               <h2 className="text-2xl font-semibold text-runapp-navy mb-2">
                 ¿Cuántos días a la semana quieres entrenar?
@@ -175,37 +206,6 @@ const WeeklyWorkoutsQuestion: React.FC = () => {
                       {day}
                     </div>
                   ))}
-                </div>
-                
-                <RunButton type="submit" disabled={!isValid}>
-                  Continuar
-                </RunButton>
-              </form>
-            </>
-          ) : (
-            <>
-              <h2 className="text-2xl font-semibold text-runapp-navy mb-2">
-                ¿Qué días quieres entrenar?
-              </h2>
-              <p className="text-runapp-gray mb-6">
-                Selecciona los días específicos con las fechas de esta semana
-              </p>
-              
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <DaySelector
-                  days={selectedDays}
-                  onDayToggle={handleDayToggle}
-                  maxSelections={7}
-                  minSelections={1}
-                />
-                
-                <div className="text-center p-4 bg-runapp-light-purple/20 rounded-lg">
-                  <p className="text-sm text-runapp-navy font-medium">
-                    {selectedDaysCount > 0 
-                      ? `${selectedDaysCount} día${selectedDaysCount > 1 ? 's' : ''} seleccionado${selectedDaysCount > 1 ? 's' : ''}`
-                      : 'Selecciona al menos un día'
-                    }
-                  </p>
                 </div>
                 
                 <RunButton type="submit" disabled={!isValid}>

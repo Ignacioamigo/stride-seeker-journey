@@ -92,32 +92,40 @@ function generateDatesForSelectedDays(selectedDays: any[]): { date: Date, dayNam
     for (const selectedDay of actualSelectedDays) {
       const dayId = selectedDay.day || selectedDay.id; // 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
       
-      // Calculate the date for this day in the current week iteration
-      const targetDate = new Date(today);
-      
       // Find the next occurrence of this day of the week
       const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
       
       // Convert dayId (0=Mon, 1=Tue, etc.) to JavaScript day format (0=Sun, 1=Mon, etc.)
       const jsTargetDay = dayId === 6 ? 0 : dayId + 1; // Convert: 6(Sunday) -> 0, others -> +1
       
-      // Calculate days to add to get to the target day
+      // Calculate days to add to get to the target day (for the first week)
       let daysToAdd = jsTargetDay - currentDayOfWeek;
-      if (daysToAdd < 0) {
-        daysToAdd += 7; // Move to next week if the day has already passed
+      
+      // Special logic for when it's today (daysToAdd = 0)
+      if (daysToAdd === 0) {
+        // If it's today, we need to decide: start today or next week?
+        // For better weekly distribution, if we have multiple days selected,
+        // it's better to start next week to keep them in the same week
+        if (actualSelectedDays.length > 1) {
+          daysToAdd = 7; // Start next week for better distribution
+        }
+        // If only one day selected, we can start today
+      } else if (daysToAdd < 0) {
+        // If the day has already passed this week, go to next week
+        daysToAdd += 7;
       }
       
-      // Add the week offset
-      daysToAdd += (week * 7);
+      // Add the week offset (0, 7, 14, 21 days)
+      const totalDaysToAdd = daysToAdd + (week * 7);
       
-      targetDate.setDate(today.getDate() + daysToAdd);
+      // Create target date
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + totalDaysToAdd);
       targetDate.setHours(0, 0, 0, 0);
       
-      // Only include future dates
-      if (targetDate >= today) {
-        const dayName = selectedDay.name;
-        dates.push({ date: new Date(targetDate), dayName });
-      }
+      // Create a new date object to avoid reference issues
+      const dayName = selectedDay.name;
+      dates.push({ date: new Date(targetDate.getTime()), dayName });
     }
   }
   
@@ -127,6 +135,89 @@ function generateDatesForSelectedDays(selectedDays: any[]): { date: Date, dayNam
   console.log("Generated dates:", dates.map(d => ({ date: d.date.toISOString().split('T')[0], dayName: d.dayName })));
   
   // Return the first 14 dates
+  return dates.slice(0, 14);
+}
+
+// Función nueva para distribuir días cuando solo se especifica cantidad
+function generateDatesForWeeklyWorkouts(weeklyWorkouts: number): { date: Date, dayName: string }[] {
+  const dates = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Distribución inteligente de días según la cantidad
+  let dayDistribution: number[] = [];
+  
+  switch(weeklyWorkouts) {
+    case 1:
+      dayDistribution = [2]; // Miércoles
+      break;
+    case 2:
+      dayDistribution = [1, 6]; // Martes y Domingo
+      break;
+    case 3:
+      dayDistribution = [1, 3, 6]; // Martes, Jueves, Domingo
+      break;
+    case 4:
+      dayDistribution = [0, 2, 4, 6]; // Lunes, Miércoles, Viernes, Domingo
+      break;
+    case 5:
+      dayDistribution = [0, 1, 3, 5, 6]; // Lunes, Martes, Jueves, Sábado, Domingo
+      break;
+    case 6:
+      dayDistribution = [0, 1, 2, 4, 5, 6]; // Todos excepto jueves
+      break;
+    case 7:
+      dayDistribution = [0, 1, 2, 3, 4, 5, 6]; // Todos los días
+      break;
+    default:
+      dayDistribution = [1, 3, 6]; // Default: Martes, Jueves, Domingo
+  }
+  
+  console.log(`Distributing ${weeklyWorkouts} workouts across days: ${dayDistribution}`);
+  
+  // Generar fechas para las próximas 4 semanas
+  for (let week = 0; week < 4; week++) {
+    for (const dayIndex of dayDistribution) {
+      const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      
+      // Convert dayId (0=Mon, 1=Tue, etc.) to JavaScript day format (0=Sun, 1=Mon, etc.)
+      const jsTargetDay = dayIndex === 6 ? 0 : dayIndex + 1;
+      
+      // Calculate days to add (for the first week)
+      let daysToAdd = jsTargetDay - currentDayOfWeek;
+      
+      // Special logic for when it's today (daysToAdd = 0)
+      if (daysToAdd === 0) {
+        // If it's today, we need to decide: start today or next week?
+        // For better weekly distribution, if we have multiple days selected,
+        // it's better to start next week to keep them in the same week
+        if (dayDistribution.length > 1) {
+          daysToAdd = 7; // Start next week for better distribution
+        }
+        // If only one day selected, we can start today
+      } else if (daysToAdd < 0) {
+        // If the day has already passed this week, go to next week
+        daysToAdd += 7;
+      }
+      
+      // Add the week offset (0, 7, 14, 21 days)
+      const totalDaysToAdd = daysToAdd + (week * 7);
+      
+      // Create target date
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + totalDaysToAdd);
+      targetDate.setHours(0, 0, 0, 0);
+      
+      const dayName = getDayMapping(dayIndex);
+      dates.push({ date: new Date(targetDate.getTime()), dayName });
+    }
+  }
+  
+  // Sort by date
+  dates.sort((a, b) => a.date.getTime() - b.date.getTime());
+  
+  console.log("Generated distributed dates:", dates.map(d => ({ date: d.date.toISOString().split('T')[0], dayName: d.dayName })));
+  
   return dates.slice(0, 14);
 }
 
@@ -175,11 +266,23 @@ serve(async (req) => {
     
     // Log user selected days for debugging
     console.log("User selected days:", userProfile.selectedDays);
+    console.log("User weekly workouts:", userProfile.weeklyWorkouts);
     
-    // Generate dates based on selected days or fallback to next 7 days
-    const nextWeekDates = userProfile.selectedDays && userProfile.selectedDays.length > 0 
-      ? generateDatesForSelectedDays(userProfile.selectedDays)
-      : generateDatesFromToday();
+    // Generate dates based on selected days, weekly workouts quantity, or fallback to next 7 days
+    let nextWeekDates;
+    if (userProfile.selectedDays && userProfile.selectedDays.length > 0) {
+      // Usuario seleccionó días específicos
+      console.log("Using specific selected days");
+      nextWeekDates = generateDatesForSelectedDays(userProfile.selectedDays);
+    } else if (userProfile.weeklyWorkouts && userProfile.weeklyWorkouts > 0 && userProfile.weeklyWorkouts <= 7) {
+      // Usuario seleccionó cantidad de días
+      console.log(`Using weekly workouts distribution: ${userProfile.weeklyWorkouts} days`);
+      nextWeekDates = generateDatesForWeeklyWorkouts(userProfile.weeklyWorkouts);
+    } else {
+      // Fallback a los próximos 7 días
+      console.log("Using default next 7 days");
+      nextWeekDates = generateDatesFromToday();
+    }
     
     console.log("Generated dates result:", nextWeekDates.map(d => `${d.dayName}: ${d.date.toISOString().split('T')[0]}`));
 
@@ -469,9 +572,19 @@ Genera un plan de entrenamiento ${hasSelectedDays ? 'para los días específicos
 
 HOY ES: ${todayDate}
 
-${hasSelectedDays ? `CRÍTICO: El usuario ha seleccionado días específicos para entrenar. Las fechas proporcionadas son TODAS FUTURAS (hoy o posteriores). Crea entrenamientos SÓLO para estos días: ${datesList}
+${hasSelectedDays ? `CRÍTICO: El usuario ha seleccionado días específicos para entrenar. Las fechas proporcionadas son TODAS FUTURAS (hoy o posteriores). 
 
-IMPORTANTE: NO generes entrenamientos para fechas pasadas. TODAS las fechas en la lista están en el futuro y son válidas para entrenar.` : `IMPORTANTE: TODAS las fechas proporcionadas son futuras (desde hoy en adelante). NO generes entrenamientos para fechas pasadas.`}
+DÍAS SELECCIONADOS POR EL USUARIO: ${datesList}
+
+REGLAS ESTRICTAS:
+- Crea entrenamientos SÓLO para estos días específicos
+- NO dupliques días (ej: NO pongas dos entrenamientos en Martes si solo hay un Martes en la lista)
+- NO cambies los días (ej: si hay Martes y Domingo, NO pongas Martes y Martes)
+- Cada día en la lista debe tener EXACTAMENTE un entrenamiento
+- NO generes entrenamientos para fechas pasadas
+- TODAS las fechas en la lista están en el futuro y son válidas para entrenar
+- DISTRIBUCIÓN SEMANAL: Los entrenamientos deben distribuirse de manera equilibrada en semanas consecutivas (no saltes semanas)
+- GAPS CORRECTOS: Entre entrenamientos debe haber 2-7 días máximo, nunca más de una semana` : `IMPORTANTE: TODAS las fechas proporcionadas son futuras (desde hoy en adelante). NO generes entrenamientos para fechas pasadas.`}
 
 Incluye EXACTAMENTE ${nextWeekDates.length} sesiones de entrenamiento ${trainingDaysText}, especificando distancia/tiempo e intensidad de cada sesión.
 
@@ -490,18 +603,25 @@ ${userProfile.targetRace ? '5' : '4'}. Genera una respuesta en formato JSON sigu
   "duration": "7 días",
   "intensity": "...",
   "workouts": [
-    {
-      "day": "${nextWeekDates[0].dayName}",
-      "date": "${nextWeekDates[0].date.toISOString().split('T')[0]}",
+${nextWeekDates.map((date, index) => `    {
+      "day": "${date.dayName}",
+      "date": "${date.date.toISOString().split('T')[0]}",
       "title": "...",
       "description": "...",
       "distance": número o null,
       "duration": "...",
       "type": "carrera|fuerza|descanso|flexibilidad"
-    },
-    ... para cada día de la semana
+    }${index < nextWeekDates.length - 1 ? ',' : ''}`).join('\n')}
   ]
-}`;
+}
+
+CRÍTICO: Debes crear EXACTAMENTE ${nextWeekDates.length} entrenamientos, uno para cada fecha proporcionada. NO dupliques días. Cada entrenamiento debe tener el día y fecha exactos de la lista proporcionada.
+
+VALIDACIÓN FINAL: Antes de responder, verifica que:
+1. Cada entrenamiento tiene el día y fecha exactos de la lista
+2. No hay días duplicados
+3. Los entrenamientos están distribuidos en semanas consecutivas (gaps de 2-7 días máximo)
+4. El número total de entrenamientos es ${nextWeekDates.length}`;
 
     // Custom prompt if provided
     const customPromptSection = customPrompt ? `\nINSTRUCCIONES PERSONALIZADAS:\n${customPrompt}\n` : '';
