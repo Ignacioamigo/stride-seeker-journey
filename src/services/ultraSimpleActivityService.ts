@@ -66,6 +66,33 @@ export const publishActivityUltraSimple = async (
     );
     
     console.log('📊 [ULTRA SIMPLE] Guardado en workouts_simple:', workoutSaved);
+    
+    // ✅ NUEVO: Si hay training_session_id, TAMBIÉN guardar en simple_workouts
+    // Esto actualiza las estadísticas automáticamente
+    if (trainingSessionId) {
+      console.log('📊 [ULTRA SIMPLE] Guardando también en simple_workouts para estadísticas...');
+      
+      try {
+        const { saveSimpleWorkout } = await import('./simpleWorkoutsService');
+        await saveSimpleWorkout(
+          data.title,
+          'carrera',
+          distanceKm,
+          durationMinutes,
+          null, // plan_id (no lo necesitamos para estadísticas)
+          null  // week_number
+        );
+        
+        console.log('✅ [ULTRA SIMPLE] Guardado en simple_workouts (estadísticas actualizadas)');
+        
+        // Disparar evento de actualización de estadísticas
+        window.dispatchEvent(new CustomEvent('statsUpdated'));
+        console.log('📢 [ULTRA SIMPLE] Evento statsUpdated disparado');
+      } catch (statsError) {
+        console.warn('⚠️ [ULTRA SIMPLE] Error guardando en simple_workouts:', statsError);
+        // No es crítico, continuar
+      }
+    }
 
     // 2. OBTENER USUARIO Y SU NOMBRE
     let userEmail = 'anonimo@app.com';
