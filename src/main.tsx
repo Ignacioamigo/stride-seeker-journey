@@ -8,53 +8,48 @@ import './services/watchConnectivityService'
 // Import StatusBar Service  
 import { statusBarService } from './services/statusBarService';
 
-// 🔥 ESTABILIZACIÓN COORDINADA Y SUAVE
+// 🔥 ESTABILIZACIÓN COORDINADA Y ANTI-ZOOM
 let isInitialStabilization = true;
-let stabilizationCount = 0;
+let stabilizationTimeout: number | null = null;
 
-const recalculateViewport = () => {
-  stabilizationCount++;
-  console.log(`🔄 Layout recalculation #${stabilizationCount}${isInitialStabilization ? ' (initial)' : ''}`);
-  
-  // Durante la primera estabilización, ser más suave
-  if (isInitialStabilization) {
-    // Solo variables críticas durante el arranque inicial
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-    
-    // Marcar que la inicialización inicial ya pasó
-    setTimeout(() => {
-      isInitialStabilization = false;
-    }, 1000);
-    
-    console.log('✅ Initial layout stabilization complete');
-    return;
+// Función para forzar el reset del viewport y prevenir zoom
+const forceViewportReset = () => {
+  // 1. Asegurar que el meta viewport esté correcto
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if (viewport) {
+    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
   }
   
-  // Para recálculos posteriores, usar la lógica completa pero suave
-  requestAnimationFrame(() => {
-    // 1. Variables del viewport
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  // 2. Variables del viewport
+  const vh = window.innerHeight * 0.01;
+  const vw = window.innerWidth * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+  document.documentElement.style.setProperty('--vw', `${vw}px`);
+  
+  console.log('✅ Viewport reset', { vh: window.innerHeight, vw: window.innerWidth });
+};
+
+const recalculateViewport = () => {
+  // Cancelar cualquier recálculo pendiente para evitar conflictos
+  if (stabilizationTimeout) {
+    clearTimeout(stabilizationTimeout);
+  }
+  
+  stabilizationTimeout = window.setTimeout(() => {
+    console.log(`🔄 Layout recalculation${isInitialStabilization ? ' (initial)' : ''}`);
     
-    // 2. Estabilización selectiva y suave
-    const elementsToFix = document.querySelectorAll(
-      '[style*="position: fixed"], .fixed, nav, header'
-    );
-    
-    elementsToFix.forEach((el) => {
-      if (el instanceof HTMLElement) {
-        el.style.transform = 'translate3d(0, 0, 0)';
-        el.style.backfaceVisibility = 'hidden';
-        el.style.webkitBackfaceVisibility = 'hidden';
+    requestAnimationFrame(() => {
+      forceViewportReset();
+      
+      // Durante la primera estabilización, marcar como completada
+      if (isInitialStabilization) {
+        setTimeout(() => {
+          isInitialStabilization = false;
+          console.log('✅ Initial stabilization complete');
+        }, 500);
       }
     });
-    
-    // 3. Un reflow suave
-    document.body.offsetHeight;
-    
-    console.log('✅ Layout stabilization complete');
-  });
+  }, isInitialStabilization ? 0 : 100); // Sin delay en la inicial, 100ms en las siguientes
 };
 
 // Handle iOS deep links for Strava (stride://strava-callback?code=...)
@@ -67,45 +62,57 @@ CapacitorApp.addListener('appUrlOpen', ({ url }) => {
   } catch {}
 })
 
-// 🔥 LISTENERS COORDINADOS PARA PREVENIR DESCUADRE
+// 🔥 LISTENERS COORDINADOS PARA PREVENIR DESCUADRE Y ZOOM
 CapacitorApp.addListener('appStateChange', (state) => {
   console.log('📱 App state changed:', state.isActive ? 'ACTIVE' : 'BACKGROUND');
-  if (state.isActive && !isInitialStabilization) {
-    // Solo un recálculo suave después de la inicialización
-    setTimeout(recalculateViewport, 100);
-  }
-});
-
-// Listeners coordinados para cambios de viewport
-window.addEventListener('orientationchange', () => {
-  console.log('📱 Orientation changed');
-  if (!isInitialStabilization) {
-    setTimeout(recalculateViewport, 150); // Un solo recálculo por evento
-  }
-});
-
-window.addEventListener('resize', () => {
-  console.log('📱 Window resized');
-  if (!isInitialStabilization) {
+  if (state.isActive) {
+    // Cuando la app vuelve al foreground, forzar reset del viewport
+    forceViewportReset();
     recalculateViewport();
   }
 });
 
+// Listener para cambios de orientación
+window.addEventListener('orientationchange', () => {
+  console.log('📱 Orientation changed');
+  forceViewportReset();
+  setTimeout(recalculateViewport, 200); // Dar tiempo para que la orientación se complete
+});
+
+// Listener para resize (throttled automáticamente por el timeout en recalculateViewport)
+let resizeDebounce: number | null = null;
+window.addEventListener('resize', () => {
+  if (resizeDebounce) clearTimeout(resizeDebounce);
+  resizeDebounce = window.setTimeout(() => {
+    console.log('📱 Window resized');
+    recalculateViewport();
+  }, 150);
+});
+
 // Listener para cuando la página se vuelve visible
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && !isInitialStabilization) {
+  if (!document.hidden) {
     console.log('📱 Page became visible');
-    setTimeout(recalculateViewport, 100);
+    forceViewportReset();
+    recalculateViewport();
   }
 });
 
-// Listener para iOS específico - cuando la app recupera el foco
+// Listener para iOS - cuando la app recupera el foco
 window.addEventListener('focus', () => {
   console.log('📱 Window focused');
-  if (!isInitialStabilization) {
-    setTimeout(recalculateViewport, 50);
-  }
+  forceViewportReset();
 });
+
+// Prevenir zoom por double-tap en iOS
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (event) => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) {
+    event.preventDefault();
+  }
+  lastTouchEnd = now;
+}, { passive: false });
 
 // Ejecutar recálculo inicial y después de cargar
 recalculateViewport();

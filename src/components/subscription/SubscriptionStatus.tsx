@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSubscription } from '@/services/subscriptionService';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +23,58 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({
     refreshStatus 
   } = useSubscription();
 
+  const [localIsPremium, setLocalIsPremium] = useState(false);
+
+  // Escuchar eventos de actualización de suscripción
+  useEffect(() => {
+    const handleSubscriptionUpdate = () => {
+      console.log('🔄 Subscription updated event received, refreshing status...');
+      refreshStatus();
+      // También verificar localStorage
+      const isPremiumLocal = localStorage.getItem('isPremium') === 'true';
+      setLocalIsPremium(isPremiumLocal);
+    };
+
+    window.addEventListener('subscription-updated', handleSubscriptionUpdate);
+
+    // Verificar estado inicial de localStorage
+    const isPremiumLocal = localStorage.getItem('isPremium') === 'true';
+    setLocalIsPremium(isPremiumLocal);
+
+    return () => {
+      window.removeEventListener('subscription-updated', handleSubscriptionUpdate);
+    };
+  }, [refreshStatus]);
+
+  // Determinar si el usuario es premium (desde RevenueCat o localStorage)
+  const isUserPremium = isPremium || localIsPremium;
+
   const getStatusBadge = () => {
+    // Si tenemos estado local premium, mostrarlo
+    if (localIsPremium) {
+      const trialStart = localStorage.getItem('trialStartDate');
+      if (trialStart) {
+        const daysElapsed = Math.floor((Date.now() - new Date(trialStart).getTime()) / (1000 * 60 * 60 * 24));
+        const daysRemaining = Math.max(0, 3 - daysElapsed);
+        
+        if (daysRemaining > 0) {
+          return (
+            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+              <Calendar className="w-3 h-3 mr-1" />
+              Prueba gratuita ({daysRemaining} días restantes)
+            </Badge>
+          );
+        }
+      }
+      
+      return (
+        <Badge variant="secondary" className="bg-green-100 text-green-800">
+          <Crown className="w-3 h-3 mr-1" />
+          Premium Activo
+        </Badge>
+      );
+    }
+
     if (!status) return null;
 
     switch (status.status) {
@@ -59,6 +110,21 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({
   };
 
   const getStatusMessage = () => {
+    // Si tenemos estado local premium, mostrarlo
+    if (localIsPremium) {
+      const trialStart = localStorage.getItem('trialStartDate');
+      if (trialStart) {
+        const daysElapsed = Math.floor((Date.now() - new Date(trialStart).getTime()) / (1000 * 60 * 60 * 24));
+        const daysRemaining = Math.max(0, 3 - daysElapsed);
+        
+        if (daysRemaining > 0) {
+          return `Disfruta de todas las funciones premium durante tu prueba gratuita. Te quedan ${daysRemaining} días.`;
+        }
+      }
+      
+      return "Tienes acceso completo a todas las funciones premium de Stride Seeker.";
+    }
+
     if (!status) return "Verificando estado de suscripción...";
 
     switch (status.status) {
@@ -77,7 +143,7 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({
   const getActionButton = () => {
     if (!showPaywallButton) return null;
 
-    if (isPremium) {
+    if (isUserPremium) {
       return (
         <Button variant="outline" onClick={refreshStatus}>
           Actualizar estado
@@ -106,7 +172,7 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({
           {getStatusMessage()}
         </CardDescription>
         
-        {isPremium && (
+        {isUserPremium && (
           <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center text-green-800">
               <Crown className="w-4 h-4 mr-2" />

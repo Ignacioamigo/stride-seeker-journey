@@ -18,7 +18,22 @@ export const publishActivitySimple = async (data: WorkoutPublishData): Promise<s
     console.log('📊 [SIMPLE ACTIVITY] Guardando en workouts_simple...');
     
     const distanceKm = Math.round(data.runSession.distance / 1000 * 100) / 100;
-    const durationMinutes = Math.round(data.runSession.duration / 60);
+    
+    // ✅ FIX: Convertir duration de STRING (HH:MM:SS) a minutos
+    let durationMinutes = 0;
+    const durationString = data.runSession.duration;
+    
+    if (typeof durationString === 'string' && durationString.includes(':')) {
+      const parts = durationString.split(':');
+      const hours = parseInt(parts[0]) || 0;
+      const minutes = parseInt(parts[1]) || 0;
+      const seconds = parseInt(parts[2]) || 0;
+      const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+      durationMinutes = Math.round(totalSeconds / 60);
+    } else if (typeof durationString === 'number') {
+      // Si por alguna razón ya es número en segundos, convertir a minutos
+      durationMinutes = Math.round(durationString / 60);
+    }
     
     const workoutSaved = await saveWorkoutSimple(
       data.title,

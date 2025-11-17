@@ -15,8 +15,8 @@ final class StoreManager: ObservableObject {
     @Published var subscriptionExpirationDate: Date?
     
     // MARK: - Product IDs
-    static let monthlyProductID = "stride_seeker_premium_monthly"
-    static let yearlyProductID = "stride_seeker_premium_yearly"
+    static let monthlyProductID = "berun_premium_monthly"
+    static let yearlyProductID = "berun_premium_yearly"
     
     private let productIDs: Set<String> = [
         StoreManager.monthlyProductID,

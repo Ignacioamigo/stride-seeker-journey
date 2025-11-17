@@ -16,15 +16,52 @@ const PaywallPage: React.FC = () => {
   useEffect(() => {
     // Animate progress to 100%
     const timer = setTimeout(() => setProgress(100), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    
+    // Setup listener para detectar cuando se completa una compra
+    const handlePurchaseComplete = (success: boolean, productId?: string) => {
+      if (success) {
+        console.log('🎉 Compra detectada como completada, cerrando paywall...');
+        localStorage.setItem('isPremium', 'true');
+        localStorage.setItem('subscriptionType', selectedProduct);
+        localStorage.setItem('trialStartDate', new Date().toISOString());
+        
+        // Disparar evento para actualizar estado en toda la app
+        window.dispatchEvent(new CustomEvent('subscription-updated', { 
+          detail: { isPremium: true, productId } 
+        }));
+        
+        // Navegar a la app
+        navigate('/plan');
+        
+        // Mostrar mensaje de éxito
+        setTimeout(() => {
+          alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
+        }, 500);
+      }
+    };
+    
+    // Registrar el listener si estamos en iOS
+    if (storeKitService.isAvailable()) {
+      storeKitService.addPurchaseListener(handlePurchaseComplete);
+    }
+    
+    return () => {
+      clearTimeout(timer);
+      // Limpiar listener al desmontar
+      if (storeKitService.isAvailable()) {
+        storeKitService.removePurchaseListener(handlePurchaseComplete);
+      }
+    };
+  }, [navigate, selectedProduct]);
 
   const handlePurchase = async () => {
     setIsLoading(true);
     
     try {
       const platform = Capacitor.getPlatform();
-      const productId = selectedProduct === 'yearly' ? 'berun_premium_yearly' : 'berun_premium_monthly';
+      const productId = selectedProduct === 'yearly' 
+        ? 'berun_premium_yearly:anual-medio' 
+        : 'berun_premium_monthly:suscripcion-mensual';
       
       if (platform === 'ios' && Capacitor.isNativePlatform()) {
         // IMPLEMENTACIÓN REAL con StoreKit 2
@@ -32,11 +69,26 @@ const PaywallPage: React.FC = () => {
         const result = await storeKitService.purchase(productId);
         
         if (result.success) {
+          console.log('✅ Compra exitosa, actualizando estado y navegando...');
           localStorage.setItem('isPremium', 'true');
           localStorage.setItem('subscriptionType', selectedProduct);
           localStorage.setItem('trialStartDate', new Date().toISOString());
-          alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
+          
+          // Disparar evento para actualizar estado en toda la app
+          window.dispatchEvent(new CustomEvent('subscription-updated', { 
+            detail: { isPremium: true, productId } 
+          }));
+          
+          // Navegar inmediatamente
           navigate('/plan');
+          
+          // Mostrar alerta después de navegar
+          setTimeout(() => {
+            alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
+          }, 500);
+        } else if (result.reason === 'cancelled') {
+          console.log('ℹ️ Usuario canceló la compra');
+          // No mostrar error si el usuario canceló
         } else if (result.error) {
           alert(`Error: ${result.error}`);
         }
@@ -46,11 +98,26 @@ const PaywallPage: React.FC = () => {
         const result = await googlePlayBillingNativeService.purchase(productId);
         
         if (result.success) {
+          console.log('✅ Compra exitosa, actualizando estado y navegando...');
           localStorage.setItem('isPremium', 'true');
           localStorage.setItem('subscriptionType', selectedProduct);
           localStorage.setItem('trialStartDate', new Date().toISOString());
-          alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
+          
+          // Disparar evento para actualizar estado en toda la app
+          window.dispatchEvent(new CustomEvent('subscription-updated', { 
+            detail: { isPremium: true, productId } 
+          }));
+          
+          // Navegar inmediatamente
           navigate('/plan');
+          
+          // Mostrar alerta después de navegar
+          setTimeout(() => {
+            alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
+          }, 500);
+        } else if (result.reason === 'cancelled') {
+          console.log('ℹ️ Usuario canceló la compra');
+          // No mostrar error si el usuario canceló
         } else {
           alert(`Error en la compra: ${result.error || 'Por favor, inténtalo de nuevo.'}`);
         }
@@ -60,12 +127,18 @@ const PaywallPage: React.FC = () => {
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         const paymentMethod = platform === 'ios' ? 'Apple Pay' : platform === 'android' ? 'Google Pay' : 'Payment';
-        alert(`📱 En dispositivo real aparecería ${paymentMethod}\n\n¡Bienvenido a Premium! Plan ${selectedProduct === 'yearly' ? 'anual' : 'mensual'} activado.`);
         
         localStorage.setItem('isPremium', 'true');
         localStorage.setItem('subscriptionType', selectedProduct);
         localStorage.setItem('trialStartDate', new Date().toISOString());
+        
+        // Navegar primero
         navigate('/plan');
+        
+        // Mostrar alerta después
+        setTimeout(() => {
+          alert(`📱 En dispositivo real aparecería ${paymentMethod}\n\n¡Bienvenido a Premium! Plan ${selectedProduct === 'yearly' ? 'anual' : 'mensual'} activado.`);
+        }, 500);
       }
     } catch (error) {
       console.error('❌ Purchase error:', error);

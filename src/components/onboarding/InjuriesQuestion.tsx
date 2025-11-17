@@ -63,7 +63,7 @@ const InjuriesQuestion: React.FC = () => {
         paddingRight: Math.max(insets.right, 16),
       }}
     >
-      <ProgressHeader currentStep={10} totalSteps={10} />
+      <ProgressHeader currentStep={10} totalSteps={10} showBackButton={true} />
 
       <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <div className="bg-white rounded-xl p-6 shadow-sm">

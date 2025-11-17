@@ -25,6 +25,12 @@ PODS:
   - GoogleMaps/Maps (8.4.0):
     - GoogleMaps/Base
   - IONGeolocationLib (1.0.1)
+  - PurchasesHybridCommon (17.10.0):
+    - RevenueCat (= 5.43.0)
+  - RevenueCat (5.43.0)
+  - RevenuecatPurchasesCapacitor (11.2.7):
+    - Capacitor
+    - PurchasesHybridCommon (= 17.10.0)
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
@@ -35,12 +41,15 @@ DEPENDENCIES:
   - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
   - "CapacitorGoogleMaps (from `../../node_modules/@capacitor/google-maps`)"
   - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
+  - "RevenuecatPurchasesCapacitor (from `../../node_modules/@revenuecat/purchases-capacitor`)"
 
 SPEC REPOS:
   trunk:
     - Google-Maps-iOS-Utils
     - GoogleMaps
     - IONGeolocationLib
+    - PurchasesHybridCommon
+    - RevenueCat
 
 EXTERNAL SOURCES:
   Capacitor:
@@ -59,6 +68,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/google-maps"
   CapacitorStatusBar:
     :path: "../../node_modules/@capacitor/status-bar"
+  RevenuecatPurchasesCapacitor:
+    :path: "../../node_modules/@revenuecat/purchases-capacitor"
 
 SPEC CHECKSUMS:
   Capacitor: 03bc7cbdde6a629a8b910a9d7d78c3cc7ed09ea7
@@ -72,7 +83,10 @@ SPEC CHECKSUMS:
   Google-Maps-iOS-Utils: 66d6de12be1ce6d3742a54661e7a79cb317a9321
   GoogleMaps: 8939898920281c649150e0af74aa291c60f2e77d
   IONGeolocationLib: 20f9d0248a0b5264511fb57a37e25dd2badf797a
+  PurchasesHybridCommon: b7b4eafb55fbaaac19b4c36d4082657a3f0d8490
+  RevenueCat: a51003d4cb33820cc504cf177c627832b462a98e
+  RevenuecatPurchasesCapacitor: 1b138c8c7ac17b45613b24f8b57c0013cc95dc7a
 
-PODFILE CHECKSUM: adcbd086c0d47f7cc72b0d53534998fd7d0ad027
+PODFILE CHECKSUM: 39e440232fc3946e5597244b6612181f6109b31d
 
 COCOAPODS: 1.16.2

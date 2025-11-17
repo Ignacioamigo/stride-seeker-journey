@@ -15,8 +15,6 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		A738E5E081607D8A08BCF106 /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7C3C628675BC873372117B12 /* Pods_App.framework */; };
-		E23BA31B2E97FE3800BB647B /* StoreKitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23BA3192E97FE3800BB647B /* StoreKitPlugin.swift */; };
-		E23BA31D2E98033F00BB647B /* StoreKitPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = E23BA31C2E98033F00BB647B /* StoreKitPlugin.m */; };
 		E2B5985A2E8581E9001451B1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E2B598592E8581E9001451B1 /* StoreKit.framework */; };
 /* End PBXBuildFile section */
 
@@ -58,8 +56,6 @@
 		578D8DB667D07E46B5740D08 /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 		754E160A571156952EEB3B76 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
 		7C3C628675BC873372117B12 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		E23BA3192E97FE3800BB647B /* StoreKitPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoreKitPlugin.swift; path = Plugins/StoreKitPlugin.swift; sourceTree = "<group>"; };
-		E23BA31C2E98033F00BB647B /* StoreKitPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = StoreKitPlugin.m; path = Plugins/StoreKitPlugin.m; sourceTree = "<group>"; };
 		E2B598582E8581B0001451B1 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		E2B598592E8581E9001451B1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -117,8 +113,6 @@
 			isa = PBXGroup;
 			children = (
 				E2B598582E8581B0001451B1 /* App.entitlements */,
-				E23BA3192E97FE3800BB647B /* StoreKitPlugin.swift */,
-				E23BA31C2E98033F00BB647B /* StoreKitPlugin.m */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -268,9 +262,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E23BA31B2E97FE3800BB647B /* StoreKitPlugin.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
-				E23BA31D2E98033F00BB647B /* StoreKitPlugin.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -420,11 +412,12 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = stride.seeker.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OBJC_BRIDGING_HEADER = "App/App-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -448,10 +441,11 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = stride.seeker.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OBJC_BRIDGING_HEADER = "App/App-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

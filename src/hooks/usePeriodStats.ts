@@ -249,8 +249,8 @@ export const usePeriodStats = (period: TimePeriod) => {
       if (period === 'current_week' && plan && plan.id) {
         // Ya están filtrados por plan_id y week_number
         periodWorkouts = workouts.filter(w => {
-          // Solo verificar que tengan datos válidos
-          if (!w.distancia_recorrida || w.distancia_recorrida <= 0) {
+          // ✅ Permitir distancia 0 (útil para pruebas y entrenamientos muy cortos)
+          if (w.distancia_recorrida === null || w.distancia_recorrida === undefined || w.distancia_recorrida < 0) {
             console.log(`[usePeriodStats] ❌ Entrenamiento inválido: ${w.workout_title} (sin distancia)`);
             return false;
           }

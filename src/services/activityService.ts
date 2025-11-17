@@ -77,13 +77,16 @@ export const publishActivity = async (data: WorkoutPublishData): Promise<string>
       }
       
       // Prepare data for Supabase
+      // ✅ FIX: distance viene en metros, convertir a km
+      const distanceKm = Math.round(data.runSession.distance / 1000 * 100) / 100;
+      
       const supabaseData = {
         user_id: userProfile.id,
         title: data.title.trim(),
         description: data.description?.trim() || null,
         image_url: imageUrl,
-        distance: Math.round(data.runSession.distance * 100) / 100,
-        duration: data.runSession.duration,
+        distance: distanceKm,
+        duration: data.runSession.duration, // Ya es string HH:MM:SS
         gps_points: data.runSession.gpsPoints || [],
         is_public: data.isPublic,
         activity_date: data.runSession.startTime.toISOString(),
@@ -126,14 +129,17 @@ export const publishActivity = async (data: WorkoutPublishData): Promise<string>
   // 2. FALLBACK TO LOCAL STORAGE
   console.log('📱 [FALLBACK] Saving to local storage...');
   
+  // ✅ FIX: distance viene en metros, convertir a km
+  const fallbackDistanceKm = Math.round(data.runSession.distance / 1000 * 100) / 100;
+  
   const activityData = {
     id: fallbackId,
     user_id: 'local_user',
     title: data.title.trim(),
     description: data.description?.trim() || null,
     image_url: null, // Images saved separately in local
-    distance: Math.round(data.runSession.distance * 100) / 100,
-    duration: data.runSession.duration,
+    distance: fallbackDistanceKm,
+    duration: data.runSession.duration, // Ya es string HH:MM:SS
     gps_points: data.runSession.gpsPoints || [],
     is_public: data.isPublic,
     activity_date: data.runSession.startTime.toISOString(),

@@ -31,7 +31,6 @@ const config: CapacitorConfig = {
   },
   ios: {
     scheme: "berun",
-    contentInset: "never",
     backgroundColor: "#f9fafb"
   },
 };

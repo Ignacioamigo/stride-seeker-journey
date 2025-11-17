@@ -40,6 +40,34 @@ const Plan: React.FC = () => {
   
   const headerHeight = insets.top + HEADER_HEIGHT;
 
+  // 🔒 PROTECCIÓN: Verificar que el usuario haya completado el pago antes de acceder
+  useEffect(() => {
+    const checkPremiumStatus = () => {
+      const isPremiumStored = localStorage.getItem('isPremium') === 'true';
+      
+      // Si no tiene premium Y ha completado el onboarding, redirigir al paywall (setup-2)
+      if (!isPremiumStored && user.completedOnboarding) {
+        console.log('🔒 Usuario sin premium detectado, redirigiendo a setup-2...');
+        navigate('/setup-2', { replace: true });
+      }
+    };
+
+    checkPremiumStatus();
+
+    // Escuchar cambios en el estado de suscripción
+    const handleSubscriptionUpdate = (event: CustomEvent) => {
+      if (event.detail?.isPremium) {
+        console.log('✅ Suscripción actualizada, usuario tiene acceso');
+      }
+    };
+
+    window.addEventListener('subscription-updated', handleSubscriptionUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('subscription-updated', handleSubscriptionUpdate as EventListener);
+    };
+  }, [user.completedOnboarding, navigate]);
+
   // Monitor connection status
   useEffect(() => {
     const handleOnline = () => setConnectionStatus(true);

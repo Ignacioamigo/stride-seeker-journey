@@ -20,6 +20,7 @@ const RacePreparationQuestion: React.FC = () => {
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // Calculate header height: safe area + padding + content
   const headerHeight = insets.top + 24 + 32;
   const [popularRaces, setPopularRaces] = useState<RaceEvent[]>([]);
 
@@ -114,16 +115,20 @@ const RacePreparationQuestion: React.FC = () => {
   return (
     <div 
       className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
-      style={{ paddingTop: `${headerHeight}px` }}
+      style={{
+        paddingTop: headerHeight,
+        paddingBottom: insets.bottom + 80,
+        paddingLeft: Math.max(insets.left, 16),
+        paddingRight: Math.max(insets.right, 16),
+      }}
     >
       <ProgressHeader 
-        title="¿Te preparas para alguna carrera específica?"
-        subtitle="Personaliza tu entrenamiento para una carrera concreta"
         currentStep={9}
         totalSteps={12}
+        showBackButton={true}
       />
 
-      <div className="flex-1 px-6 py-8 space-y-8">
+      <div className="flex-1 py-8 space-y-8">
         {/* Buscador Principal */}
         <div className="space-y-4">
           <div className="relative">
@@ -323,7 +328,7 @@ const RacePreparationQuestion: React.FC = () => {
       </div>
 
       {/* Botón continuar */}
-      <div className="px-6 pb-8">
+      <div className="pb-8">
         <form onSubmit={handleSubmit}>
           <RunButton
             type="submit"

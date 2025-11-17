@@ -16,7 +16,8 @@ export const calculateWeeklyData = (workouts: any[]) => {
   
   // Filtrar entrenamientos de esta semana
   const thisWeekWorkouts = workouts.filter(w => {
-    if (!w.fecha_completado || !w.distancia_recorrida || w.distancia_recorrida <= 0) {
+    // ✅ Permitir distancia 0 (útil para pruebas y entrenamientos muy cortos)
+    if (!w.fecha_completado || w.distancia_recorrida === null || w.distancia_recorrida === undefined || w.distancia_recorrida < 0) {
       return false;
     }
     

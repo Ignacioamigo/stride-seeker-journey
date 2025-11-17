@@ -26,9 +26,45 @@ const PaywallModal: React.FC<PaywallModalProps> = ({
       // Animate progress bar
       setProgress(91);
       const timer = setTimeout(() => setProgress(100), 1000);
-      return () => clearTimeout(timer);
+      
+      // Setup listener para detectar cuando se completa una compra
+      const handlePurchaseComplete = (success: boolean, productId?: string) => {
+        if (success) {
+          console.log('🎉 Compra detectada como completada, cerrando modal...');
+          localStorage.setItem('isPremium', 'true');
+          localStorage.setItem('subscriptionType', selectedProduct);
+          localStorage.setItem('trialStartDate', new Date().toISOString());
+          
+          // Cerrar modal inmediatamente
+          onClose();
+          
+          // Disparar evento para actualizar estado en toda la app
+          window.dispatchEvent(new CustomEvent('subscription-updated', { 
+            detail: { isPremium: true, productId } 
+          }));
+          
+          // Notificar éxito después de cerrar
+          setTimeout(() => {
+            alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
+            onPurchase(productId || 'premium');
+          }, 300);
+        }
+      };
+      
+      // Registrar el listener si estamos en iOS
+      if (storeKitService.isAvailable()) {
+        storeKitService.addPurchaseListener(handlePurchaseComplete);
+      }
+      
+      return () => {
+        clearTimeout(timer);
+        // Limpiar listener al cerrar modal
+        if (storeKitService.isAvailable()) {
+          storeKitService.removePurchaseListener(handlePurchaseComplete);
+        }
+      };
     }
-  }, [isOpen]);
+  }, [isOpen, onClose, onPurchase, selectedProduct]);
 
   const handlePurchase = async () => {
     setIsLoading(true);
@@ -42,12 +78,27 @@ const PaywallModal: React.FC<PaywallModalProps> = ({
         const result = await storeKitService.purchase(productId);
         
         if (result.success) {
+          console.log('✅ Compra exitosa, actualizando estado...');
           localStorage.setItem('isPremium', 'true');
           localStorage.setItem('subscriptionType', selectedProduct);
           localStorage.setItem('trialStartDate', new Date().toISOString());
-          alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
-          onPurchase(productId);
+          
+          // Cerrar modal inmediatamente
           onClose();
+          
+          // Notificar éxito después de cerrar
+          setTimeout(() => {
+            alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
+            onPurchase(productId);
+            
+            // Disparar evento para actualizar estado en toda la app
+            window.dispatchEvent(new CustomEvent('subscription-updated', { 
+              detail: { isPremium: true, productId } 
+            }));
+          }, 300);
+        } else if (result.reason === 'cancelled') {
+          console.log('ℹ️ Usuario canceló la compra');
+          // No mostrar error si el usuario canceló
         } else {
           alert(`Error en la compra: ${result.error || 'Por favor, inténtalo de nuevo.'}`);
         }
@@ -56,12 +107,27 @@ const PaywallModal: React.FC<PaywallModalProps> = ({
         const result = await googlePlayBillingNativeService.purchase(productId);
         
         if (result.success) {
+          console.log('✅ Compra exitosa, actualizando estado...');
           localStorage.setItem('isPremium', 'true');
           localStorage.setItem('subscriptionType', selectedProduct);
           localStorage.setItem('trialStartDate', new Date().toISOString());
-          alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
-          onPurchase(productId);
+          
+          // Cerrar modal inmediatamente
           onClose();
+          
+          // Notificar éxito después de cerrar
+          setTimeout(() => {
+            alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
+            onPurchase(productId);
+            
+            // Disparar evento para actualizar estado en toda la app
+            window.dispatchEvent(new CustomEvent('subscription-updated', { 
+              detail: { isPremium: true, productId } 
+            }));
+          }, 300);
+        } else if (result.reason === 'cancelled') {
+          console.log('ℹ️ Usuario canceló la compra');
+          // No mostrar error si el usuario canceló
         } else {
           alert(`Error en la compra: ${result.error || 'Por favor, inténtalo de nuevo.'}`);
         }
@@ -72,8 +138,10 @@ const PaywallModal: React.FC<PaywallModalProps> = ({
         localStorage.setItem('isPremium', 'true');
         localStorage.setItem('subscriptionType', selectedProduct);
         localStorage.setItem('trialStartDate', new Date().toISOString());
-        onPurchase(productId);
         onClose();
+        setTimeout(() => {
+          onPurchase(productId);
+        }, 300);
       }
     } catch (error) {
       console.error('Error en el proceso de compra:', error);

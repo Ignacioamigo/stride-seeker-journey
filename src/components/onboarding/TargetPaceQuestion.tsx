@@ -3,10 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import RunButton from "@/components/ui/RunButton";
 import ProgressHeader from "@/components/layout/ProgressHeader";
+import { useSafeAreaInsets } from "@/hooks/utils/useSafeAreaInsets";
 
 const TargetPaceQuestion: React.FC = () => {
   const { user, updateUser } = useUser();
   const navigate = useNavigate();
+  const insets = useSafeAreaInsets();
+
+  // Calculate header height: safe area + padding + content
+  const headerHeight = insets.top + 24 + 32;
 
   // Inicializar minutos y segundos desde targetPace si existe
   const initialMinutes = user.targetPace ? Math.floor(user.targetPace).toString() : "5";
@@ -14,12 +19,18 @@ const TargetPaceQuestion: React.FC = () => {
 
   const [minutes, setMinutes] = useState<string>(initialMinutes);
   const [seconds, setSeconds] = useState<string>(initialSeconds);
+  const [noTargetPace, setNoTargetPace] = useState<boolean>(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Convertir minutos y segundos a formato decimal (ej: 4:30 = 4.5)
-    const totalMinutes = parseInt(minutes) + parseInt(seconds) / 60;
-    updateUser({ targetPace: totalMinutes });
+    if (noTargetPace) {
+      // Si no tiene ritmo objetivo, guardar null
+      updateUser({ targetPace: null });
+    } else {
+      // Convertir minutos y segundos a formato decimal (ej: 4:30 = 4.5)
+      const totalMinutes = parseInt(minutes) + parseInt(seconds) / 60;
+      updateUser({ targetPace: totalMinutes });
+    }
     navigate("/onboarding/target-timeframe");
   };
 
@@ -37,13 +48,21 @@ const TargetPaceQuestion: React.FC = () => {
     }
   };
 
-  const isValid = minutes !== "" && seconds !== "";
+  const isValid = noTargetPace || (minutes !== "" && seconds !== "");
 
   return (
-    <div className="min-h-screen pt-16 pb-20 flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white">
-      <ProgressHeader currentStep={9} totalSteps={12} />
+    <div 
+      className="min-h-screen flex flex-col bg-gradient-to-b from-runapp-light-purple/30 to-white"
+      style={{
+        paddingTop: headerHeight,
+        paddingBottom: insets.bottom + 80,
+        paddingLeft: Math.max(insets.left, 16),
+        paddingRight: Math.max(insets.right, 16),
+      }}
+    >
+      <ProgressHeader currentStep={9} totalSteps={12} showBackButton={true} />
 
-      <div className="flex-1 flex flex-col justify-center px-6 max-w-md mx-auto w-full">
+      <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <div className="bg-white rounded-xl p-6 shadow-sm">
           <h2 className="text-2xl font-semibold text-runapp-navy mb-2">
             ¿A qué ritmo quieres correr?
@@ -66,7 +85,8 @@ const TargetPaceQuestion: React.FC = () => {
                     placeholder="4"
                     min="0"
                     max="59"
-                    className="w-full px-4 py-4 rounded-lg border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-runapp-purple focus:border-transparent text-center text-2xl font-semibold"
+                    disabled={noTargetPace}
+                    className="w-full px-4 py-4 rounded-lg border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-runapp-purple focus:border-transparent text-center text-2xl font-semibold disabled:bg-gray-100 disabled:text-gray-400"
                     autoFocus
                   />
                   <label className="block text-sm text-center mt-2 text-runapp-gray font-medium">min</label>
@@ -82,12 +102,28 @@ const TargetPaceQuestion: React.FC = () => {
                     placeholder="35"
                     min="0"
                     max="59"
-                    className="w-full px-4 py-4 rounded-lg border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-runapp-purple focus:border-transparent text-center text-2xl font-semibold"
+                    disabled={noTargetPace}
+                    className="w-full px-4 py-4 rounded-lg border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-runapp-purple focus:border-transparent text-center text-2xl font-semibold disabled:bg-gray-100 disabled:text-gray-400"
                   />
                   <label className="block text-sm text-center mt-2 text-runapp-gray font-medium">seg</label>
                 </div>
                 
                 <div className="ml-2 text-xl font-medium text-runapp-navy pb-6">/km</div>
+              </div>
+
+              {/* Opción para quienes no tienen ritmo objetivo */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={noTargetPace}
+                    onChange={(e) => setNoTargetPace(e.target.checked)}
+                    className="mt-1 w-5 h-5 rounded border-gray-300 text-runapp-purple focus:ring-runapp-purple"
+                  />
+                  <span className="text-sm text-runapp-gray">
+                    Prefiero descubrir mi ritmo durante el entrenamiento
+                  </span>
+                </label>
               </div>
             </div>
 
@@ -96,7 +132,10 @@ const TargetPaceQuestion: React.FC = () => {
               <div className="bg-runapp-light-purple/20 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-runapp-navy mb-2">Tu objetivo de ritmo:</h3>
                 <p className="text-sm text-runapp-gray">
-                  {minutes}:{seconds.padStart(2, '0')} minutos por kilómetro
+                  {noTargetPace 
+                    ? "Irás descubriendo tu ritmo ideal con el plan de entrenamiento" 
+                    : `${minutes}:${seconds.padStart(2, '0')} minutos por kilómetro`
+                  }
                 </p>
               </div>
             )}

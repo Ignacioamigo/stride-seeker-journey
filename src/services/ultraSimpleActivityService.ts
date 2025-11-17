@@ -66,33 +66,6 @@ export const publishActivityUltraSimple = async (
     );
     
     console.log('📊 [ULTRA SIMPLE] Guardado en workouts_simple:', workoutSaved);
-    
-    // ✅ NUEVO: Si hay training_session_id, TAMBIÉN guardar en simple_workouts
-    // Esto actualiza las estadísticas automáticamente
-    if (trainingSessionId) {
-      console.log('📊 [ULTRA SIMPLE] Guardando también en simple_workouts para estadísticas...');
-      
-      try {
-        const { saveSimpleWorkout } = await import('./simpleWorkoutsService');
-        await saveSimpleWorkout(
-          data.title,
-          'carrera',
-          distanceKm,
-          durationMinutes,
-          null, // plan_id (no lo necesitamos para estadísticas)
-          null  // week_number
-        );
-        
-        console.log('✅ [ULTRA SIMPLE] Guardado en simple_workouts (estadísticas actualizadas)');
-        
-        // Disparar evento de actualización de estadísticas
-        window.dispatchEvent(new CustomEvent('statsUpdated'));
-        console.log('📢 [ULTRA SIMPLE] Evento statsUpdated disparado');
-      } catch (statsError) {
-        console.warn('⚠️ [ULTRA SIMPLE] Error guardando en simple_workouts:', statsError);
-        // No es crítico, continuar
-      }
-    }
 
     // 2. OBTENER USUARIO Y SU NOMBRE
     let userEmail = 'anonimo@app.com';
@@ -162,6 +135,32 @@ export const publishActivityUltraSimple = async (
     if (!insertError && savedActivity) {
       console.log('✅ [ULTRA SIMPLE] ¡ACTIVIDAD GUARDADA EN SUPABASE!', savedActivity.id);
       
+      // ✅ ACTUALIZAR ESTADÍSTICAS si hay training_session_id
+      if (trainingSessionId) {
+        console.log('📊 [ULTRA SIMPLE] Guardando también en simple_workouts para estadísticas...');
+        
+        try {
+          const { saveSimpleWorkout } = await import('./simpleWorkoutsService');
+          await saveSimpleWorkout(
+            data.title,
+            'carrera',
+            distanceKm,
+            durationMinutes,
+            null, // plan_id
+            null  // week_number
+          );
+          
+          console.log('✅ [ULTRA SIMPLE] Guardado en simple_workouts (estadísticas actualizadas)');
+          
+          // Disparar evento de actualización de estadísticas
+          window.dispatchEvent(new CustomEvent('statsUpdated'));
+          console.log('📢 [ULTRA SIMPLE] Evento statsUpdated disparado');
+        } catch (statsError) {
+          console.warn('⚠️ [ULTRA SIMPLE] Error guardando en simple_workouts:', statsError);
+          // No es crítico, continuar
+        }
+      }
+      
       // Backup en localStorage
       const localActivity = {
         ...activityData,
@@ -190,13 +189,20 @@ export const publishActivityUltraSimple = async (
     console.error('💥 [ULTRA SIMPLE] Error general:', error);
     
     // Fallback LOCAL como último recurso
+    const fallbackDistanceKm = Math.round(data.runSession.distance / 1000 * 100) / 100;
+    
+    // ✅ FIX: duration ya es un string HH:MM:SS, no necesita conversión
+    const fallbackDuration = typeof data.runSession.duration === 'string' 
+      ? data.runSession.duration 
+      : '00:00:00';
+    
     const localActivity = {
       id: fallbackId,
       title: data.title,
       description: data.description || 'Entrenamiento guardado localmente',
-      distance: Math.round(data.runSession.distance / 1000 * 100) / 100,
-      duration: `00:${Math.floor(data.runSession.duration / 60).toString().padStart(2, '0')}:${Math.floor(data.runSession.duration % 60).toString().padStart(2, '0')}`,
-      calories: Math.round(data.runSession.distance / 1000 * 60),
+      distance: fallbackDistanceKm,
+      duration: fallbackDuration,
+      calories: Math.round(fallbackDistanceKm * 60),
       user_email: 'local@fallback.com',
       created_at: new Date().toISOString(),
       source: 'local_fallback'
