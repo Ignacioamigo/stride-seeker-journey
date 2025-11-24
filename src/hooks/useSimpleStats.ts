@@ -215,7 +215,7 @@ export const useSimpleStats = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Escuchar eventos de entrenamiento guardado/eliminado
+  // Escuchar eventos de entrenamiento guardado/eliminado + Auto-refresh
   useEffect(() => {
     const handleWorkoutSaved = () => {
       console.log('[useSimpleStats] Entrenamiento guardado - recalculando');
@@ -239,12 +239,19 @@ export const useSimpleStats = () => {
       setTimeout(() => calculateStats(), 200);
     };
 
+    // ✅ NUEVO: Auto-refresh cada 30 segundos para detectar actividades de Strava
+    const refreshInterval = setInterval(() => {
+      console.log('[useSimpleStats] 🔄 Auto-refresh activado (cada 30s) - verificando nuevos datos');
+      calculateStats();
+    }, 30000);
+
     window.addEventListener('workout-saved', handleWorkoutSaved);
     window.addEventListener('workout-deleted', handleWorkoutDeleted);
     window.addEventListener('resetStats', handleResetStats);
     window.addEventListener('onboarding-completed', handleOnboardingComplete);
 
     return () => {
+      clearInterval(refreshInterval);
       window.removeEventListener('workout-saved', handleWorkoutSaved);
       window.removeEventListener('workout-deleted', handleWorkoutDeleted);
       window.removeEventListener('resetStats', handleResetStats);

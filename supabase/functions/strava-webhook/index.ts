@@ -29,7 +29,7 @@ serve(async (req) => {
     const hubChallenge = url.searchParams.get('hub.challenge');
     const hubVerifyToken = url.searchParams.get('hub.verify_token');
 
-    const WEBHOOK_VERIFY_TOKEN = Deno.env.get('STRAVA_WEBHOOK_VERIFY_TOKEN') || 'stride_seeker_verify';
+    const WEBHOOK_VERIFY_TOKEN = Deno.env.get('STRAVA_WEBHOOK_VERIFY_TOKEN') || 'berun_webhook_verify_2024';
 
     if (hubMode === 'subscribe' && hubVerifyToken === WEBHOOK_VERIFY_TOKEN) {
       console.log('Webhook verification successful');
@@ -69,32 +69,26 @@ serve(async (req) => {
 
       const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-      // Find user by Strava athlete ID - USANDO NUEVA TABLA
-      console.log(`🔍 [V2] Looking for user with Strava athlete ID: ${event.owner_id}`);
-      const { data: tokenData, error: tokenError } = await supabaseAdmin
+      // Find user by Strava athlete ID
+      console.log(`🔍 Looking for user with Strava athlete ID: ${event.owner_id}`);
+      const { data: connection, error: connError } = await supabaseAdmin
         .from('strava_connections')
-        .select('user_id, access_token, refresh_token, expires_at, strava_user_id')
+        .select('user_auth_id, access_token, refresh_token, expires_at')
         .eq('strava_user_id', event.owner_id)
         .maybeSingle();
 
-      if (tokenError) {
-        console.log(`❌ [V2] Error querying strava_connections: ${tokenError.message}`);
+      if (connError || !connection) {
+        console.log(`❌ No connection found for Strava athlete ${event.owner_id}`);
         return new Response('OK', { status: 200 });
       }
 
-      if (!tokenData) {
-        console.log(`❌ [V2] No user found for Strava athlete ${event.owner_id}`);
-        console.log('💡 This means either:');
-        console.log('   1. User never connected Strava');
-        console.log('   2. strava_user_id is missing/incorrect in strava_connections table');
-        return new Response('OK', { status: 200 });
-      }
-
-      console.log(`✅ Found user: ${tokenData.user_id} for athlete: ${event.owner_id}`);
+      console.log(`✅ Found connection for user: ${connection.user_auth_id}`);
 
       // Check if token needs refresh
-      let accessToken = tokenData.access_token;
-      if (Date.now() / 1000 > tokenData.expires_at) {
+      let accessToken = connection.access_token;
+      const now = Date.now() / 1000;
+
+      if (now > connection.expires_at) {
         const STRAVA_CLIENT_ID = Deno.env.get('STRAVA_CLIENT_ID');
         const STRAVA_CLIENT_SECRET = Deno.env.get('STRAVA_CLIENT_SECRET');
 
@@ -111,7 +105,7 @@ serve(async (req) => {
             client_id: STRAVA_CLIENT_ID,
             client_secret: STRAVA_CLIENT_SECRET,
             grant_type: 'refresh_token',
-            refresh_token: tokenData.refresh_token,
+            refresh_token: connection.refresh_token,
           }),
         });
 
@@ -132,7 +126,7 @@ serve(async (req) => {
             expires_at: refreshData.expires_at,
             updated_at: new Date().toISOString(),
           })
-          .eq('user_id', tokenData.user_id);
+          .eq('user_auth_id', connection.user_auth_id);
       }
 
       // Fetch activity details from Strava
@@ -157,7 +151,7 @@ serve(async (req) => {
 
       // Check if we already imported this activity
       const { data: existingActivity } = await supabaseAdmin
-        .from('published_activities')
+        .from('published_activities_simple')
         .select('id')
         .eq('strava_activity_id', event.object_id)
         .maybeSingle();
@@ -178,18 +172,23 @@ serve(async (req) => {
       const distanceInMeters = activity.distance || 0;
 
       // Create published activity directly
+      const distanceKm = Math.round((distanceInMeters / 1000) * 100) / 100;
+      const durationMinutes = Math.round(durationInSeconds / 60);
+      
       const { data: publishedActivity, error: insertError } = await supabaseAdmin
-        .from('published_activities')
+        .from('published_activities_simple')
         .insert({
-          user_id: tokenData.user_id,
+          user_id: connection.user_auth_id,
           title: activity.name || 'Carrera desde Strava',
-          description: activity.description || '',
-          distance: distanceInMeters,
+          description: activity.description || 'Importada desde Strava',
+          distance: distanceKm,
           duration: durationString,
           is_public: !activity.private,
           strava_activity_id: event.object_id,
           imported_from_strava: true,
           activity_date: new Date(activity.start_date).toISOString(),
+          workout_type: 'carrera',
+          calories: Math.round(distanceKm * 60),
           gps_points: [], // Will be populated below if available
         })
         .select()
@@ -198,6 +197,127 @@ serve(async (req) => {
       if (insertError) {
         console.error('Error creating published activity:', insertError);
         return new Response('OK', { status: 200 });
+      }
+
+      console.log(`✅ Activity saved to published_activities_simple: ${publishedActivity.id}`);
+
+      // Get week_number from active plan for statistics
+      let weekNumber: number | null = null;
+      let planId: string | null = null;
+      
+      try {
+        // Get user's profile id
+        const { data: userProfile } = await supabaseAdmin
+          .from('user_profiles')
+          .select('id')
+          .eq('user_auth_id', connection.user_auth_id)
+          .single();
+
+        if (userProfile) {
+          // Get active plan
+          const { data: activePlan } = await supabaseAdmin
+            .from('training_plans')
+            .select('id, week_number')
+            .eq('user_id', userProfile.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (activePlan) {
+            planId = activePlan.id;
+            weekNumber = activePlan.week_number || 1;
+            console.log(`📅 Using plan ${planId}, week_number: ${weekNumber}`);
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Could not get plan info, will save without week_number');
+      }
+
+      // Save to simple_workouts for statistics
+      console.log('💾 Saving to simple_workouts for statistics...');
+      try {
+        const activityDate = new Date(activity.start_date).toISOString().split('T')[0];
+        
+        const { error: workoutError } = await supabaseAdmin
+          .from('simple_workouts')
+          .insert({
+            user_id: connection.user_auth_id,
+            workout_title: activity.name || 'Carrera desde Strava',
+            workout_type: 'carrera',
+            distance_km: distanceKm,
+            duration_minutes: durationMinutes,
+            workout_date: activityDate,
+            plan_id: planId,
+            week_number: weekNumber,
+          });
+
+        if (workoutError) {
+          console.error('⚠️ Error saving to simple_workouts:', workoutError);
+        } else {
+          console.log(`✅ Activity saved to simple_workouts with week_number: ${weekNumber}`);
+        }
+      } catch (error) {
+        console.error('⚠️ Error saving to simple_workouts:', error);
+      }
+
+      // Try to find and complete matching training session
+      if (planId) {
+        console.log(`🎯 Looking for matching training session in plan ${planId}...`);
+        try {
+          const activityDate = new Date(activity.start_date).toISOString().split('T')[0];
+          console.log(`📅 Activity date: ${activityDate}`);
+          
+          // Find ALL incomplete sessions in the plan (not just within 3 days)
+          const { data: sessions, error: sessionsError } = await supabaseAdmin
+            .from('training_sessions')
+            .select('id, day_date, title, planned_distance, completed')
+            .eq('plan_id', planId)
+            .eq('completed', false)
+            .order('day_date', { ascending: true });
+
+          if (sessionsError) {
+            console.error('⚠️ Error fetching training sessions:', sessionsError);
+          }
+
+          console.log(`📋 Found ${sessions?.length || 0} incomplete sessions`);
+          
+          if (sessions && sessions.length > 0) {
+            // Log all sessions for debugging
+            console.log('📝 Incomplete sessions:');
+            sessions.forEach(s => {
+              console.log(`  - ${s.title} on ${s.day_date} (${s.planned_distance || 0}km)`);
+            });
+            
+            // ESTRATEGIA: Siempre completar la PRIMERA sesión incompleta (orden cronológico)
+            // Esto asegura que se completen en orden, sin importar cuándo corras
+            const bestMatch = sessions[0]; // Ya vienen ordenadas por day_date ASC
+            
+            console.log(`✅ Auto-completing FIRST incomplete session: ${bestMatch.title} on ${bestMatch.day_date}`);
+            console.log(`   Activity: ${distanceKm}km on ${activityDate}`);
+
+            
+            // Mark session as completed
+            const { error: updateError } = await supabaseAdmin
+              .from('training_sessions')
+              .update({
+                completed: true,
+                actual_distance: distanceKm,
+                actual_duration: durationString,
+                completion_date: new Date().toISOString()
+              })
+              .eq('id', bestMatch.id);
+
+            if (updateError) {
+              console.error('⚠️ Error completing training session:', updateError);
+            } else {
+              console.log(`🎉 Training session auto-completed: ${bestMatch.title}`);
+            }
+          } else {
+            console.log('ℹ️ No incomplete sessions found in plan');
+          }
+        } catch (error) {
+          console.error('⚠️ Error finding/completing training session:', error);
+        }
       }
 
       // Import GPS points if available
@@ -225,7 +345,7 @@ serve(async (req) => {
 
               // Update the published activity with GPS points
               await supabaseAdmin
-                .from('published_activities')
+                .from('published_activities_simple')
                 .update({ gps_points: gpsPoints.slice(0, 1000) }) // Limit to 1000 points
                 .eq('id', publishedActivity.id);
             }
@@ -235,7 +355,7 @@ serve(async (req) => {
         }
       }
 
-      console.log(`✅ Successfully imported activity ${event.object_id} for user ${tokenData.user_id}`);
+      console.log(`✅ Successfully imported activity ${event.object_id} for user ${connection.user_auth_id}`);
       console.log(`📊 Activity details: ${activity.name} - ${activity.distance}m - ${activity.elapsed_time}s`);
       return new Response('OK', { status: 200 });
 

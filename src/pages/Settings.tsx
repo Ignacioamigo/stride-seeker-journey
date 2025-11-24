@@ -9,6 +9,7 @@ import Header from '@/components/layout/Header';
 import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { Browser } from '@capacitor/browser';
+import StravaConnectButton from '@/components/ui/StravaConnectButton';
 
 const HEADER_HEIGHT = 44;
 
@@ -26,30 +27,22 @@ const Settings: React.FC = () => {
     try {
       setCheckingStrava(true);
       
-      // Get the same userId we use for connection
-      let userId = localStorage.getItem('stride_user_id');
+      // Get authenticated user
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       
-      // FORCE REGENERATE if current ID is not a valid UUID
-      if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
-        console.log('🔄 Generating new UUID for check (old format detected)');
-        userId = crypto.randomUUID();
-        localStorage.setItem('stride_user_id', userId);
-        console.log('✅ New UUID generated for check:', userId);
-      }
-      
-      if (!userId) {
+      if (!authUser) {
         setIsStravaLinked(false);
         return;
       }
 
       const { data, error } = await supabase
         .from('strava_connections')
-        .select('user_id')
-        .eq('user_id', userId)
+        .select('user_auth_id')
+        .eq('user_auth_id', authUser.id)
         .maybeSingle();
       
       if (error) {
-        console.error('Error checking Strava tokens:', error);
+        console.error('Error checking Strava connection:', error);
         setIsStravaLinked(false);
         return;
       }
@@ -79,36 +72,22 @@ const Settings: React.FC = () => {
         return;
       }
 
-      // Generate a UUID-compatible user identifier for this session
-      // This is a temporary solution until we implement proper auth
-      let userId = localStorage.getItem('stride_user_id');
-      
-      // FORCE REGENERATE if current ID is not a valid UUID
-      if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
-        console.log('🔄 Generating new UUID (old format detected)');
-        // Generate a valid UUID v4
-        userId = crypto.randomUUID();
-        localStorage.setItem('stride_user_id', userId);
-        console.log('✅ New UUID generated:', userId);
-      }
-      
-      console.log('Using user ID for Strava connection:', userId);
+      console.log('🔗 Connecting to Strava for user:', authUser.id);
 
       // Build Strava OAuth URL with proper parameters
-      const stravaClientId = "172613";
-      const redirectUri = `${SUPABASE_URL}/functions/v1/strava-public`;
-      const redirectBack = window.location.href; // Current page URL
+      const stravaClientId = "186314"; // New Client ID from screenshot
+      const redirectUri = `${SUPABASE_URL}/functions/v1/strava-auth`;
       const scope = "read,activity:read,activity:read_all";
       
       console.log('Strava auth parameters:', {
         stravaClientId,
         redirectUri,
-        redirectBack,
         scope,
-        userId
+        userAuthId: authUser.id
       });
       
-      const stravaConnectUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&redirect_to=${encodeURIComponent(redirectBack)}&approval_prompt=force&scope=${scope}&state=${userId}`;
+      // Use user_auth_id as state parameter
+      const stravaConnectUrl = `https://www.strava.com/oauth/authorize?client_id=${stravaClientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=${scope}&state=${authUser.id}`;
       
       console.log('Strava Connect URL:', stravaConnectUrl);
       
@@ -121,9 +100,10 @@ const Settings: React.FC = () => {
         window.open(stravaConnectUrl, '_blank');
       }
 
+      // Check connection status after a delay
       setTimeout(() => {
         checkStravaLink();
-      }, 2000);
+      }, 3000);
     } catch (error) {
       console.error('Error connecting to Strava:', error);
       const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
@@ -135,89 +115,61 @@ const Settings: React.FC = () => {
     }
   }, [checkStravaLink]);
 
+  const disconnectStrava = useCallback(async () => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+
+      const { error } = await supabase
+        .from('strava_connections')
+        .delete()
+        .eq('user_auth_id', authUser.id);
+
+      if (error) {
+        console.error('Error disconnecting Strava:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo desconectar Strava",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setIsStravaLinked(false);
+      toast({
+        title: "Desconectado",
+        description: "Tu cuenta de Strava ha sido desconectada",
+      });
+    } catch (error) {
+      console.error('Error disconnecting Strava:', error);
+    }
+  }, []);
+
   const importFromStrava = useCallback(async () => {
     try {
       setImportingStrava(true);
       
-      let userId = localStorage.getItem('stride_user_id');
-      
-      // FORCE REGENERATE if current ID is not a valid UUID
-      if (!userId || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
-        console.log('🔄 Generating new UUID for import (old format detected)');
-        userId = crypto.randomUUID();
-        localStorage.setItem('stride_user_id', userId);
-        console.log('✅ New UUID generated for import:', userId);
-      }
-      
-      if (!userId) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
         toast({
           title: "Error",
-          description: "No se encontró ID de usuario",
+          description: "Debes estar autenticado",
           variant: "destructive"
         });
         return;
       }
 
-      console.log('🚀 Iniciando importación de Strava para usuario:', userId);
+      console.log('🚀 Iniciando importación de Strava para usuario:', authUser.id);
 
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/strava-import`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
-        },
-        body: JSON.stringify({ user_id: userId })
+      toast({
+        title: "Sincronización automática",
+        description: "Las actividades de Strava se sincronizarán automáticamente cuando corras",
       });
-
-      console.log('📡 Respuesta del servidor:', response.status, response.statusText);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Error HTTP:', response.status, errorText);
-        
-        let errorMessage = 'Error del servidor';
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (parseError) {
-          errorMessage = `Error ${response.status}: ${errorText}`;
-        }
-        
-        toast({
-          title: "Error de Importación",
-          description: errorMessage,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const result = await response.json();
-      console.log('📊 Resultado de importación:', result);
       
-      if (result.success) {
-        const message = `✅ Importadas ${result.imported_count || result.imported || 0} actividades de Strava`;
-        console.log(message);
-        
-        toast({
-          title: "Importación Exitosa",
-          description: message,
-          variant: "default"
-        });
-        
-        // Refresh the Strava connection status
-        setTimeout(() => {
-          checkStravaLink();
-        }, 1000);
-      } else {
-        const errorMessage = result.error || 'Error desconocido en la importación';
-        console.error('❌ Error en resultado:', errorMessage);
-        
-        toast({
-          title: "Error de Importación",
-          description: errorMessage,
-          variant: "destructive"
-        });
-      }
+      // Refresh the connection status
+      setTimeout(() => {
+        checkStravaLink();
+      }, 1000);
     } catch (error) {
       console.error('💥 Error inesperado importando actividades:', error);
       
@@ -267,37 +219,44 @@ const Settings: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-3">
-                <div className="flex items-center justify-between py-1">
-                  <div>
-                    <p className="font-medium text-runapp-navy">Strava</p>
-                    <p className="text-sm text-runapp-gray">Conecta tu cuenta para importar actividades.</p>
+                {!isStravaLinked ? (
+                  <div className="flex flex-col items-center py-4">
+                    <p className="text-sm text-runapp-gray mb-4 text-center">
+                      Conecta tu cuenta de Strava para sincronizar tus actividades automáticamente
+                    </p>
+                    <StravaConnectButton 
+                      onClick={connectStrava} 
+                      disabled={checkingStrava}
+                    />
                   </div>
-                  {isStravaLinked ? (
-                    <span className="flex items-center text-green-600 text-sm">
-                      <CheckCircle2 className="w-4 h-4 mr-1" /> Conectado
-                    </span>
-                  ) : (
-                    <Button onClick={connectStrava} disabled={checkingStrava} className="bg-runapp-purple hover:bg-runapp-deep-purple text-white">
-                      {checkingStrava ? 'Verificando...' : 'Conectar'}
-                    </Button>
-                  )}
-                </div>
+                ) : (
+                  <div className="flex items-center justify-between py-1">
+                    <div className="flex items-center">
+                      <CheckCircle2 className="w-5 h-5 mr-2 text-green-600" />
+                      <div>
+                        <p className="font-medium text-runapp-navy">Strava conectado</p>
+                        <p className="text-sm text-runapp-gray">Sincronización automática activa</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {isStravaLinked && (
-                  <div className="flex items-center justify-between py-1 pl-4 border-l-2 border-green-200">
-                    <div>
-                      <p className="font-medium text-runapp-navy text-sm">Importar actividades</p>
-                      <p className="text-xs text-runapp-gray">Importa tus últimas 30 carreras de Strava</p>
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-runapp-navy text-sm">Sincronización automática</p>
+                        <p className="text-xs text-runapp-gray">Tus carreras se sincronizarán automáticamente</p>
+                      </div>
+                      <Button 
+                        onClick={disconnectStrava} 
+                        variant="outline" 
+                        size="sm"
+                        className="text-red-600 border-red-300 hover:bg-red-50"
+                      >
+                        Desconectar
+                      </Button>
                     </div>
-                    <Button 
-                      onClick={importFromStrava} 
-                      disabled={importingStrava} 
-                      variant="outline" 
-                      size="sm"
-                      className="text-runapp-purple border-runapp-purple hover:bg-runapp-purple hover:text-white"
-                    >
-                      {importingStrava ? 'Importando...' : 'Importar'}
-                    </Button>
                   </div>
                 )}
               </div>

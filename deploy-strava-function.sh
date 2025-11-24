@@ -1,0 +1,11 @@
+#!/bin/bash
+echo "🚀 Desplegando función strava-auth..."
+echo ""
+echo "Por favor ejecuta estos comandos manualmente:"
+echo ""
+echo "1. supabase login"
+echo "2. supabase link --project-ref uprohtkbghujvjwjnqyv"
+echo "3. supabase functions deploy strava-auth --no-verify-jwt"
+echo ""
+echo "Si pide token, obtén uno desde:"
+echo "https://supabase.com/dashboard/account/tokens"

@@ -1,0 +1,13 @@
+<svg width="193" height="48" viewBox="0 0 193 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Orange background -->
+  <rect width="193" height="48" rx="4" fill="#FC5200"/>
+  
+  <!-- Strava logo -->
+  <path d="M21.5 12L16 24H19.5L21.5 19.5L23.5 24H27L21.5 12Z" fill="white"/>
+  <path d="M21.5 19.5L23.5 24H27L24.5 28.5L21.5 19.5Z" fill="white" opacity="0.7"/>
+  
+  <!-- Text "Connect with Strava" -->
+  <text x="35" y="30" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="white">Connect with Strava</text>
+</svg>
+
+

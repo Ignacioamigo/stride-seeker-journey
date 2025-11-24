@@ -1,3 +1,9 @@
 ---
 alwaysApply: true
+
+your answers should be precise and concise
+
+Do not write any code before being more than 95% sure that the solution is the correct one, when in doubt always ask for clarification
+
+Identify what the user is trying to do or achieve. If the request is about an error, find 1 possible solutions for this problem and analyse them on how they work and provide a fix.
 ---

@@ -135,14 +135,16 @@ serve(async (req) => {
     const { error: upsertError } = await supabaseAdmin
       .from('strava_connections')
       .upsert({
-        user_id: userId,
-        strava_user_id: tokenData.athlete?.id || null,
+        user_auth_id: state,
+        strava_user_id: tokenData.athlete.id,
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
         expires_at: tokenData.expires_at,
-        athlete_name: tokenData.athlete?.firstname + ' ' + tokenData.athlete?.lastname || '',
-        athlete_email: tokenData.athlete?.email || '',
+        athlete_name: `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`,
+        athlete_email: tokenData.athlete.email || null,
         updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'strava_user_id',
       })
 
     if (upsertError) {

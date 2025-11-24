@@ -21,6 +21,24 @@ const Activities: React.FC = () => {
 
   useEffect(() => {
     loadActivities();
+    
+    // ✅ AUTO-REFRESH cada 30 segundos para detectar nuevas actividades de Strava
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 [Activities] Auto-refresh activado (cada 30s)');
+      loadActivities();
+    }, 30000);
+    
+    // ✅ Escuchar evento de actualización manual
+    const handleRefresh = () => {
+      console.log('🔄 [Activities] Refresh manual solicitado');
+      loadActivities();
+    };
+    window.addEventListener('activities-updated', handleRefresh);
+    
+    return () => {
+      clearInterval(refreshInterval);
+      window.removeEventListener('activities-updated', handleRefresh);
+    };
   }, []);
 
   const loadActivities = async () => {

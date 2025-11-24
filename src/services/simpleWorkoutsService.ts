@@ -212,6 +212,10 @@ export const getUserWorkoutsByDateRange = async (
 
 /**
  * Obtiene entrenamientos de un plan específico
+ * COMBINA datos de:
+ * 1. simple_workouts (entrada manual)
+ * 2. training_sessions (sesiones del plan completadas)
+ * 3. published_activities_simple (GPS/Strava vinculados por training_session_id)
  */
 export const getUserWorkoutsByPlan = async (planId: string): Promise<SimpleWorkout[]> => {
   try {
@@ -224,8 +228,10 @@ export const getUserWorkoutsByPlan = async (planId: string): Promise<SimpleWorko
       return [];
     }
 
-    // Obtener entrenamientos del plan
-    const { data, error } = await supabase
+    const workouts: SimpleWorkout[] = [];
+
+    // 1. Obtener entrenamientos MANUALES de simple_workouts
+    const { data: manualWorkouts, error: manualError } = await supabase
       .from('simple_workouts')
       .select('*')
       .eq('user_id', user.id)
@@ -233,13 +239,101 @@ export const getUserWorkoutsByPlan = async (planId: string): Promise<SimpleWorko
       .order('week_number', { ascending: true })
       .order('workout_date', { ascending: false });
 
-    if (error) {
-      console.error('❌ [SimpleWorkouts] Error obteniendo entrenamientos del plan:', error);
-      return [];
+    if (manualError) {
+      console.error('❌ [SimpleWorkouts] Error obteniendo entrenamientos manuales:', manualError);
+    } else if (manualWorkouts && manualWorkouts.length > 0) {
+      console.log(`✅ [SimpleWorkouts] ${manualWorkouts.length} entrenamientos manuales encontrados`);
+      workouts.push(...manualWorkouts);
     }
 
-    console.log(`✅ [SimpleWorkouts] Obtenidos ${data?.length || 0} entrenamientos del plan`);
-    return data || [];
+    // 2. Obtener sesiones COMPLETADAS del plan desde training_sessions
+    const { data: completedSessions, error: sessionsError } = await supabase
+      .from('training_sessions')
+      .select('*')
+      .eq('plan_id', planId)
+      .eq('completed', true)
+      .order('day_date', { ascending: true });
+
+    if (sessionsError) {
+      console.error('❌ [SimpleWorkouts] Error obteniendo training_sessions:', sessionsError);
+    } else if (completedSessions && completedSessions.length > 0) {
+      console.log(`✅ [SimpleWorkouts] ${completedSessions.length} sesiones completadas encontradas`);
+      
+      // 3. Obtener TODAS las actividades GPS vinculadas de una sola vez (más eficiente)
+      const sessionIds = completedSessions.map(s => s.id);
+      const { data: gpsActivities, error: gpsError } = await supabase
+        .from('published_activities_simple')
+        .select('training_session_id, distance, duration, activity_date')
+        .in('training_session_id', sessionIds);
+
+      if (gpsError) {
+        console.warn('⚠️ [SimpleWorkouts] Error obteniendo actividades GPS (no crítico):', gpsError);
+      }
+
+      // Crear un mapa para búsqueda rápida
+      const gpsActivityMap = new Map();
+      if (gpsActivities) {
+        gpsActivities.forEach(activity => {
+          if (activity.training_session_id) {
+            gpsActivityMap.set(activity.training_session_id, activity);
+          }
+        });
+      }
+      
+      // Convertir training_sessions a formato SimpleWorkout
+      for (const session of completedSessions) {
+        // Buscar si tiene actividad GPS vinculada
+        const gpsActivity = gpsActivityMap.get(session.id);
+
+        // Si tiene actividad GPS, usar esos datos; si no, usar los de la sesión
+        const distance = gpsActivity?.distance || session.actual_distance || 0;
+        const durationStr = gpsActivity?.duration || session.actual_duration || '0';
+        
+        // Convertir duración a minutos
+        let durationMinutes = 0;
+        if (typeof durationStr === 'string') {
+          const parts = durationStr.split(':');
+          if (parts.length === 3) {
+            // Formato HH:MM:SS
+            durationMinutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+          } else if (durationStr.includes('min')) {
+            // Formato "30 min"
+            durationMinutes = parseInt(durationStr.replace(/\D/g, '')) || 0;
+          } else {
+            // Solo número
+            durationMinutes = parseInt(durationStr) || 0;
+          }
+        }
+
+        const workoutDate = gpsActivity?.activity_date 
+          ? new Date(gpsActivity.activity_date).toISOString().split('T')[0]
+          : session.day_date;
+
+        workouts.push({
+          id: session.id,
+          user_id: user.id,
+          workout_title: session.title,
+          workout_type: session.type || 'carrera',
+          distance_km: distance,
+          duration_minutes: durationMinutes,
+          workout_date: workoutDate,
+          plan_id: planId,
+          week_number: null, // Las sesiones no tienen week_number directo
+          created_at: session.completion_date || undefined,
+          updated_at: undefined
+        });
+      }
+    }
+
+    console.log(`✅ [SimpleWorkouts] TOTAL: ${workouts.length} entrenamientos del plan ${planId}`);
+    console.log(`📊 [SimpleWorkouts] Desglose:`, workouts.map(w => ({
+      titulo: w.workout_title,
+      distancia: w.distance_km,
+      duracion: w.duration_minutes,
+      fecha: w.workout_date
+    })));
+    
+    return workouts;
 
   } catch (error) {
     console.error('💥 [SimpleWorkouts] Error general obteniendo por plan:', error);

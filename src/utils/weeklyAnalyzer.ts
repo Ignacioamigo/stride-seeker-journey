@@ -83,6 +83,45 @@ export const generateWeeklyInsights = async (
     const totalDistance = thisWeekWorkouts.reduce((sum, w) => sum + (w.distancia_recorrida || 0), 0);
     const lastWeekDistance = lastWeekWorkouts.reduce((sum, w) => sum + (w.distancia_recorrida || 0), 0);
     
+    // 🔥 Calcular ritmo promedio REAL de esta semana
+    let averagePace = "0:00 min/km";
+    let totalTimeMinutes = 0;
+    
+    thisWeekWorkouts.forEach(w => {
+      if (w.duracion && w.distancia_recorrida > 0) {
+        // Convertir duración a minutos
+        const durationStr = w.duracion.toString().toLowerCase().trim();
+        let minutes = 0;
+        
+        if (durationStr.includes(':')) {
+          // Formato HH:MM:SS o MM:SS
+          const parts = durationStr.split(':');
+          if (parts.length === 3) {
+            minutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+          } else if (parts.length === 2) {
+            minutes = parseInt(parts[0]);
+          }
+        } else if (durationStr.includes('min')) {
+          // Formato "30 min"
+          minutes = parseInt(durationStr.replace(/\D/g, '')) || 0;
+        } else {
+          // Solo número
+          minutes = parseInt(durationStr) || 0;
+        }
+        
+        totalTimeMinutes += minutes;
+      }
+    });
+    
+    if (totalDistance > 0 && totalTimeMinutes > 0) {
+      const paceMinutes = totalTimeMinutes / totalDistance;
+      const paceMin = Math.floor(paceMinutes);
+      const paceSec = Math.round((paceMinutes - paceMin) * 60);
+      averagePace = `${paceMin}:${paceSec.toString().padStart(2, '0')} min/km`;
+    }
+    
+    console.log(`⏱️ Ritmo promedio calculado: ${averagePace} (${totalTimeMinutes} min / ${totalDistance} km)`);
+    
     // Calcular rendimiento
     const completionRate = completedWorkouts / weeklyGoal;
     let performance: 'excellent' | 'good' | 'needs_improvement';
@@ -129,7 +168,7 @@ export const generateWeeklyInsights = async (
       personalizedMessage,
       dataHighlights: {
         totalDistance: Math.round(totalDistance * 10) / 10,
-        averagePace: currentWeekStats.averagePace || "0:00 min/km",
+        averagePace: averagePace, // ✅ Usar ritmo calculado de esta semana
         completedWorkouts,
         goalWorkouts: weeklyGoal,
         improvementVsPrevious: {

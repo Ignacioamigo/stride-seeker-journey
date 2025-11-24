@@ -24,13 +24,13 @@ PODS:
   - GoogleMaps/Base (8.4.0)
   - GoogleMaps/Maps (8.4.0):
     - GoogleMaps/Base
-  - IONGeolocationLib (1.0.1)
-  - PurchasesHybridCommon (17.10.0):
-    - RevenueCat (= 5.43.0)
-  - RevenueCat (5.43.0)
-  - RevenuecatPurchasesCapacitor (11.2.7):
+  - IONGeolocationLib (1.0.2)
+  - PurchasesHybridCommon (17.11.0):
+    - RevenueCat (= 5.44.1)
+  - RevenueCat (5.44.1)
+  - RevenuecatPurchasesCapacitor (11.2.8):
     - Capacitor
-    - PurchasesHybridCommon (= 17.10.0)
+    - PurchasesHybridCommon (= 17.11.0)
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
@@ -82,10 +82,10 @@ SPEC CHECKSUMS:
   CapacitorStatusBar: 0659ddc7b1713764a05831463d215b177a15d054
   Google-Maps-iOS-Utils: 66d6de12be1ce6d3742a54661e7a79cb317a9321
   GoogleMaps: 8939898920281c649150e0af74aa291c60f2e77d
-  IONGeolocationLib: 20f9d0248a0b5264511fb57a37e25dd2badf797a
-  PurchasesHybridCommon: b7b4eafb55fbaaac19b4c36d4082657a3f0d8490
-  RevenueCat: a51003d4cb33820cc504cf177c627832b462a98e
-  RevenuecatPurchasesCapacitor: 1b138c8c7ac17b45613b24f8b57c0013cc95dc7a
+  IONGeolocationLib: adbb2a739b0ccda686d4a66f9bc05f8c4fd3d3c0
+  PurchasesHybridCommon: d820837b12781f2af5dbb5faba428811a59b6743
+  RevenueCat: c63342889404269918c1196708246d7c21cf8e6d
+  RevenuecatPurchasesCapacitor: 25ff15bb4d4d46a80f44fe21c367c6f33ffcc83f
 
 PODFILE CHECKSUM: 39e440232fc3946e5597244b6612181f6109b31d
 

@@ -18,10 +18,9 @@ Este documento contiene la documentación completa de todas las tablas en Supaba
    - [published_activities_simple](#6-published_activities_simple)
    - [published_activities](#7-published_activities)
 3. [Tablas Secundarias](#tablas-secundarias)
-   - [fragments](#8-fragments)
-   - [public_races / races](#9-public_races--races)
-   - [activities](#10-activities)
-   - [strava_tokens](#11-strava_tokens)
+   - [strava_connections](#8-strava_connections)
+   - [fragments](#9-fragments)
+   - [public_races / races](#10-public_races--races)
 4. [Problemas Conocidos](#problemas-conocidos)
 5. [Diagrama de Relaciones](#diagrama-de-relaciones)
 
@@ -38,6 +37,7 @@ Este documento contiene la documentación completa de todas las tablas en Supaba
 | **Entrada Manual de Datos** | `simple_workouts` | ✅ Operativa |
 | **GPS Tracker - Estadísticas** | `workouts_simple` | ⚠️ user_id no funciona (usa user_email) |
 | **GPS Tracker - Galería** | `published_activities_simple` | ✅ Operativa (user_id funciona) |
+| **Integración Strava** | `strava_connections` | ✅ Operativa (OAuth + Webhooks) |
 | **Sistema Antiguo** | `published_activities` | ⚠️ Legacy - No se usa |
 | **RAG/Embeddings** | `fragments` | ✅ Operativa (sistema RAG) |
 | **Carreras** | `public_races`, `races` | ✅ Operativa |
@@ -664,6 +664,152 @@ match_fragments: {
 // supabase/functions/generate-embedding/index.ts
 // Se usa para generar embeddings de contenido de entrenamiento
 ```
+
+---
+
+### 8. `strava_connections`
+
+**Descripción:** Almacena las conexiones OAuth de Strava para cada usuario, permitiendo la sincronización automática de actividades.
+
+#### Columnas
+
+| Columna | Tipo | Descripción | Notas |
+|---------|------|-------------|-------|
+| `id` | UUID | ID único de la conexión | PRIMARY KEY |
+| `user_auth_id` | UUID | ID del usuario (FK a auth.users) | ✅ UNIQUE - Un usuario = Una conexión |
+| `strava_user_id` | BIGINT | ID del atleta en Strava | UNIQUE - Para buscar por webhook |
+| `access_token` | TEXT | Token de acceso actual | Required - Para API calls |
+| `refresh_token` | TEXT | Token para renovar acceso | Required - Cuando expira |
+| `expires_at` | BIGINT | Timestamp de expiración | Required - Epoch seconds |
+| `athlete_name` | TEXT | Nombre del atleta | Nullable |
+| `athlete_email` | TEXT | Email del atleta | Nullable |
+| `created_at` | TIMESTAMPTZ | Fecha de creación | Auto |
+| `updated_at` | TIMESTAMPTZ | Fecha de actualización | Auto |
+
+#### Relaciones
+```
+strava_connections.user_auth_id → auth.users.id (Foreign Key)
+  - ON DELETE CASCADE (si se borra usuario, se borra conexión)
+```
+
+#### RLS (Row Level Security)
+```sql
+-- Los usuarios solo pueden ver y gestionar sus propias conexiones
+CREATE POLICY "Users can view own Strava connections"
+  ON strava_connections FOR SELECT
+  USING (auth.uid() = user_auth_id);
+
+CREATE POLICY "Users can insert own Strava connections"
+  ON strava_connections FOR INSERT
+  WITH CHECK (auth.uid() = user_auth_id);
+
+CREATE POLICY "Users can update own Strava connections"
+  ON strava_connections FOR UPDATE
+  USING (auth.uid() = user_auth_id);
+
+CREATE POLICY "Users can delete own Strava connections"
+  ON strava_connections FOR DELETE
+  USING (auth.uid() = user_auth_id);
+```
+
+#### Flujo OAuth
+```typescript
+1. Usuario hace clic en "Conectar Strava" (Settings.tsx)
+   ↓
+2. Redirige a Strava OAuth con state=user_auth_id
+   ↓
+3. Usuario autoriza en Strava
+   ↓
+4. Strava redirige a /functions/v1/strava-auth?code=...&state=user_auth_id
+   ↓
+5. Edge Function intercambia code por tokens
+   ↓
+6. Guarda/actualiza tokens en strava_connections (upsert by user_auth_id)
+   ↓
+7. Usuario ve "Conectado" en la app
+```
+
+#### Refresh automático de tokens
+```typescript
+// En strava-webhook Edge Function
+if (Date.now() / 1000 > connection.expires_at) {
+  // Token expirado, renovar
+  const refreshRes = await fetch('https://www.strava.com/oauth/token', {
+    method: 'POST',
+    body: JSON.stringify({
+      client_id: STRAVA_CLIENT_ID,
+      client_secret: STRAVA_CLIENT_SECRET,
+      grant_type: 'refresh_token',
+      refresh_token: connection.refresh_token,
+    }),
+  });
+  
+  const refreshData = await refreshRes.json();
+  
+  // Actualizar tokens en DB
+  await supabase
+    .from('strava_connections')
+    .update({
+      access_token: refreshData.access_token,
+      refresh_token: refreshData.refresh_token,
+      expires_at: refreshData.expires_at,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_auth_id', connection.user_auth_id);
+}
+```
+
+#### Uso en el código
+
+**Frontend (Settings.tsx):**
+```typescript
+// Verificar si usuario tiene Strava conectado
+const { data } = await supabase
+  .from('strava_connections')
+  .select('user_auth_id')
+  .eq('user_auth_id', authUser.id)
+  .maybeSingle();
+
+setIsStravaLinked(!!data);
+```
+
+**Backend (strava-webhook Edge Function):**
+```typescript
+// Buscar usuario por Strava athlete ID cuando llega webhook
+const { data: connection } = await supabaseAdmin
+  .from('strava_connections')
+  .select('user_auth_id, access_token, refresh_token, expires_at')
+  .eq('strava_user_id', event.owner_id)
+  .maybeSingle();
+
+// Usar access_token para llamar a Strava API
+const activityRes = await fetch(
+  `https://www.strava.com/api/v3/activities/${event.object_id}`,
+  { headers: { Authorization: `Bearer ${connection.access_token}` } }
+);
+```
+
+#### Integración con published_activities_simple
+```typescript
+// Al importar actividad de Strava, se añade strava_activity_id
+const { data: publishedActivity } = await supabaseAdmin
+  .from('published_activities_simple')
+  .insert({
+    user_id: userProfile.id,
+    title: activity.name,
+    distance: distanceKm,
+    duration: durationString,
+    strava_activity_id: event.object_id, // ← Evita duplicados
+    training_session_id: trainingSessionId, // ← Auto-completa entrenamiento
+    // ... más campos
+  });
+```
+
+#### Webhooks de Strava
+La tabla se usa en conjunto con webhooks configurados en Strava:
+- **Verification**: GET request a `/functions/v1/strava-webhook`
+- **Events**: POST request cuando el usuario crea/actualiza actividad
+- **Subscription ID**: 298097 (según memoria) - guardado en Strava, no en DB
 
 ---
 

@@ -207,19 +207,22 @@ export const usePeriodStats = (period: TimePeriod) => {
         }
       }
       
-      // FILTRAR EN MEMORIA para "Esta semana" por plan_id/week_number
+      // FILTRAR EN MEMORIA para "Esta semana" SOLO por week_number
       let workouts;
-      if (period === 'current_week' && plan && plan.id) {
-        console.log(`[usePeriodStats] Filtrando por plan actual: ${plan.id}, semana: ${plan.weekNumber}`);
+      if (period === 'current_week' && plan) {
+        const currentWeekNumber = plan.weekNumber || 1;
+        console.log(`[usePeriodStats] Filtrando ESTRICTAMENTE por week_number: ${currentWeekNumber}`);
+        
         workouts = allWorkouts?.filter(w => {
-          // Verificar si tiene plan_id y week_number (formato Supabase)
-          if (w.plan_id && w.week_number !== undefined) {
-            return w.plan_id === plan.id && w.week_number === plan.weekNumber;
+          // SOLO incluir si tiene week_number Y coincide
+          if (w.week_number !== undefined && w.week_number !== null && w.week_number === currentWeekNumber) {
+            console.log(`[usePeriodStats] ✅ ${w.workout_title}: week ${w.week_number}`);
+            return true;
           }
-          // Fallback: si no tiene esos campos, incluir todos los de localStorage
-          return true;
+          return false;
         }) || [];
-        console.log(`[usePeriodStats] Entrenamientos filtrados por plan/semana: ${workouts.length}`);
+        
+        console.log(`[usePeriodStats] ✅ Total entrenamientos de semana ${currentWeekNumber}: ${workouts.length}`);
       } else {
         workouts = allWorkouts;
       }
@@ -244,20 +247,20 @@ export const usePeriodStats = (period: TimePeriod) => {
         console.log(`  ${index + 1}. ${w.workout_title} - Fecha: ${w.fecha_completado} - Distancia: ${w.distancia_recorrida}km`);
       });
 
-      // Para "Esta semana" ya vienen filtrados por plan, para otros períodos filtrar por fechas
+      // Para "Esta semana" ya vienen filtrados por week_number, para otros períodos filtrar por fechas
       let periodWorkouts;
-      if (period === 'current_week' && plan && plan.id) {
-        // Ya están filtrados por plan_id y week_number
+      if (period === 'current_week' && plan) {
+        // Ya están filtrados por week_number
         periodWorkouts = workouts.filter(w => {
           // ✅ Permitir distancia 0 (útil para pruebas y entrenamientos muy cortos)
           if (w.distancia_recorrida === null || w.distancia_recorrida === undefined || w.distancia_recorrida < 0) {
             console.log(`[usePeriodStats] ❌ Entrenamiento inválido: ${w.workout_title} (sin distancia)`);
             return false;
           }
-          console.log(`[usePeriodStats] ✅ Entrenamiento de la semana ${plan.weekNumber}: ${w.workout_title} - ${w.distancia_recorrida}km`);
+          console.log(`[usePeriodStats] ✅ Contando: ${w.workout_title} - ${w.distancia_recorrida}km`);
           return true;
         });
-        console.log(`[usePeriodStats] Entrenamientos de semana ${plan.weekNumber} del plan:`, periodWorkouts.length);
+        console.log(`[usePeriodStats] Total entrenamientos válidos de semana ${plan.weekNumber}:`, periodWorkouts.length);
       } else {
         // Filtrar por fechas para otros períodos
         const { start, end } = getDateRangeForPeriod(period, plan);

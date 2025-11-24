@@ -133,7 +133,15 @@ const Plan: React.FC = () => {
       loadPlan();
     };
     window.addEventListener('plan-updated', handlePlanUpdated);
+    
+    // ✅ NUEVO: Auto-refresh cada 30 segundos para detectar sesiones completadas de Strava
+    const refreshInterval = setInterval(() => {
+      console.log('[Plan.tsx] 🔄 Auto-refresh activado (cada 30s) - verificando cambios en el plan');
+      loadPlan();
+    }, 30000);
+    
     return () => {
+      clearInterval(refreshInterval);
       window.removeEventListener('plan-updated', handlePlanUpdated);
     };
   }, []);
