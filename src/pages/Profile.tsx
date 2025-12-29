@@ -188,7 +188,7 @@ const Profile: React.FC = () => {
                 </div>
                 <Button 
                   className="bg-runapp-purple hover:bg-runapp-deep-purple text-white rounded-full px-6"
-                  onClick={() => navigate('/profile-settings')}
+                  onClick={() => navigate('/change-goal')}
                 >
                   Cambiar meta
                 </Button>

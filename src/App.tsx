@@ -29,8 +29,10 @@ import TermsAndConditions from "@/pages/TermsAndConditions";
 import NotFound from "@/pages/NotFound";
 import Admin from "@/pages/Admin";
 import PaywallPage from "@/pages/PaywallPage";
+import PaywallWeek2 from "@/pages/PaywallWeek2";
 import SetupPage1 from "@/pages/SetupPage1";
 import SetupPage2 from "@/pages/SetupPage2";
+import ChangeGoalPage from "@/pages/ChangeGoalPage";
 
 // Mobile screens
 import PermissionsScreen from "@/components/PermissionsScreen";
@@ -89,6 +91,7 @@ const App = () => (
                   <Route path="/activities" element={<Activities />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/profile-settings" element={<ProfileSettings />} />
+                  <Route path="/change-goal" element={<ChangeGoalPage />} />
                   <Route path="/configuration" element={<Configuration />} />
                   <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
@@ -96,6 +99,7 @@ const App = () => (
                   <Route path="/setup-1" element={<SetupPage1 />} />
                   <Route path="/setup-2" element={<SetupPage2 />} />
                   <Route path="/paywall" element={<PaywallPage />} />
+                  <Route path="/paywall-week2" element={<PaywallWeek2 />} />
                   
                   {/* Mobile setup routes */}
                   <Route path="/permissions" element={<PermissionsScreen />} />
