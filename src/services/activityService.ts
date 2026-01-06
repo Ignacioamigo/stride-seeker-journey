@@ -664,12 +664,31 @@ export const calculateWorkoutMetrics = (runSession: any): WorkoutMetrics => {
   // Estimate calories (rough calculation)
   const estimatedCalories = Math.round(totalDistance / 1000 * 60); // ~60 cal per km
   
+  // Calculate elevation gain (desnivel positivo)
+  let elevationGain = 0;
+  if (points.length > 1) {
+    for (let i = 1; i < points.length; i++) {
+      const prevAltitude = points[i - 1].altitude;
+      const currentAltitude = points[i].altitude;
+      
+      // Solo sumar si ambas altitudes existen y hay subida
+      if (prevAltitude !== undefined && currentAltitude !== undefined) {
+        const altitudeDiff = currentAltitude - prevAltitude;
+        // Solo contar subidas (desnivel positivo), filtrar ruido menor a 1m
+        if (altitudeDiff > 1) {
+          elevationGain += altitudeDiff;
+        }
+      }
+    }
+  }
+  
   return {
     totalDistance,
     totalDuration,
     averageSpeed,
     averagePace,
     calories: estimatedCalories,
+    elevationGain: Math.round(elevationGain),
     splitTimes
   };
 };

@@ -60,8 +60,8 @@ const PaywallPage: React.FC = () => {
     try {
       const platform = Capacitor.getPlatform();
       const productId = selectedProduct === 'yearly' 
-        ? 'berun_premium_yearly:anual-medio' 
-        : 'berun_premium_monthly:suscripcion-mensual';
+        ? 'berun_premium_yearly' 
+        : 'berun_premium_monthly';
       
       if (platform === 'ios' && Capacitor.isNativePlatform()) {
         // IMPLEMENTACIÓN REAL con StoreKit 2

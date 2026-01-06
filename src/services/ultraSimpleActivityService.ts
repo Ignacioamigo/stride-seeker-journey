@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { WorkoutPublishData } from '@/types';
 import { saveWorkoutSimple } from './simpleWorkoutService';
+import { calculateWorkoutMetrics } from './activityService';
 
 /**
  * SERVICIO ULTRA SIMPLE PARA published_activities_simple
@@ -49,11 +50,18 @@ export const publishActivityUltraSimple = async (
     // Calcular calorías (aprox 60 cal/km)
     const calories = Math.round(Math.max(0, distanceKm) * 60);
     
+    // 🆕 Calcular métricas avanzadas usando la función existente
+    const metrics = calculateWorkoutMetrics(data.runSession);
+    
     console.log('🔧 [ULTRA SIMPLE] Datos calculados:', {
       distanceKm,
       durationSeconds: safeDurationSeconds,
       durationFormatted,
-      calories
+      calories,
+      averagePace: metrics.averagePace,
+      averageSpeed: metrics.averageSpeed,
+      elevationGain: metrics.elevationGain,
+      splitTimesCount: metrics.splitTimes.length
     });
     
     const workoutSaved = await saveWorkoutSimple(
@@ -100,21 +108,27 @@ export const publishActivityUltraSimple = async (
       console.log('👤 [ULTRA SIMPLE] Usuario anónimo sin autenticación');
     }
 
-    // 3. DATOS ULTRA SIMPLES para published_activities_simple
+    // 3. DATOS COMPLETOS para published_activities_simple
     const activityData = {
       user_id: userId,
       user_name: userName, // ✅ Nombre real del usuario
-      training_session_id: trainingSessionId || null, // ✅ NUEVO: Vincular con sesión del plan
+      training_session_id: trainingSessionId || null, // ✅ Vincular con sesión del plan
       title: data.title.trim(),
       description: data.description?.trim() || `Entrenamiento completado: ${distanceKm} km en ${durationFormatted}`,
-      distance: distanceKm, // En km (como en la imagen)
-      duration: durationFormatted, // En formato HH:MM:SS (como en la imagen)
-      calories: calories, // Nueva columna
+      distance: distanceKm, // En km
+      duration: durationFormatted, // En formato HH:MM:SS
+      calories: calories,
+      // 🆕 MÉTRICAS AVANZADAS
+      average_pace: metrics.averagePace, // "5:30" min/km
+      average_speed: metrics.averageSpeed, // 10.5 km/h
+      elevation_gain: metrics.elevationGain || 0, // metros de desnivel positivo
+      split_times: metrics.splitTimes, // Array de tiempos por km
+      // Campos existentes
       user_email: userEmail,
       workout_type: 'carrera',
       activity_date: new Date().toISOString(),
       is_public: data.isPublic !== false,
-      gps_points: data.runSession.gpsPoints?.slice(0, 50) || [] // Limitar puntos GPS
+      gps_points: data.runSession.gpsPoints?.slice(0, 100) || [] // Aumentado a 100 puntos para mejor precisión
     };
     
     // Log especial si hay training_session_id

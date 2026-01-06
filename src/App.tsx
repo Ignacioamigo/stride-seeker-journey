@@ -52,6 +52,7 @@ import TargetTimeframeQuestion from "@/components/onboarding/TargetTimeframeQues
 import RacePreparationQuestion from "@/components/onboarding/RacePreparationQuestion";
 import WeeklyWorkoutsQuestion from "@/components/onboarding/WeeklyWorkoutsQuestion";
 import ExperienceQuestion from "@/components/onboarding/ExperienceQuestion";
+import EmailQuestion from "@/components/onboarding/EmailQuestion";
 import InjuriesQuestion from "@/components/onboarding/InjuriesQuestion";
 
 // Component to handle smart redirects based on onboarding status
@@ -117,6 +118,7 @@ const App = () => (
                   <Route path="/onboarding/target-timeframe" element={<TargetTimeframeQuestion />} />
                   <Route path="/onboarding/race-preparation" element={<RacePreparationQuestion />} />
                   <Route path="/onboarding/weekly-workouts" element={<WeeklyWorkoutsQuestion />} />
+                  <Route path="/onboarding/email" element={<EmailQuestion />} />
                   <Route path="/onboarding/experience" element={<ExperienceQuestion />} />
                   <Route path="/onboarding/injuries" element={<InjuriesQuestion />} />
                   

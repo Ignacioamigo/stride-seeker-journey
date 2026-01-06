@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { Browser } from '@capacitor/browser';
 import StravaConnectButton from '@/components/ui/StravaConnectButton';
+import { ConnectGarmin } from '@/components/garmin/ConnectGarmin';
 
 const HEADER_HEIGHT = 44;
 
@@ -259,6 +260,11 @@ const Settings: React.FC = () => {
                     </div>
                   </div>
                 )}
+                
+                {/* Garmin Integration */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <ConnectGarmin />
+                </div>
               </div>
             </CardContent>
           </Card>

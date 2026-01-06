@@ -1,0 +1,115 @@
+================================================================================
+          SOLUCIÓN: Error de OAuth - Implementación OAuth 1.0a
+================================================================================
+
+PROBLEMA IDENTIFICADO:
+Las funciones estaban implementadas para OAuth 2.0, pero Garmin usa OAuth 1.0a
+
+SOLUCIÓN IMPLEMENTADA:
+✅ Reescrito garmin-auth-start para OAuth 1.0a
+✅ Reescrito garmin-auth-callback para OAuth 1.0a  
+✅ Creada tabla temporal garmin_oauth_temp
+✅ Implementada firma HMAC-SHA1 correcta
+
+
+PASOS PARA APLICAR LA SOLUCIÓN:
+================================================================================
+
+1. CREAR TABLA TEMPORAL
+------------------------
+
+Ve a: https://supabase.com/dashboard/project/uprohtkbghujvjwjnqyv/editor
+
+Copia y ejecuta el contenido de:
+supabase/migrations/create_garmin_oauth_temp.sql
+
+Esta tabla almacena temporalmente los secrets de OAuth durante el flujo.
+
+
+2. REDESPLEGAR FUNCIONES
+-------------------------
+
+Ejecuta en tu terminal:
+
+cd /Users/nachoamigo/stride-seeker-journey
+supabase functions deploy garmin-auth-start --project-ref uprohtkbghujvjwjnqyv --no-verify-jwt
+supabase functions deploy garmin-auth-callback --project-ref uprohtkbghujvjwjnqyv --no-verify-jwt
+
+
+3. PROBAR LA CONEXIÓN
+----------------------
+
+- Reinicia la app
+- Ve a Settings
+- Haz clic en "Connect with Garmin"
+- Completa la autorización
+- ¡Debería funcionar!
+
+
+QUÉ SE CAMBIÓ:
+================================================================================
+
+ANTES (OAuth 2.0 - INCORRECTO):
+- Usaba oauth_consumer_key directamente
+- No generaba request token
+- No firmaba peticiones con HMAC-SHA1
+
+AHORA (OAuth 1.0a - CORRECTO):
+✓ Paso 1: Obtiene request token con firma HMAC-SHA1
+✓ Paso 2: Guarda token_secret temporalmente
+✓ Paso 3: Usuario autoriza en Garmin
+✓ Paso 4: Intercambia oauth_verifier por access token
+✓ Paso 5: Obtiene Garmin User ID
+✓ Paso 6: Guarda conexión en BD
+
+
+FLUJO OAuth 1.0a COMPLETO:
+================================================================================
+
+garmin-auth-start:
+1. Genera parámetros OAuth (consumer_key, timestamp, nonce, etc)
+2. Firma petición con HMAC-SHA1
+3. POST a /oauth/request_token
+4. Recibe oauth_token y oauth_token_secret
+5. Guarda secret en garmin_oauth_temp
+6. Retorna URL: https://connect.garmin.com/oauthConfirm?oauth_token=XXX
+
+Usuario autoriza en Garmin
+
+garmin-auth-callback:
+1. Recibe oauth_token y oauth_verifier
+2. Recupera oauth_token_secret de garmin_oauth_temp
+3. Genera nueva firma con el secret
+4. POST a /oauth/access_token con verifier
+5. Recibe access_token y access_token_secret
+6. Obtiene Garmin User ID con el access_token
+7. Guarda conexión en garmin_connections
+8. Limpia token temporal
+
+
+TABLA TEMPORAL:
+================================================================================
+
+garmin_oauth_temp:
+- oauth_token (PK)
+- oauth_token_secret
+- user_id
+- created_at
+
+Auto-limpieza: Tokens mayores a 10 minutos se eliminan automáticamente
+
+
+NOTAS IMPORTANTES:
+================================================================================
+
+⚠️  OAuth 1.0a es más complejo que OAuth 2.0
+⚠️  Requiere firma HMAC-SHA1 en cada petición
+⚠️  Los tokens de acceso NO expiran (a diferencia de OAuth 2.0)
+⚠️  El secret debe guardarse de forma segura
+
+
+================================================================================
+
+
+
+

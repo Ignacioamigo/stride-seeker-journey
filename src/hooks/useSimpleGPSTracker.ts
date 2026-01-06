@@ -23,6 +23,8 @@ export interface RunSession {
   isPaused: boolean;
   gpsPoints: GPSPoint[];
   avgPace?: string;
+  pausedTime: number; // Tiempo total acumulado en pausa (milisegundos)
+  pauseStartTime?: Date; // Momento en que empezó la pausa actual
 }
 
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
@@ -291,7 +293,8 @@ export const useSimpleGPSTracker = () => {
       duration: "00:00:00",
       isActive: true,
       isPaused: false,
-      gpsPoints: []
+      gpsPoints: [],
+      pausedTime: 0
     });
 
     setIsTracking(true);
@@ -303,7 +306,7 @@ export const useSimpleGPSTracker = () => {
         if (!prev || prev.isPaused) return prev;
         return {
           ...prev,
-          duration: formatDuration(prev.startTime)
+          duration: formatDuration(prev.startTime, undefined, prev.pausedTime)
         };
       });
     }, 1000);
@@ -460,7 +463,11 @@ export const useSimpleGPSTracker = () => {
 
   const pauseRun = () => {
     setIsPaused(true);
-    setRunSession(prev => prev ? { ...prev, isPaused: true } : null);
+    setRunSession(prev => prev ? { 
+      ...prev, 
+      isPaused: true,
+      pauseStartTime: new Date() // Guardar cuándo empezó la pausa
+    } : null);
     
     toast({
       title: "Carrera pausada",
@@ -470,7 +477,22 @@ export const useSimpleGPSTracker = () => {
 
   const resumeRun = () => {
     setIsPaused(false);
-    setRunSession(prev => prev ? { ...prev, isPaused: false } : null);
+    setRunSession(prev => {
+      if (!prev) return null;
+      
+      // Calcular cuánto tiempo estuvo pausado y sumarlo al total
+      let newPausedTime = prev.pausedTime;
+      if (prev.pauseStartTime) {
+        newPausedTime += new Date().getTime() - prev.pauseStartTime.getTime();
+      }
+      
+      return { 
+        ...prev, 
+        isPaused: false,
+        pausedTime: newPausedTime,
+        pauseStartTime: undefined // Limpiar el inicio de pausa
+      };
+    });
     
     toast({
       title: "Carrera reanudada",
@@ -506,7 +528,12 @@ export const useSimpleGPSTracker = () => {
     
     if (runSession) {
       const endTime = new Date();
-      const finalDuration = formatDuration(runSession.startTime, endTime);
+      // Calcular tiempo pausado final (si estaba pausado al terminar)
+      let finalPausedTime = runSession.pausedTime;
+      if (runSession.pauseStartTime) {
+        finalPausedTime += endTime.getTime() - runSession.pauseStartTime.getTime();
+      }
+      const finalDuration = formatDuration(runSession.startTime, endTime, finalPausedTime);
 
       toast({
         title: "¡Carrera completada!",
@@ -519,9 +546,10 @@ export const useSimpleGPSTracker = () => {
     setRunSession(null);
   };
 
-  const formatDuration = (startTime: Date, endTime?: Date): string => {
+  const formatDuration = (startTime: Date, endTime?: Date, pausedTime: number = 0): string => {
     const now = endTime || new Date();
-    const diff = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+    // Restar el tiempo pausado del tiempo total transcurrido
+    const diff = Math.floor((now.getTime() - startTime.getTime() - pausedTime) / 1000);
     const hours = Math.floor(diff / 3600);
     const minutes = Math.floor((diff % 3600) / 60);
     const seconds = diff % 60;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Clock, Route, Activity, ChevronLeft, Share2, Heart, MessageCircle } from 'lucide-react';
+import { MapPin, Clock, Route, Activity, ChevronLeft, Share2, Heart, MessageCircle, Mountain } from 'lucide-react';
 import { PublishedActivity, WorkoutMetrics } from '@/types';
 import { calculateWorkoutMetrics } from '@/services/activityService';
 import SimpleMapView from '@/components/SimpleMapView';
@@ -161,6 +161,14 @@ const ActivityDetailsScreen: React.FC<ActivityDetailsScreenProps> = ({
                 <p className="text-2xl font-bold text-runapp-navy">{metrics.calories || 0}</p>
                 <p className="text-sm text-runapp-gray">Calorías</p>
                 <p className="text-xs text-runapp-gray">estimadas</p>
+              </div>
+            </div>
+            {/* Desnivel positivo */}
+            <div className="flex items-center justify-center p-4 bg-green-50 rounded-lg border border-green-100">
+              <Mountain className="w-5 h-5 text-green-600 mr-3" />
+              <div className="text-center">
+                <p className="text-2xl font-bold text-runapp-navy">{metrics.elevationGain || 0} m</p>
+                <p className="text-sm text-runapp-gray">Desnivel positivo</p>
               </div>
             </div>
           </CardContent>

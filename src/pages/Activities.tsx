@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { MapPin, Clock, Route, Activity, Heart, MessageCircle, ChevronLeft, User } from 'lucide-react';
+import { MapPin, Clock, Route, Activity, Heart, MessageCircle, ChevronLeft, User, Timer, Mountain, Flame, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PublishedActivity } from '@/types';
 import { getPublishedActivitiesUltraSimple } from '@/services/ultraSimpleActivityService';
@@ -15,9 +15,22 @@ const HEADER_HEIGHT = 44;
 const Activities: React.FC = () => {
   const [activities, setActivities] = useState<PublishedActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedSplits, setExpandedSplits] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
   const insets = useSafeAreaInsets();
   const headerHeight = insets.top + HEADER_HEIGHT;
+
+  const toggleSplits = (activityId: string) => {
+    setExpandedSplits(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(activityId)) {
+        newSet.delete(activityId);
+      } else {
+        newSet.add(activityId);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     loadActivities();
@@ -140,6 +153,11 @@ const Activities: React.FC = () => {
           description: activity.description || 'Entrenamiento completado',
           imageUrl: activity.image_url || null,
           calories: Math.max(0, parseInt(activity.calories) || 0),
+          // 🆕 Métricas avanzadas desde la DB
+          averagePace: activity.average_pace || null,
+          averageSpeed: activity.average_speed || null,
+          elevationGain: activity.elevation_gain || 0,
+          splitTimes: Array.isArray(activity.split_times) ? activity.split_times : [],
           runSession: {
             distance: safeDistance * 1000, // km a metros
             duration: durationSeconds, // segundos
@@ -413,16 +431,105 @@ const Activities: React.FC = () => {
 
                   {/* Performance Metrics */}
                   <div className="px-4 pb-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-3 bg-runapp-light-purple/10 rounded-lg">
-                        <p className="text-sm text-runapp-gray mb-1">Velocidad media</p>
-                        <p className="text-xl font-bold text-runapp-navy">{calculateAverageSpeed(activity)} km/h</p>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div className="flex items-center p-3 bg-runapp-light-purple/10 rounded-xl">
+                        <TrendingUp className="w-5 h-5 text-runapp-purple mr-2" />
+                        <div>
+                          <p className="text-xs text-runapp-gray">Velocidad</p>
+                          <p className="text-lg font-bold text-runapp-navy">
+                            {(activity as any).averageSpeed 
+                              ? `${(activity as any).averageSpeed.toFixed(1)} km/h`
+                              : `${calculateAverageSpeed(activity)} km/h`}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-center p-3 bg-runapp-light-purple/10 rounded-lg">
-                        <p className="text-sm text-runapp-gray mb-1">Calorías</p>
-                        <p className="text-xl font-bold text-runapp-navy">{Math.round(activity.runSession.distance / 1000 * 60)}</p>
+                      <div className="flex items-center p-3 bg-orange-50 rounded-xl">
+                        <Flame className="w-5 h-5 text-orange-500 mr-2" />
+                        <div>
+                          <p className="text-xs text-runapp-gray">Calorías</p>
+                          <p className="text-lg font-bold text-runapp-navy">{activity.calories || Math.round(activity.runSession.distance / 1000 * 60)}</p>
+                        </div>
                       </div>
                     </div>
+                    
+                    {/* Desnivel - solo mostrar si hay datos */}
+                    {(activity as any).elevationGain > 0 && (
+                      <div className="flex items-center justify-center p-3 bg-green-50 rounded-xl mb-3">
+                        <Mountain className="w-5 h-5 text-green-600 mr-2" />
+                        <div className="text-center">
+                          <p className="text-lg font-bold text-runapp-navy">{(activity as any).elevationGain} m</p>
+                          <p className="text-xs text-runapp-gray">Desnivel positivo</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Split Times - Tiempos por kilómetro */}
+                    {(activity as any).splitTimes && (activity as any).splitTimes.length > 0 && (
+                      <div className="bg-gray-50 rounded-xl overflow-hidden">
+                        <button 
+                          onClick={() => toggleSplits(activity.id)}
+                          className="w-full flex items-center justify-between p-3 hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center">
+                            <Timer className="w-5 h-5 text-runapp-purple mr-2" />
+                            <span className="font-medium text-runapp-navy">Tiempos por km</span>
+                            <span className="ml-2 text-xs bg-runapp-purple text-white px-2 py-0.5 rounded-full">
+                              {(activity as any).splitTimes.length} km
+                            </span>
+                          </div>
+                          {expandedSplits.has(activity.id) ? (
+                            <ChevronUp className="w-5 h-5 text-runapp-gray" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 text-runapp-gray" />
+                          )}
+                        </button>
+                        
+                        {expandedSplits.has(activity.id) && (
+                          <div className="px-3 pb-3 space-y-2">
+                            {(activity as any).splitTimes.map((split: any, idx: number) => {
+                              // Encontrar mejor y peor split
+                              const allPaces = (activity as any).splitTimes.map((s: any) => {
+                                const [min, sec] = (s.pace || '0:00').split(':').map(Number);
+                                return min * 60 + (sec || 0);
+                              });
+                              const currentPace = (() => {
+                                const [min, sec] = (split.pace || '0:00').split(':').map(Number);
+                                return min * 60 + (sec || 0);
+                              })();
+                              const isBest = currentPace === Math.min(...allPaces);
+                              const isWorst = currentPace === Math.max(...allPaces) && allPaces.length > 1;
+                              
+                              return (
+                                <div 
+                                  key={idx}
+                                  className={`flex items-center justify-between p-2 rounded-lg ${
+                                    isBest ? 'bg-green-100 border border-green-200' :
+                                    isWorst ? 'bg-orange-100 border border-orange-200' : 'bg-white'
+                                  }`}
+                                >
+                                  <div className="flex items-center">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${
+                                      isBest ? 'bg-green-500 text-white' :
+                                      isWorst ? 'bg-orange-500 text-white' : 'bg-runapp-purple text-white'
+                                    }`}>
+                                      {split.kilometer}
+                                    </div>
+                                    <span className="text-sm text-runapp-navy">Km {split.kilometer}</span>
+                                    {isBest && <span className="ml-2 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded">Mejor</span>}
+                                    {isWorst && <span className="ml-2 text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded">+Lento</span>}
+                                  </div>
+                                  <div className="text-right">
+                                    <span className={`font-bold ${isBest ? 'text-green-600' : isWorst ? 'text-orange-600' : 'text-runapp-navy'}`}>
+                                      {split.pace} min/km
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Social actions */}

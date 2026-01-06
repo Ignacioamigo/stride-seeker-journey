@@ -1,0 +1,155 @@
+================================================================================
+              EJECUTAR DESPLIEGUE DE GARMIN (PASOS 2 Y 3)
+================================================================================
+
+IMPORTANTE: Ejecuta estos comandos en tu terminal (no puedo hacerlo automáticamente)
+
+================================================================================
+PASO 2A: LOGIN A SUPABASE
+================================================================================
+
+Abre tu terminal y ejecuta:
+
+supabase login
+
+Se abrirá tu navegador para autenticarte. Completa el login.
+
+
+================================================================================
+PASO 2B: DESPLEGAR LAS 4 EDGE FUNCTIONS
+================================================================================
+
+Una vez logueado, ejecuta:
+
+cd /Users/nachoamigo/stride-seeker-journey
+./scripts/deploy-garmin-functions.sh
+
+Deberías ver:
+
+✅ garmin-auth-start desplegado
+✅ garmin-auth-callback desplegado
+✅ garmin-webhook desplegado
+✅ garmin-deregister desplegado
+
+URLs de las funciones:
+- https://uprohtkbghujvjwjnqyv.supabase.co/functions/v1/garmin-auth-start
+- https://uprohtkbghujvjwjnqyv.supabase.co/functions/v1/garmin-auth-callback
+- https://uprohtkbghujvjwjnqyv.supabase.co/functions/v1/garmin-webhook
+- https://uprohtkbghujvjwjnqyv.supabase.co/functions/v1/garmin-deregister
+
+
+================================================================================
+PASO 3: CONFIGURAR VARIABLES DE ENTORNO (MANUAL)
+================================================================================
+
+Como no puedo acceder a tu dashboard de Supabase, debes hacerlo manualmente:
+
+1. Abre tu navegador y ve a:
+   https://supabase.com/dashboard/project/uprohtkbghujvjwjnqyv/settings/functions
+
+2. Baja hasta la sección "Environment variables"
+
+3. Haz clic en "Add variable" y añade CADA UNA de estas 3 variables:
+
+   ┌────────────────────────────────────────────────────────────────────┐
+   │ Variable 1:                                                        │
+   │ Name:  GARMIN_CLIENT_ID                                            │
+   │ Value: b8e7d840-e16b-4db5-84ba-b110a8e7a516                        │
+   └────────────────────────────────────────────────────────────────────┘
+
+   ┌────────────────────────────────────────────────────────────────────┐
+   │ Variable 2:                                                        │
+   │ Name:  GARMIN_CLIENT_SECRET                                        │
+   │ Value: nc4ZgcLZP5JD6y/TJIxzDiK2t6XXEVYg31yCFf3jYk0                 │
+   └────────────────────────────────────────────────────────────────────┘
+
+   ┌────────────────────────────────────────────────────────────────────┐
+   │ Variable 3:                                                        │
+   │ Name:  GARMIN_REDIRECT_URI                                         │
+   │ Value: https://uprohtkbghujvjwjnqyv.supabase.co/functions/v1/     │
+   │        garmin-auth-callback                                        │
+   └────────────────────────────────────────────────────────────────────┘
+
+4. Haz clic en "Save" o "Apply"
+
+5. IMPORTANTE: Las variables NO se aplican automáticamente a las funciones
+   que ya están desplegadas. Debes REDESPLEGAR:
+
+   cd /Users/nachoamigo/stride-seeker-journey
+   ./scripts/deploy-garmin-functions.sh
+
+
+================================================================================
+VERIFICAR QUE TODO FUNCIONÓ
+================================================================================
+
+Ejecuta el test automático:
+
+cd /Users/nachoamigo/stride-seeker-journey
+./scripts/test-garmin-integration.sh
+
+Deberías ver:
+
+Tests pasados: 5/5
+✅ ¡Todos los tests pasaron!
+
+
+================================================================================
+SI ALGO FALLA
+================================================================================
+
+Error: "Supabase CLI no está instalado"
+Solución:
+  brew install supabase/tap/supabase
+
+Error: "Cannot find command"
+Solución:
+  Asegúrate de estar en el directorio correcto:
+  cd /Users/nachoamigo/stride-seeker-journey
+
+Error: "Permission denied"
+Solución:
+  chmod +x scripts/*.sh
+  ./scripts/deploy-garmin-functions.sh
+
+Error: "Function not found"
+Solución:
+  Verifica que existan los archivos:
+  ls -la supabase/functions/garmin*/
+
+
+================================================================================
+RESUMEN DE COMANDOS
+================================================================================
+
+Copia y pega estos comandos uno por uno en tu terminal:
+
+# 1. Login
+supabase login
+
+# 2. Ir al directorio del proyecto
+cd /Users/nachoamigo/stride-seeker-journey
+
+# 3. Desplegar funciones
+./scripts/deploy-garmin-functions.sh
+
+# 4. (Después de añadir variables en el dashboard)
+#    Redesplegar para aplicar variables
+./scripts/deploy-garmin-functions.sh
+
+# 5. Testing
+./scripts/test-garmin-integration.sh
+
+
+================================================================================
+SIGUIENTE PASO
+================================================================================
+
+Una vez que veas "✅ Todos los tests pasaron!", continúa con:
+- PASO 4: Configurar webhook en Garmin (lee GARMIN_INSTRUCCIONES_COMPLETAS.txt)
+
+================================================================================
+
+
+
+

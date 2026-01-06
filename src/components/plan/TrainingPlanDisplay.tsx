@@ -295,11 +295,59 @@ const TrainingPlanDisplay: React.FC<TrainingPlanDisplayProps> = ({ plan, onPlanU
   };
   
   const handleGenerateNextWeek = async () => {
-    // Primero mostrar el feedback semanal, luego generar el plan
-    console.log('🎯 Usuario solicita generar siguiente semana - mostrando feedback primero');
+    const currentWeekNumber = plan.weekNumber || 1;
+    
+    // 🔍 DEBUG: Logs detallados
+    console.log('========================================');
+    console.log('🔍 DEBUG handleGenerateNextWeek');
+    console.log('📊 plan.weekNumber:', plan.weekNumber);
+    console.log('📊 currentWeekNumber (con fallback):', currentWeekNumber);
+    
+    // 🔒 Verificar estado premium desde la BASE DE DATOS (no localStorage)
+    let isPremium = false;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('📊 user:', user?.id);
+      
+      if (user) {
+        const { data: userProfile, error } = await supabase
+          .from('user_profiles')
+          .select('is_premium')
+          .eq('user_auth_id', user.id)
+          .single();
+        
+        console.log('📊 userProfile from DB:', userProfile);
+        console.log('📊 DB error:', error);
+        
+        isPremium = userProfile?.is_premium === true;
+        
+        // Sincronizar localStorage con el valor real de la DB
+        localStorage.setItem('isPremium', isPremium.toString());
+      }
+    } catch (error) {
+      console.error('❌ Error verificando premium:', error);
+      // En caso de error, usar localStorage como fallback
+      isPremium = localStorage.getItem('isPremium') === 'true';
+    }
+    
+    console.log('📊 isPremium (desde DB):', isPremium);
+    console.log('📊 Condición (currentWeekNumber === 1):', currentWeekNumber === 1);
+    console.log('📊 Condición (!isPremium):', !isPremium);
+    console.log('📊 Debería ir al paywall:', currentWeekNumber === 1 && !isPremium);
+    console.log('========================================');
+    
+    // 🔒 Si es Semana 1 y NO es premium → Mostrar paywall para desbloquear Semana 2
+    if (currentWeekNumber === 1 && !isPremium) {
+      console.log('🔒 ✅ ENTRANDO AL PAYWALL - Semana 1 + no premium');
+      navigate('/paywall-week2');
+      return;
+    }
+    
+    // ✅ Si es Semana 2+ o es premium → Mostrar feedback normal y generar siguiente semana
+    console.log('🎯 NO entró al paywall - mostrando feedback normal');
+    console.log('   Razón: currentWeekNumber !== 1 OR isPremium === true');
     
     await showWeeklyFeedback(plan, () => {
-      // Este callback se ejecuta cuando el usuario cierra el modal de feedback
       console.log('✅ Feedback cerrado - procediendo a generar siguiente semana');
       performPlanGeneration();
     });

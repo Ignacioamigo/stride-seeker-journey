@@ -1,0 +1,92 @@
+================================================================================
+              CÓMO DARME EL TOKEN DE SUPABASE
+================================================================================
+
+MÉTODO MÁS FÁCIL: Obtener el token después de hacer login
+================================================================================
+
+1. Abre tu terminal y ejecuta:
+
+   supabase login
+
+2. Completa el login en el navegador que se abre.
+
+3. Una vez que termines el login, ejecuta este comando para obtener el token:
+
+   cat ~/.supabase/access-token
+
+   (Si no funciona, prueba: cat ~/.config/supabase/access-token)
+
+4. Copia el token completo que aparece (será una cadena larga de texto)
+
+5. Pásame el token aquí en el chat y yo ejecutaré:
+
+   ./scripts/deploy-garmin-with-token.sh TU_TOKEN
+
+
+ALTERNATIVA: Crear token desde el Dashboard
+================================================================================
+
+1. Ve a: https://supabase.com/dashboard/account/tokens
+
+2. Haz clic en "Generate new token"
+
+3. Dale un nombre (ej: "Garmin Deployment")
+
+4. Copia el token (solo se muestra una vez)
+
+5. Pásame el token aquí
+
+
+CÓMO USAR EL TOKEN (si prefieres hacerlo tú)
+================================================================================
+
+Una vez que tengas el token, puedes ejecutar:
+
+# Opción 1: Con el script especial
+./scripts/deploy-garmin-with-token.sh TU_TOKEN_AQUI
+
+# Opción 2: Con variable de entorno
+export SUPABASE_ACCESS_TOKEN="TU_TOKEN_AQUI"
+./scripts/deploy-garmin-functions.sh
+
+
+EJEMPLO COMPLETO
+================================================================================
+
+# 1. Login
+supabase login
+
+# 2. Obtener token
+cat ~/.supabase/access-token
+
+# 3. Copiar el token que aparece y pasármelo aquí
+
+# 4. Yo ejecutaré:
+./scripts/deploy-garmin-with-token.sh [el-token-que-me-diste]
+
+
+NOTA DE SEGURIDAD
+================================================================================
+
+✅ El token es seguro pasármelo aquí (es un chat privado)
+✅ Solo se usa para desplegar funciones, no para acceder a datos
+✅ Puedes revocarlo después desde el dashboard si quieres
+⚠️  No lo compartas públicamente en repositorios o foros
+
+
+================================================================================
+PASOS RÁPIDOS:
+================================================================================
+
+1. Ejecuta: supabase login
+2. Ejecuta: cat ~/.supabase/access-token
+3. Copia el token que aparece
+4. Pásamelo aquí diciendo: "Aquí está el token: [pega-el-token]"
+5. Yo ejecutaré el despliegue automáticamente
+
+================================================================================
+
+
+
+

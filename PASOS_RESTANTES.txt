@@ -1,0 +1,86 @@
+================================================================================
+              ✅ PASO 2 COMPLETADO - FUNCIONES DESPLEGADAS
+================================================================================
+
+Las 4 Edge Functions de Garmin están desplegadas:
+✅ garmin-auth-start
+✅ garmin-auth-callback
+✅ garmin-webhook
+✅ garmin-deregister
+
+
+================================================================================
+              PASO 1: CREAR TABLA (DEBES HACERLO MANUALMENTE)
+================================================================================
+
+1. Ve a: https://supabase.com/dashboard/project/uprohtkbghujvjwjnqyv/editor
+
+2. Abre el archivo en tu editor:
+   supabase/migrations/create_garmin_connections.sql
+
+3. Copia TODO el contenido del archivo
+
+4. Pégalo en el SQL Editor de Supabase
+
+5. Haz clic en "Run" (botón verde)
+
+6. Deberías ver: "Success. No rows returned"
+
+
+================================================================================
+              PASO 3: CONFIGURAR VARIABLES DE ENTORNO
+================================================================================
+
+1. Ve a: https://supabase.com/dashboard/project/uprohtkbghujvjwjnqyv/settings/functions
+
+2. Baja hasta "Environment variables"
+
+3. Haz clic en "Add variable" para cada una:
+
+   Variable 1:
+   Name:  GARMIN_CLIENT_ID
+   Value: b8e7d840-e16b-4db5-84ba-b110a8e7a516
+
+   Variable 2:
+   Name:  GARMIN_CLIENT_SECRET
+   Value: nc4ZgcLZP5JD6y/TJIxzDiK2t6XXEVYg31yCFf3jYk0
+
+   Variable 3:
+   Name:  GARMIN_REDIRECT_URI
+   Value: https://uprohtkbghujvjwjnqyv.supabase.co/functions/v1/garmin-auth-callback
+
+4. Haz clic en "Save" o "Apply"
+
+5. IMPORTANTE: Después redespliega las funciones ejecutando en tu terminal:
+   cd /Users/nachoamigo/stride-seeker-journey
+   ./scripts/deploy-garmin-functions.sh
+
+
+================================================================================
+              VERIFICAR QUE TODO FUNCIONÓ
+================================================================================
+
+Después de completar los pasos 1 y 3, ejecuta:
+
+cd /Users/nachoamigo/stride-seeker-journey
+./scripts/test-garmin-integration.sh
+
+Deberías ver: "Tests pasados: 5/5"
+
+
+================================================================================
+              SIGUIENTE PASO DESPUÉS
+================================================================================
+
+Una vez que veas "5/5 tests pasados", continúa con:
+- PASO 4: Configurar webhook en Garmin Developer Portal
+- PASO 5: Añadir UI a la app
+
+Lee: GARMIN_INSTRUCCIONES_COMPLETAS.txt
+
+
+================================================================================
+
+
+
+

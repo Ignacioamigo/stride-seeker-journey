@@ -40,14 +40,15 @@ const Plan: React.FC = () => {
   
   const headerHeight = insets.top + HEADER_HEIGHT;
 
-  // 🔒 PROTECCIÓN: Verificar que el usuario haya completado el pago antes de acceder
+  // 🎁 NUEVO FLUJO: Semana 1 es GRATIS, no verificar premium hasta Semana 2
   useEffect(() => {
     const checkPremiumStatus = () => {
       const isPremiumStored = localStorage.getItem('isPremium') === 'true';
+      const freeWeek1Active = localStorage.getItem('freeWeek1Active') === 'true';
       
-      // Si no tiene premium Y ha completado el onboarding, redirigir al paywall (setup-2)
-      if (!isPremiumStored && user.completedOnboarding) {
-        console.log('🔒 Usuario sin premium detectado, redirigiendo a setup-2...');
+      // Si no tiene premium pero está en Semana 1 gratis, permitir acceso
+      if (!isPremiumStored && !freeWeek1Active && user.completedOnboarding) {
+        console.log('🔒 Usuario sin premium ni Semana 1 gratis, redirigiendo a setup-2...');
         navigate('/setup-2', { replace: true });
       }
     };
@@ -173,13 +174,17 @@ const Plan: React.FC = () => {
       return;
     }
 
-    // Check premium access for personalized training plan
+    // 🎁 NUEVO: Semana 1 es GRATIS, permitir generación sin premium
     const isPremiumUser = localStorage.getItem('isPremium') === 'true';
-    if (!isPremiumUser) {
+    const freeWeek1Active = localStorage.getItem('freeWeek1Active') === 'true';
+    
+    if (!isPremiumUser && !freeWeek1Active) {
       console.log("🔒 Premium access required for training plan generation");
       navigate('/setup-1');
       return;
     }
+    
+    console.log('🎁 Generando plan:', isPremiumUser ? 'Usuario Premium' : 'Semana 1 GRATIS');
 
     if (!navigator.onLine) {
       toast({

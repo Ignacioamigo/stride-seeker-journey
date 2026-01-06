@@ -20,6 +20,7 @@ export interface UserProfile {
   injuries: string;
   targetRace?: RaceEvent | null;
   completedOnboarding: boolean;
+  email?: string | null; // Email opcional para recibir tips semanales
 }
 
 export interface RaceEvent {

@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Camera, MapPin, Clock, Route, Activity, ChevronRight, Share } from 'lucide-react';
+import { Camera, MapPin, Clock, Route, Activity, ChevronRight, Share, Flame, Timer, TrendingUp, Mountain } from 'lucide-react';
 import { RunSession, WorkoutPublishData } from '@/types';
 import { useSafeAreaInsets } from '@/hooks/utils/useSafeAreaInsets';
 import { useLayoutStability } from '@/hooks/useLayoutStability';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateWorkoutMetrics } from '@/services/activityService';
 
 interface WorkoutSummaryScreenProps {
   runSession: RunSession;
@@ -34,6 +35,9 @@ const WorkoutSummaryScreen: React.FC<WorkoutSummaryScreenProps> = ({
   
   // Hook para estabilidad de layout
   useLayoutStability();
+  
+  // Calcular métricas del entrenamiento (calorías, splits, pace, etc.)
+  const metrics = calculateWorkoutMetrics(runSession);
   
   // Calcular altura total del header fijo
   const headerHeight = Math.max(insets.top + 20, 40) + 16 + 32 + 64 + 16; // safe area + padding + title + button + spacing
@@ -194,39 +198,136 @@ const WorkoutSummaryScreen: React.FC<WorkoutSummaryScreenProps> = ({
           marginTop: 0
         }}
       >
-        {/* Quick Stats Card */}
+        {/* Quick Stats Card - Estadísticas principales */}
         <Card className="mb-6 bg-gradient-to-r from-runapp-purple to-runapp-deep-purple text-white rounded-2xl">
           <CardContent className="p-6">
-            <div className="space-y-4">
+            {/* Grid de estadísticas principales */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
               {/* Distancia */}
-              <div className="flex items-center justify-center space-x-3">
-                <Route className="w-5 h-5" />
-                <div className="text-center">
-                  <p className="text-2xl font-bold">{formatDistance(runSession.distance)}</p>
-                  <p className="text-xs opacity-80">Distancia</p>
-                </div>
+              <div className="text-center p-3 bg-white/10 rounded-xl">
+                <Route className="w-5 h-5 mx-auto mb-1 opacity-80" />
+                <p className="text-2xl font-bold">{formatDistance(runSession.distance)}</p>
+                <p className="text-xs opacity-80">Distancia</p>
               </div>
               
               {/* Duración */}
-              <div className="flex items-center justify-center space-x-3">
-                <Clock className="w-5 h-5" />
-                <div className="text-center">
-                  <p className="text-xl font-bold">{runSession.duration}</p>
-                  <p className="text-xs opacity-80">Duración</p>
-                </div>
+              <div className="text-center p-3 bg-white/10 rounded-xl">
+                <Clock className="w-5 h-5 mx-auto mb-1 opacity-80" />
+                <p className="text-2xl font-bold">{runSession.duration}</p>
+                <p className="text-xs opacity-80">Duración</p>
+              </div>
+              
+              {/* Ritmo medio */}
+              <div className="text-center p-3 bg-white/10 rounded-xl">
+                <Timer className="w-5 h-5 mx-auto mb-1 opacity-80" />
+                <p className="text-2xl font-bold">{metrics.averagePace}</p>
+                <p className="text-xs opacity-80">min/km</p>
               </div>
               
               {/* Velocidad */}
-              <div className="flex items-center justify-center space-x-3">
-                <Activity className="w-5 h-5" />
-                <div className="text-center">
-                  <p className="text-xl font-bold">{calculateAverageSpeed()}</p>
-                  <p className="text-xs opacity-80">km/h medio</p>
-                </div>
+              <div className="text-center p-3 bg-white/10 rounded-xl">
+                <TrendingUp className="w-5 h-5 mx-auto mb-1 opacity-80" />
+                <p className="text-2xl font-bold">{metrics.averageSpeed.toFixed(1)}</p>
+                <p className="text-xs opacity-80">km/h</p>
+              </div>
+            </div>
+            
+            {/* Calorías y Desnivel - destacados */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center p-4 bg-white/15 rounded-xl border border-white/20">
+                <Flame className="w-6 h-6 mx-auto mb-1 text-orange-300" />
+                <p className="text-2xl font-bold">{metrics.calories || 0}</p>
+                <p className="text-xs opacity-80">calorías</p>
+              </div>
+              <div className="text-center p-4 bg-white/15 rounded-xl border border-white/20">
+                <Mountain className="w-6 h-6 mx-auto mb-1 text-green-300" />
+                <p className="text-2xl font-bold">{metrics.elevationGain || 0}</p>
+                <p className="text-xs opacity-80">m desnivel +</p>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Split Times - Tiempos por kilómetro */}
+        {metrics.splitTimes.length > 0 && (
+          <Card className="mb-6 rounded-2xl">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-runapp-navy flex items-center text-lg">
+                <Timer className="w-5 h-5 mr-2 text-runapp-purple" />
+                Tiempos por kilómetro
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {metrics.splitTimes.map((split, index) => {
+                  // Determinar si es el mejor o peor split
+                  const allPaces = metrics.splitTimes.map(s => {
+                    const [min, sec] = s.pace.split(':').map(Number);
+                    return min * 60 + sec;
+                  });
+                  const currentPace = (() => {
+                    const [min, sec] = split.pace.split(':').map(Number);
+                    return min * 60 + sec;
+                  })();
+                  const isBest = currentPace === Math.min(...allPaces);
+                  const isWorst = currentPace === Math.max(...allPaces) && allPaces.length > 1;
+                  
+                  return (
+                    <div 
+                      key={split.kilometer} 
+                      className={`flex items-center justify-between p-3 rounded-xl transition-all ${
+                        isBest 
+                          ? 'bg-green-50 border border-green-200' 
+                          : isWorst 
+                            ? 'bg-orange-50 border border-orange-200'
+                            : 'bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                          isBest 
+                            ? 'bg-green-500 text-white' 
+                            : isWorst 
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-runapp-purple text-white'
+                        }`}>
+                          {split.kilometer}
+                        </div>
+                        <span className="font-medium text-runapp-navy">Km {split.kilometer}</span>
+                        {isBest && <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">Mejor</span>}
+                        {isWorst && <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full">Más lento</span>}
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-bold ${isBest ? 'text-green-600' : isWorst ? 'text-orange-600' : 'text-runapp-navy'}`}>
+                          {split.pace} min/km
+                        </p>
+                        <p className="text-xs text-runapp-gray">{split.speed.toFixed(1)} km/h</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Resumen de splits */}
+              {metrics.splitTimes.length > 1 && (
+                <div className="mt-4 p-3 bg-runapp-light-purple/10 rounded-xl">
+                  <p className="text-sm text-runapp-gray text-center">
+                    {(() => {
+                      const allPaces = metrics.splitTimes.map(s => {
+                        const [min, sec] = s.pace.split(':').map(Number);
+                        return min * 60 + sec;
+                      });
+                      const variation = Math.max(...allPaces) - Math.min(...allPaces);
+                      const variationMin = Math.floor(variation / 60);
+                      const variationSec = variation % 60;
+                      return `Variación entre splits: ${variationMin}:${variationSec.toString().padStart(2, '0')} min`;
+                    })()}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Workout Details Form */}
         <Card className="mb-6">

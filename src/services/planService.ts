@@ -116,7 +116,8 @@ const ensureUserProfileInSupabase = async (userProfile: UserProfile): Promise<st
         goal: userProfile.goal,
         weekly_workouts: userProfile.weeklyWorkouts,
         experience_level: userProfile.experienceLevel,
-        injuries: userProfile.injuries || ''
+        injuries: userProfile.injuries || '',
+        email: userProfile.email || null
       })
       .select()
       .single();
@@ -250,6 +251,7 @@ export const saveUserProfile = async (userProfile: UserProfile): Promise<UserPro
           weekly_workouts: userProfile.weeklyWorkouts,
           experience_level: userProfile.experienceLevel,
           injuries: userProfile.injuries,
+          email: userProfile.email || null,
           last_updated: new Date().toISOString()
         })
         .eq('id', existingProfile.id)
@@ -274,7 +276,8 @@ export const saveUserProfile = async (userProfile: UserProfile): Promise<UserPro
           goal: userProfile.goal,
           weekly_workouts: userProfile.weeklyWorkouts,
           experience_level: userProfile.experienceLevel,
-          injuries: userProfile.injuries
+          injuries: userProfile.injuries,
+          email: userProfile.email || null
         })
         .select()
         .single();
@@ -830,6 +833,17 @@ export const updateWorkoutResults = async (
  */
 export const generateNextWeekPlan = async (currentPlan: WorkoutPlan): Promise<WorkoutPlan | null> => {
   try {
+    // 🔒 NUEVO: Verificar si el usuario es premium para generar Semana 2+
+    const currentWeekNumber = currentPlan.weekNumber || 1;
+    const isPremium = localStorage.getItem('isPremium') === 'true';
+    const freeWeek1Active = localStorage.getItem('freeWeek1Active') === 'true';
+    
+    if (currentWeekNumber >= 1 && !isPremium && freeWeek1Active) {
+      console.log('🔒 Intento de generar Semana 2+ sin premium - Bloqueado');
+      connectionError = "Se requiere suscripción Premium para continuar con la Semana 2 y siguientes";
+      return null;
+    }
+    
     // Load user profile
     const savedUser = localStorage.getItem('runAdaptiveUser');
     if (!savedUser) {

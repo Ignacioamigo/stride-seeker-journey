@@ -47,7 +47,7 @@ const WeeklyWorkoutsQuestion: React.FC = () => {
       });
     }
     
-    navigate("/onboarding/experience");
+    navigate("/onboarding/email");
   };
 
   const handleDecrease = () => {
@@ -102,7 +102,7 @@ const WeeklyWorkoutsQuestion: React.FC = () => {
         paddingRight: Math.max(right, 16),
       }}
     >
-      <ProgressHeader currentStep={9} totalSteps={10} showBackButton={true} />
+      <ProgressHeader currentStep={9} totalSteps={11} showBackButton={true} />
 
       <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
         <div className="bg-white rounded-xl p-6 shadow-sm">

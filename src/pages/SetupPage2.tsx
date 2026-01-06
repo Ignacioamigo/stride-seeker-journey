@@ -10,8 +10,15 @@ const SetupPage2: React.FC = () => {
   const [showPaywall, setShowPaywall] = useState(false);
 
   const handleStartTrial = async () => {
-    // Mostrar el paywall directamente en esta página
-    setShowPaywall(true);
+    // 🎁 NUEVO FLUJO: Semana 1 GRATIS - Saltar paywall
+    console.log('🎁 Usuario iniciando Semana 1 GRATIS - sin paywall');
+    
+    // Marcar que el usuario está en período de prueba gratuita (Semana 1)
+    localStorage.setItem('freeWeek1Active', 'true');
+    localStorage.setItem('week1StartDate', new Date().toISOString());
+    
+    // Navegar directamente al plan sin mostrar paywall
+    navigate('/plan');
   };
 
   const handlePurchase = async (selectedProduct: 'monthly' | 'yearly') => {
@@ -20,8 +27,8 @@ const SetupPage2: React.FC = () => {
     try {
       const platform = Capacitor.getPlatform();
       const productId = selectedProduct === 'yearly' 
-        ? 'berun_premium_yearly:anual-medio' 
-        : 'berun_premium_monthly:suscripcion-mensual';
+        ? 'berun_premium_yearly' 
+        : 'berun_premium_monthly';
       
       if (platform === 'ios' && Capacitor.isNativePlatform()) {
         console.log('🍎 Iniciando compra iOS con StoreKit...');
@@ -118,13 +125,10 @@ const SetupPage2: React.FC = () => {
           </h1>
           
           {/* Goal Achievement */}
-          <div className="bg-gray-50 rounded-2xl p-6 space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Deberías obtener:
-            </h2>
-            <div className="text-2xl font-bold text-blue-600">
-              tu entrenamiento 100% personalizado
-            </div>
+          <div className="bg-green-50 rounded-2xl p-6 space-y-4 border-2 border-green-200">
+            <p className="text-lg text-gray-700 text-center">
+              Hemos diseñado la estructura de tu plan adaptándonos a tu objetivo.
+            </p>
           </div>
           
           {/* Plan Features */}
@@ -172,12 +176,12 @@ const SetupPage2: React.FC = () => {
             </div>
           </div>
           
-          {/* CTA Button - Cambio de texto aquí */}
+          {/* CTA Button */}
           <button
             onClick={handleStartTrial}
             className="w-full bg-black text-white py-4 rounded-full font-semibold text-lg mt-8"
           >
-            Iniciar mi prueba gratuita de 3 días
+            Acceder a mi Plan Personalizado
           </button>
           
         </div>

@@ -1,0 +1,165 @@
+================================================================================
+          PASO 4: CONFIGURAR WEBHOOK EN GARMIN DEVELOPER PORTAL
+================================================================================
+
+Este paso DEBE hacerse manualmente en el portal de Garmin.
+
+================================================================================
+INSTRUCCIONES PASO A PASO
+================================================================================
+
+1. Abre tu navegador y ve a:
+   https://connectapi.garmin.com/developer/dashboard
+
+2. Inicia sesión con tus credenciales de Garmin Developer
+
+3. En el dashboard, busca y selecciona tu aplicación "BeRun"
+
+4. Busca la sección llamada:
+   - "Push Notifications" o
+   - "Webhooks" o  
+   - "Activity Push" o
+   - "Notifications Settings"
+   
+   (El nombre puede variar según la versión del portal)
+
+5. Deberías ver una opción para añadir una URL de webhook o endpoint
+
+6. Añade esta URL EXACTA:
+   https://uprohtkbghujvjwjnqyv.supabase.co/functions/v1/garmin-webhook
+
+7. Si te pide seleccionar eventos, selecciona:
+   - Activity Created
+   - Activity Updated
+   - Activity Summary
+   (O cualquier opción relacionada con actividades)
+
+8. Guarda los cambios
+
+9. Si hay opción de "Test webhook" o "Send test event", úsala para verificar
+
+
+================================================================================
+POSIBLES VARIACIONES DEL PORTAL
+================================================================================
+
+El portal de Garmin puede tener diferentes interfaces:
+
+OPCIÓN A: Push Notifications
+- Ve a "Settings" → "Push Notifications"
+- Click en "Add Endpoint"
+- Pega la URL del webhook
+- Selecciona "Activity Data"
+- Save
+
+OPCIÓN B: Webhooks
+- Ve a "Webhooks" en el menú lateral
+- Click en "Create Webhook"
+- Name: "BeRun Activity Webhook"
+- URL: [pega la URL de arriba]
+- Events: Selecciona "Activities"
+- Save
+
+OPCIÓN C: Data Access
+- Ve a "Data Access" o "API Settings"
+- Busca "Push URL" o "Callback URL"
+- Ingresa la URL del webhook
+- Enable "Activity Push"
+- Save
+
+
+================================================================================
+VERIFICAR QUE FUNCIONÓ
+================================================================================
+
+Una vez configurado el webhook:
+
+1. Completa una actividad con tu reloj Garmin
+2. Sincroniza con Garmin Connect
+3. Espera 1-2 minutos
+4. Ve a tu app BeRun → "Mis actividades"
+5. Deberías ver la actividad importada automáticamente
+
+Si no aparece:
+- Verifica los logs: supabase functions logs garmin-webhook --project-ref uprohtkbghujvjwjnqyv
+- Verifica que la URL del webhook sea exactamente la correcta
+- Verifica que los eventos estén habilitados
+
+
+================================================================================
+NOTAS IMPORTANTES
+================================================================================
+
+⚠️  La URL del webhook debe ser EXACTAMENTE:
+    https://uprohtkbghujvjwjnqyv.supabase.co/functions/v1/garmin-webhook
+    
+    Sin espacios, sin barras adicionales al final, sin http (debe ser https)
+
+⚠️  Algunos cambios en el portal de Garmin pueden tardar unos minutos en aplicarse
+
+⚠️  Si el portal te pide verificar el webhook, puede que envíe una petición GET
+    primero. Nuestro webhook responde correctamente a esas peticiones.
+
+
+================================================================================
+CONTACTO CON SOPORTE DE GARMIN
+================================================================================
+
+Si no encuentras dónde configurar el webhook:
+
+1. Contacta a Garmin Developer Support:
+   https://developer.garmin.com/connect-iq/support/
+
+2. O consulta la documentación:
+   https://developer.garmin.com/health-api/overview/
+
+3. Pregunta específicamente:
+   "How do I configure a webhook/push notification URL for Activity updates?"
+
+
+================================================================================
+DESPUÉS DE COMPLETAR ESTE PASO
+================================================================================
+
+Una vez configurado el webhook:
+
+✅ PASO 1: Tabla creada
+✅ PASO 2: Funciones desplegadas  
+✅ PASO 3: Variables configuradas
+✅ PASO 4: Webhook configurado
+✅ PASO 5: UI añadida
+
+¡La integración está COMPLETA!
+
+Ahora puedes:
+1. Reiniciar tu app (npm run dev)
+2. Ir a Settings
+3. Conectar tu cuenta de Garmin
+4. ¡Disfrutar de la sincronización automática!
+
+
+================================================================================
+TESTING FINAL
+================================================================================
+
+Para probar que todo funciona:
+
+1. Abre la app → Settings
+2. Deberías ver dos botones:
+   - "Connect with Strava" (si no estaba conectado)
+   - "Connect with Garmin" (nuevo)
+3. Haz clic en "Connect with Garmin"
+4. Completa la autorización OAuth
+5. Deberías ver "Conectado como [tu nombre]"
+6. Sal a correr con tu Garmin
+7. Sincroniza con Garmin Connect
+8. Espera 1-2 minutos
+9. La actividad aparecerá en "Mis actividades"
+10. Si tienes un workout pendiente que coincida, se marcará como completado
+
+
+================================================================================
+
+
+
+

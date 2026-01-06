@@ -8,6 +8,7 @@ import ActivityDetailsScreen from '@/components/training/ActivityDetailsScreen';
 import { publishActivityUltraSimple } from '@/services/ultraSimpleActivityService';
 import { WorkoutPublishData, PublishedActivity, RunSession } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { Capacitor } from '@capacitor/core';
 
 type ScreenState = 'pre-run' | 'running' | 'summary' | 'details';
 
@@ -182,6 +183,29 @@ const DarkRunTracker: React.FC = () => {
 
   // PANTALLA 1: Solo mapa + botón INICIAR (antes de empezar a correr)
   if (screenState === 'pre-run' || !isTracking) {
+    const handleOpenStrava = () => {
+      // Deep link para abrir Strava en la pantalla de grabar
+      // strava://record intenta abrir directamente la pantalla de grabar actividad
+      const stravaRecordDeepLink = 'strava://record';
+      // Fallback: simplemente abrir la app de Strava
+      const stravaAppDeepLink = 'strava://';
+      
+      // En móvil (Capacitor), intentar el deep link directamente
+      if (Capacitor.isNativePlatform()) {
+        // Intentar abrir la pantalla de grabar
+        window.location.href = stravaRecordDeepLink;
+        
+        // Fallback después de un pequeño delay si el deep link específico no funciona
+        setTimeout(() => {
+          // Si después de 500ms seguimos en la app, intentar abrir solo la app
+          window.location.href = stravaAppDeepLink;
+        }, 500);
+      } else {
+        // En web, abrir la página de Strava
+        window.open('https://www.strava.com/record', '_blank');
+      }
+    };
+
     return (
       <div className="h-full flex flex-col bg-gray-50">
         {/* Mapa pantalla completa */}
@@ -193,8 +217,34 @@ const DarkRunTracker: React.FC = () => {
           />
         </div>
 
-        {/* Botón INICIAR estilo rectangular como en la imagen */}
-        <div className="absolute bottom-8 left-4 right-4">
+        {/* Botones: Strava y INICIAR EN DIRECTO */}
+        <div className="absolute bottom-8 left-4 right-4 space-y-3">
+          {/* Botón Correr con Strava */}
+          <Button 
+            onClick={handleOpenStrava}
+            className="bg-[#FC5200] hover:bg-[#E64900] text-white font-bold w-full h-14 rounded-xl text-lg shadow-lg flex items-center justify-center gap-2"
+          >
+            <svg 
+              width="20" 
+              height="20" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path 
+                d="M7.5 4L2 16H5.5L7.5 11.5L9.5 16H13L7.5 4Z" 
+                fill="white"
+              />
+              <path 
+                d="M14.5 16L12 11L9.5 16H14.5Z" 
+                fill="white" 
+                opacity="0.7"
+              />
+            </svg>
+            <span>Correr con Strava</span>
+          </Button>
+
+          {/* Botón INICIAR EN DIRECTO estilo rectangular como en la imagen */}
           <Button 
             onClick={handleStartRun}
             className="bg-black hover:bg-gray-800 text-white font-bold w-full h-16 rounded-xl text-xl shadow-lg flex items-center justify-between px-6"

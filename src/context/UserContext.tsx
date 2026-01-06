@@ -32,6 +32,7 @@ const defaultUser: UserProfile = {
   injuries: '',
   targetRace: null,
   completedOnboarding: false,
+  email: null,
 };
 
 const UserContext = createContext<UserContextProps>({

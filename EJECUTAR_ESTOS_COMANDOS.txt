@@ -1,0 +1,52 @@
+================================================================================
+          COMANDOS PARA SOLUCIONAR EL ERROR DE OAUTH
+================================================================================
+
+PASO 1: Crear tabla temporal en Supabase
+-----------------------------------------
+
+1. Ve a: https://supabase.com/dashboard/project/uprohtkbghujvjwjnqyv/editor
+
+2. Copia y pega este SQL:
+
+-- Create temporary table for OAuth 1.0a flow
+CREATE TABLE IF NOT EXISTS garmin_oauth_temp (
+  oauth_token TEXT PRIMARY KEY,
+  oauth_token_secret TEXT NOT NULL,
+  user_id UUID NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_garmin_oauth_temp_user_id ON garmin_oauth_temp(user_id);
+CREATE INDEX IF NOT EXISTS idx_garmin_oauth_temp_created_at ON garmin_oauth_temp(created_at);
+
+ALTER TABLE garmin_oauth_temp DISABLE ROW LEVEL SECURITY;
+
+3. Haz clic en "Run"
+
+
+PASO 2: Redesplegar funciones
+------------------------------
+
+Ejecuta en tu terminal:
+
+cd /Users/nachoamigo/stride-seeker-journey
+
+supabase functions deploy garmin-auth-start --project-ref uprohtkbghujvjwjnqyv --no-verify-jwt
+
+supabase functions deploy garmin-auth-callback --project-ref uprohtkbghujvjwjnqyv --no-verify-jwt
+
+
+PASO 3: Reiniciar app y probar
+-------------------------------
+
+npm run dev
+
+Luego ve a Settings → Connect with Garmin
+
+
+================================================================================
+
+
+
+

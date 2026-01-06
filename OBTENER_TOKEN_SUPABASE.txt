@@ -1,0 +1,78 @@
+================================================================================
+              CÓMO OBTENER Y USAR EL TOKEN DE SUPABASE
+================================================================================
+
+OPCIÓN 1: OBTENER EL TOKEN DESDE LA CONFIGURACIÓN LOCAL (Recomendado)
+================================================================================
+
+1. Ejecuta en tu terminal:
+
+   supabase login
+
+2. Una vez que completes el login, el token se guarda en un archivo.
+
+3. Para obtener el token, ejecuta:
+
+   # En macOS/Linux:
+   cat ~/.supabase/access-token
+
+   # O si está en otro lugar:
+   cat ~/.config/supabase/access-token
+
+4. Copia el token que aparece (será una cadena larga de texto)
+
+5. Pásame el token y yo ejecutaré los comandos con:
+
+   export SUPABASE_ACCESS_TOKEN="tu-token-aqui"
+   ./scripts/deploy-garmin-functions.sh
+
+
+OPCIÓN 2: OBTENER EL TOKEN DESDE EL DASHBOARD DE SUPABASE
+================================================================================
+
+1. Ve a: https://supabase.com/dashboard/account/tokens
+
+2. Si no tienes un token, crea uno nuevo:
+   - Haz clic en "Generate new token"
+   - Dale un nombre (ej: "Garmin Deployment")
+   - Copia el token (solo se muestra una vez)
+
+3. Pásame el token y lo usaré como variable de entorno
+
+
+OPCIÓN 3: EJECUTAR CON EL TOKEN EN LÍNEA DE COMANDOS
+================================================================================
+
+Puedes ejecutar directamente en tu terminal con el token:
+
+# 1. Obtén el token (Opción 1 o 2 de arriba)
+
+# 2. Ejecuta con el token:
+export SUPABASE_ACCESS_TOKEN="tu-token-aqui"
+cd /Users/nachoamigo/stride-seeker-journey
+./scripts/deploy-garmin-functions.sh
+
+
+OPCIÓN 4: CREAR UN SCRIPT QUE USE EL TOKEN
+================================================================================
+
+Si prefieres, puedo crear un script que te pida el token y luego ejecute todo.
+
+Dime cuál opción prefieres y te ayudo a implementarla.
+
+
+NOTA DE SEGURIDAD
+================================================================================
+
+⚠️  El token de acceso es SENSIBLE. No lo compartas públicamente.
+
+✅  Puedes pasármelo aquí en el chat (es privado)
+✅  Una vez que termine, puedes revocarlo desde el dashboard si quieres
+✅  El token solo se usa para desplegar las funciones, no para acceder a datos
+
+
+================================================================================
+
+
+
+
