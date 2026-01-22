@@ -124,3 +124,6 @@ Garmin NO envía notificaciones retroactivas. Solo envía notificaciones para:
 
 Si después de 30 minutos NO llegan logs, entonces hay un problema más profundo con la configuración de Garmin que necesitaremos investigar más.
 
+
+
+

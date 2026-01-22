@@ -13,3 +13,6 @@ COMMENT ON COLUMN user_profiles.is_premium IS 'Indica si el usuario tiene suscri
 COMMENT ON COLUMN user_profiles.premium_started_at IS 'Fecha en que el usuario activó premium';
 
 
+
+
+

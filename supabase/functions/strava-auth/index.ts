@@ -165,7 +165,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      `<html><body><h2>✅ ¡Conectado con éxito!</h2><p>Tu cuenta de Strava se ha conectado correctamente.</p><p>Ya puedes cerrar esta ventana y volver a la app.</p><script>setTimeout(() => window.close(), 2000);</script></body></html>`,
+      `<html><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;"><p style="font-size: 18px; text-align: center;">Te has conectado correctamente a Strava.</p></body><script>setTimeout(() => window.close(), 2000);</script></html>`,
       { headers: { ...corsHeaders, 'Content-Type': 'text/html' }, status: 200 },
     );
   } catch (e) {

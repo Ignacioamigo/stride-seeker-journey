@@ -207,22 +207,45 @@ export const usePeriodStats = (period: TimePeriod) => {
         }
       }
       
-      // FILTRAR EN MEMORIA para "Esta semana" SOLO por week_number
+      // FILTRAR EN MEMORIA para "Esta semana" - por week_number O por fecha
       let workouts;
-      if (period === 'current_week' && plan) {
-        const currentWeekNumber = plan.weekNumber || 1;
-        console.log(`[usePeriodStats] Filtrando ESTRICTAMENTE por week_number: ${currentWeekNumber}`);
+      if (period === 'current_week') {
+        // Calcular fechas de la semana actual (lunes a domingo)
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        const currentDayOfWeek = today.getDay();
+        const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+        
+        const thisMonday = new Date(today);
+        thisMonday.setDate(today.getDate() - daysToMonday);
+        thisMonday.setHours(0, 0, 0, 0);
+        
+        const currentWeekNumber = plan?.weekNumber || 1;
+        console.log(`[usePeriodStats] Filtrando por week_number: ${currentWeekNumber} O por fecha: ${thisMonday.toLocaleDateString()} - ${today.toLocaleDateString()}`);
         
         workouts = allWorkouts?.filter(w => {
-          // SOLO incluir si tiene week_number Y coincide
-          if (w.week_number !== undefined && w.week_number !== null && w.week_number === currentWeekNumber) {
-            console.log(`[usePeriodStats] ✅ ${w.workout_title}: week ${w.week_number}`);
+          // Opción 1: tiene week_number del plan actual
+          if (plan && w.week_number !== undefined && w.week_number !== null && w.week_number === currentWeekNumber) {
+            console.log(`[usePeriodStats] ✅ ${w.workout_title}: week ${w.week_number} (plan)`);
             return true;
           }
+          
+          // Opción 2: NO tiene week_number pero está en la fecha de esta semana (ej: Garmin)
+          if (w.week_number === null || w.week_number === undefined) {
+            if (w.fecha_completado) {
+              const workoutDate = new Date(w.fecha_completado + 'T12:00:00.000Z');
+              const isInWeek = workoutDate >= thisMonday && workoutDate <= today;
+              if (isInWeek) {
+                console.log(`[usePeriodStats] ✅ ${w.workout_title}: fecha ${w.fecha_completado} (externo)`);
+                return true;
+              }
+            }
+          }
+          
           return false;
         }) || [];
         
-        console.log(`[usePeriodStats] ✅ Total entrenamientos de semana ${currentWeekNumber}: ${workouts.length}`);
+        console.log(`[usePeriodStats] ✅ Total entrenamientos de esta semana: ${workouts.length}`);
       } else {
         workouts = allWorkouts;
       }
@@ -247,10 +270,10 @@ export const usePeriodStats = (period: TimePeriod) => {
         console.log(`  ${index + 1}. ${w.workout_title} - Fecha: ${w.fecha_completado} - Distancia: ${w.distancia_recorrida}km`);
       });
 
-      // Para "Esta semana" ya vienen filtrados por week_number, para otros períodos filtrar por fechas
+      // Para "Esta semana" ya vienen filtrados, para otros períodos filtrar por fechas
       let periodWorkouts;
-      if (period === 'current_week' && plan) {
-        // Ya están filtrados por week_number
+      if (period === 'current_week') {
+        // Ya están filtrados por week_number O fecha
         periodWorkouts = workouts.filter(w => {
           // ✅ Permitir distancia 0 (útil para pruebas y entrenamientos muy cortos)
           if (w.distancia_recorrida === null || w.distancia_recorrida === undefined || w.distancia_recorrida < 0) {
@@ -260,7 +283,7 @@ export const usePeriodStats = (period: TimePeriod) => {
           console.log(`[usePeriodStats] ✅ Contando: ${w.workout_title} - ${w.distancia_recorrida}km`);
           return true;
         });
-        console.log(`[usePeriodStats] Total entrenamientos válidos de semana ${plan.weekNumber}:`, periodWorkouts.length);
+        console.log(`[usePeriodStats] Total entrenamientos válidos de esta semana:`, periodWorkouts.length);
       } else {
         // Filtrar por fechas para otros períodos
         const { start, end } = getDateRangeForPeriod(period, plan);
@@ -450,3 +473,4 @@ export const usePeriodStats = (period: TimePeriod) => {
 
   return { stats, isLoading, currentPlan, refreshStats: calculatePeriodStats };
 };
+

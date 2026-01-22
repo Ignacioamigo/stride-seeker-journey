@@ -312,3 +312,6 @@ Después de correr:
 
 **¡Listo!** Con esta guía deberías poder diagnosticar cualquier problema con Garmin. 🎉
 
+
+
+

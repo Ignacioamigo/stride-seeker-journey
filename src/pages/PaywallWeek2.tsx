@@ -4,6 +4,9 @@ import { X, Crown, TrendingUp, Target, Zap } from 'lucide-react';
 import { googlePlayBillingNativeService } from '../services/googlePlayBillingNativeService';
 import { storeKitService } from '../services/storeKitService';
 import { Capacitor } from '@capacitor/core';
+import { supabase } from '@/integrations/supabase/client';
+import { generateNextWeekPlan } from '@/services/planService';
+import { WorkoutPlan } from '@/types';
 
 const PaywallWeek2: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +14,95 @@ const PaywallWeek2: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showDiscountCode, setShowDiscountCode] = useState(false);
   const [discountCode, setDiscountCode] = useState('');
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+
+  // Actualizar is_premium en la base de datos Supabase
+  const updatePremiumInDatabase = async (): Promise<boolean> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('⚠️ No hay usuario autenticado para actualizar premium en DB');
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ is_premium: true })
+        .eq('user_auth_id', user.id);
+
+      if (error) {
+        console.error('❌ Error actualizando is_premium en DB:', error);
+        return false;
+      }
+
+      console.log('✅ is_premium actualizado en la base de datos');
+      return true;
+    } catch (error) {
+      console.error('❌ Error en updatePremiumInDatabase:', error);
+      return false;
+    }
+  };
+
+  // Generar el plan de la siguiente semana automáticamente
+  const generateNextWeekAfterPurchase = async () => {
+    try {
+      setIsGeneratingPlan(true);
+      
+      // Obtener el plan actual desde localStorage
+      const savedPlan = localStorage.getItem('savedPlan');
+      if (!savedPlan) {
+        console.log('⚠️ No hay plan guardado para generar siguiente semana');
+        return;
+      }
+
+      const currentPlan: WorkoutPlan = JSON.parse(savedPlan);
+      console.log('📋 Plan actual semana:', currentPlan.weekNumber);
+
+      // Generar el plan de la siguiente semana
+      const nextWeekPlan = await generateNextWeekPlan(currentPlan);
+      
+      if (nextWeekPlan) {
+        console.log('✅ Plan de semana', nextWeekPlan.weekNumber, 'generado exitosamente');
+        // El plan ya se guarda en localStorage dentro de generateNextWeekPlan
+      } else {
+        console.log('⚠️ No se pudo generar el plan de la siguiente semana');
+      }
+    } catch (error) {
+      console.error('❌ Error generando plan de siguiente semana:', error);
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  };
+
+  // Proceso completo después del pago exitoso
+  const handleSuccessfulPurchase = async (productId: string) => {
+    console.log('🎉 Procesando compra exitosa...');
+    
+    // 1. Guardar en localStorage
+    localStorage.setItem('isPremium', 'true');
+    localStorage.setItem('subscriptionType', selectedProduct);
+    localStorage.setItem('trialStartDate', new Date().toISOString());
+    localStorage.removeItem('freeWeek1Active');
+    
+    // 2. Actualizar en la base de datos
+    await updatePremiumInDatabase();
+    
+    // 3. Disparar evento para actualizar estado en toda la app
+    window.dispatchEvent(new CustomEvent('subscription-updated', { 
+      detail: { isPremium: true, productId } 
+    }));
+    
+    // 4. Generar el plan de la siguiente semana
+    await generateNextWeekAfterPurchase();
+    
+    // 5. Navegar al plan
+    navigate('/plan');
+    
+    // 6. Mostrar mensaje de éxito
+    setTimeout(() => {
+      alert('✅ ¡Suscripción activada!\nTu plan de la siguiente semana ya está listo.');
+    }, 500);
+  };
 
   const handlePurchase = async () => {
     setIsLoading(true);
@@ -27,22 +119,7 @@ const PaywallWeek2: React.FC = () => {
         
         if (result.success) {
           console.log('✅ Compra exitosa');
-          localStorage.setItem('isPremium', 'true');
-          localStorage.setItem('subscriptionType', selectedProduct);
-          localStorage.setItem('trialStartDate', new Date().toISOString());
-          
-          // Eliminar la flag de Semana 1 gratis
-          localStorage.removeItem('freeWeek1Active');
-          
-          window.dispatchEvent(new CustomEvent('subscription-updated', { 
-            detail: { isPremium: true, productId } 
-          }));
-          
-          navigate('/plan');
-          
-          setTimeout(() => {
-            alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
-          }, 500);
+          await handleSuccessfulPurchase(productId);
         } else if (result.reason === 'cancelled') {
           console.log('ℹ️ Usuario canceló la compra');
           setIsLoading(false);
@@ -56,21 +133,7 @@ const PaywallWeek2: React.FC = () => {
         
         if (result.success) {
           console.log('✅ Compra exitosa en Android');
-          localStorage.setItem('isPremium', 'true');
-          localStorage.setItem('subscriptionType', selectedProduct);
-          localStorage.setItem('trialStartDate', new Date().toISOString());
-          
-          localStorage.removeItem('freeWeek1Active');
-          
-          window.dispatchEvent(new CustomEvent('subscription-updated', { 
-            detail: { isPremium: true, productId } 
-          }));
-          
-          navigate('/plan');
-          
-          setTimeout(() => {
-            alert('✅ ¡Suscripción activada!\nDisfruta de tu prueba gratuita de 3 días.');
-          }, 500);
+          await handleSuccessfulPurchase(productId);
         } else if (result.reason === 'cancelled') {
           console.log('ℹ️ Usuario canceló la compra');
           setIsLoading(false);
@@ -81,17 +144,7 @@ const PaywallWeek2: React.FC = () => {
       } else {
         // Web/fallback - solo para desarrollo
         console.log('🌐 Modo web - Simulando compra');
-        localStorage.setItem('isPremium', 'true');
-        localStorage.setItem('subscriptionType', selectedProduct);
-        localStorage.setItem('trialStartDate', new Date().toISOString());
-        
-        localStorage.removeItem('freeWeek1Active');
-        
-        window.dispatchEvent(new CustomEvent('subscription-updated', { 
-          detail: { isPremium: true, productId } 
-        }));
-        
-        navigate('/plan');
+        await handleSuccessfulPurchase(productId);
       }
     } catch (error) {
       console.error('❌ Error en el proceso de compra:', error);
@@ -100,13 +153,9 @@ const PaywallWeek2: React.FC = () => {
     }
   };
 
-  const handleDiscountCode = () => {
+  const handleDiscountCode = async () => {
     if (discountCode.trim() === 'BeRun2025.gratiss') {
-      localStorage.setItem('isPremium', 'true');
-      localStorage.setItem('subscriptionType', 'discount');
-      localStorage.setItem('trialStartDate', new Date().toISOString());
-      localStorage.removeItem('freeWeek1Active');
-      navigate('/plan');
+      await handleSuccessfulPurchase('discount_code');
     } else {
       alert('Código de descuento inválido');
     }
@@ -119,22 +168,16 @@ const PaywallWeek2: React.FC = () => {
       if (platform === 'ios' && storeKitService.isAvailable()) {
         const result = await storeKitService.restore();
         if (result.success && result.count > 0) {
-          localStorage.setItem('isPremium', 'true');
-          localStorage.setItem('subscriptionType', 'restored');
-          localStorage.removeItem('freeWeek1Active');
           alert(`✅ Compras restauradas exitosamente!\n${result.count} compra(s) encontrada(s).`);
-          navigate('/plan');
+          await handleSuccessfulPurchase('restored_ios');
         } else {
           alert('No se encontraron compras previas para restaurar.');
         }
       } else if (platform === 'android' && googlePlayBillingNativeService.isAvailable()) {
         const result = await googlePlayBillingNativeService.restore();
         if (result.success) {
-          localStorage.setItem('isPremium', 'true');
-          localStorage.setItem('subscriptionType', 'restored');
-          localStorage.removeItem('freeWeek1Active');
           alert('✅ Compras restauradas exitosamente!');
-          navigate('/plan');
+          await handleSuccessfulPurchase('restored_android');
         } else {
           alert('No se encontraron compras previas para restaurar.');
         }
@@ -301,10 +344,15 @@ const PaywallWeek2: React.FC = () => {
         {/* CTA Button */}
         <button
           onClick={handlePurchase}
-          disabled={isLoading}
+          disabled={isLoading || isGeneratingPlan}
           className="w-full bg-black text-white py-4 rounded-full font-semibold text-lg disabled:opacity-50 hover:bg-gray-900 transition-colors"
         >
-          {isLoading ? (
+          {isGeneratingPlan ? (
+            <div className="flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
+              Generando tu plan...
+            </div>
+          ) : isLoading ? (
             <div className="flex items-center justify-center">
               <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3" />
               Procesando...

@@ -29,6 +29,13 @@ interface GarminActivitySummary {
 
 interface GarminWebhookPayload {
   activitySummaries?: GarminActivitySummary[];
+  activities?: GarminActivitySummary[];  // Garmin also sends as "activities"
+  activityDetails?: Array<{              // And sometimes as "activityDetails"
+    userId: string;
+    summaryId: string;
+    activityId: number;
+    summary: GarminActivitySummary;
+  }>;
 }
 
 serve(async (req) => {
@@ -47,10 +54,32 @@ serve(async (req) => {
       const payload = await req.json() as GarminWebhookPayload;
       console.log('📦 Received Garmin webhook payload:', JSON.stringify(payload, null, 2));
 
-      if (!payload.activitySummaries || payload.activitySummaries.length === 0) {
-        console.log('ℹ️ No activity summaries in payload');
+      // Handle different Garmin payload formats
+      let activitiesToProcess: GarminActivitySummary[] = [];
+      
+      if (payload.activitySummaries && payload.activitySummaries.length > 0) {
+        console.log('📋 Found activitySummaries format');
+        activitiesToProcess = payload.activitySummaries;
+      } else if (payload.activities && payload.activities.length > 0) {
+        console.log('📋 Found activities format');
+        activitiesToProcess = payload.activities;
+      } else if (payload.activityDetails && payload.activityDetails.length > 0) {
+        console.log('📋 Found activityDetails format');
+        // Extract summaries from activityDetails
+        activitiesToProcess = payload.activityDetails.map(detail => ({
+          ...detail.summary,
+          userId: detail.userId,
+          summaryId: detail.summaryId,
+          activityId: detail.activityId,
+        }));
+      }
+
+      if (activitiesToProcess.length === 0) {
+        console.log('ℹ️ No activities found in payload');
         return new Response('OK', { status: 200 });
       }
+      
+      console.log(`✅ Found ${activitiesToProcess.length} activities to process`);
 
       const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
       const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -62,11 +91,23 @@ serve(async (req) => {
 
       const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+      // Minimum thresholds for activities to be counted
+      const MIN_DURATION_SECONDS = 60;  // 1 minute minimum
+      const MIN_DISTANCE_METERS = 100;   // 100 meters minimum
+
       // Process each activity
-      for (const activity of payload.activitySummaries) {
+      for (const activity of activitiesToProcess) {
         try {
           console.log(`\n📊 Processing activity: ${activity.activityName} (ID: ${activity.activityId})`);
           console.log(`👤 Garmin User ID: ${activity.userId}`);
+          console.log(`⏱️ Duration: ${activity.durationInSeconds}s, Distance: ${activity.distanceInMeters || 0}m`);
+
+          // Filter out activities that are too short (less than 1 minute OR less than 100 meters)
+          if (activity.durationInSeconds < MIN_DURATION_SECONDS || 
+              (activity.distanceInMeters && activity.distanceInMeters < MIN_DISTANCE_METERS)) {
+            console.log(`⚠️ Activity too short (min: ${MIN_DURATION_SECONDS}s / ${MIN_DISTANCE_METERS}m), skipping`);
+            continue;
+          }
 
           // Find user by Garmin User ID
           const { data: connection, error: connError } = await supabaseAdmin
@@ -140,16 +181,61 @@ serve(async (req) => {
             continue;
           }
 
-          console.log(`✅✅✅ Activity saved successfully!`);
-          console.log('📊 Saved activity details:');
-          console.log('  - ID:', savedActivity.id);
-          console.log('  - Title:', savedActivity.title);
-          console.log('  - Distance:', savedActivity.distance, 'km');
-          console.log('  - Duration:', savedActivity.duration);
-          console.log('  - Garmin Activity ID:', savedActivity.garmin_activity_id);
-          console.log('  - User ID:', savedActivity.user_id);
+        console.log(`✅✅✅ Activity saved successfully!`);
+        console.log('📊 Saved activity details:');
+        console.log('  - ID:', savedActivity.id);
+        console.log('  - Title:', savedActivity.title);
+        console.log('  - Distance:', savedActivity.distance, 'km');
+        console.log('  - Duration:', savedActivity.duration);
+        console.log('  - Garmin Activity ID:', savedActivity.garmin_activity_id);
+        console.log('  - User ID:', savedActivity.user_id);
 
-          // Check if this completes a workout in the plan
+        // Get user's active plan to include plan_id and week_number
+        console.log('🔍 Looking for active plan...');
+        let planId = null;
+        let weekNumber = null;
+        
+        const { data: activePlan } = await supabaseAdmin
+          .from('training_plans')
+          .select('id, week_number')
+          .eq('user_id', connection.user_auth_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (activePlan) {
+          planId = activePlan.id;
+          weekNumber = activePlan.week_number || 1;
+          console.log(`✅ Found active plan: ${planId}, week ${weekNumber}`);
+        } else {
+          console.log('ℹ️ No active plan found, using null values');
+        }
+
+        // Also save to simple_workouts for statistics calculation (the table the app uses)
+        console.log('📊 Saving to simple_workouts for statistics...');
+
+        const simpleWorkoutsData = {
+          user_id: connection.user_auth_id,
+          workout_title: activity.activityName || `${activity.activityType} Activity`,
+          workout_type: workoutType,
+          distance_km: distanceKm,
+          duration_minutes: Math.floor(activity.durationInSeconds / 60),
+          workout_date: activityDate.split('T')[0],
+          plan_id: planId,
+          week_number: weekNumber
+        };
+
+        const { error: simpleWorkoutsError } = await supabaseAdmin
+          .from('simple_workouts')
+          .insert(simpleWorkoutsData);
+
+        if (simpleWorkoutsError) {
+          console.error('⚠️ Error saving to simple_workouts:', simpleWorkoutsError);
+        } else {
+          console.log('✅ Saved to simple_workouts with plan_id:', planId, 'week_number:', weekNumber);
+        }
+
+        // Check if this completes a workout in the plan
           console.log('🔍 Now checking if this completes a workout in the training plan...');
           await checkAndCompleteWorkout(
             supabaseAdmin,
@@ -213,7 +299,7 @@ function formatDuration(seconds: number): string {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(Math.floor(secs)).padStart(2, '0')}`;
 }
 
-// Helper function to check and complete workout
+// Helper function to auto-complete the next pending workout
 async function checkAndCompleteWorkout(
   supabase: any,
   userId: string,
@@ -223,7 +309,7 @@ async function checkAndCompleteWorkout(
   activityDate: string
 ) {
   try {
-    console.log('🔍 Checking for matching workout in plan...');
+    console.log('🔍 Looking for next pending workout to auto-complete...');
 
     // Get user's active plan
     const { data: activePlan } = await supabase
@@ -238,57 +324,49 @@ async function checkAndCompleteWorkout(
       return;
     }
 
-    // Find matching incomplete workout
-    const activityDateOnly = activityDate.split('T')[0];
-    
-    const { data: matchingWorkout } = await supabase
+    console.log(`✅ Found active plan: ${activePlan.id}`);
+
+    // Find the next incomplete workout (ordered by date, any type)
+    const { data: nextWorkout } = await supabase
       .from('simple_workouts')
-      .select('id, distance_km, duration_minutes')
+      .select('id, workout_title, distance_km, workout_type')
       .eq('user_id', userId)
       .eq('plan_id', activePlan.id)
       .eq('completed', false)
-      .eq('workout_type', workoutType)
-      .gte('workout_date', activityDateOnly)
       .order('workout_date', { ascending: true })
       .limit(1)
       .maybeSingle();
 
-    if (!matchingWorkout) {
-      console.log('ℹ️ No matching incomplete workout found');
+    if (!nextWorkout) {
+      console.log('ℹ️ No pending workouts found in plan');
       return;
     }
 
-    // Check if distance is close enough (within 10%)
-    const distanceTolerance = matchingWorkout.distance_km * 0.1;
-    const distanceMatch = Math.abs(distanceKm - matchingWorkout.distance_km) <= distanceTolerance;
+    console.log(`📋 Found next pending workout: ${nextWorkout.workout_title} (ID: ${nextWorkout.id})`);
+    console.log(`✅ Auto-completing workout with Garmin activity data...`);
+    
+    const { error: updateError } = await supabase
+      .from('simple_workouts')
+      .update({
+        completed: true,
+        actual_distance_km: distanceKm,
+        actual_duration_minutes: durationMinutes,
+        completed_at: activityDate
+      })
+      .eq('id', nextWorkout.id);
 
-    if (distanceMatch) {
-      console.log(`✅ Marking workout ${matchingWorkout.id} as completed`);
-      
-      const { error: updateError } = await supabase
-        .from('simple_workouts')
-        .update({
-          completed: true,
-          actual_distance_km: distanceKm,
-          actual_duration_minutes: durationMinutes,
-          completed_at: activityDate
-        })
-        .eq('id', matchingWorkout.id);
-
-      if (updateError) {
-        console.error('❌ Error updating workout:', updateError);
-      } else {
-        console.log('✅✅✅ Workout marked as completed successfully!');
-        console.log('  - Workout ID:', matchingWorkout.id);
-        console.log('  - Actual distance:', distanceKm, 'km');
-        console.log('  - Actual duration:', durationMinutes, 'min');
-      }
+    if (updateError) {
+      console.error('❌ Error updating workout:', updateError);
     } else {
-      console.log(`ℹ️ Distance doesn't match (expected: ${matchingWorkout.distance_km}km, got: ${distanceKm}km)`);
+      console.log('✅✅✅ Workout auto-completed successfully!');
+      console.log('  - Workout ID:', nextWorkout.id);
+      console.log('  - Workout title:', nextWorkout.workout_title);
+      console.log('  - Actual distance:', distanceKm, 'km');
+      console.log('  - Actual duration:', durationMinutes, 'min');
     }
 
   } catch (error) {
-    console.error('❌ Error checking workout completion:', error);
+    console.error('❌ Error in auto-complete workout:', error);
   }
 }
 

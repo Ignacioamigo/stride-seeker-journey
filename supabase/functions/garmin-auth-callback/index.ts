@@ -197,44 +197,10 @@ serve(async (req) => {
 <html>
 <head>
   <title>Garmin Connected</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      background: linear-gradient(135deg, #007CC3 0%, #005a8c 100%);
-      color: white;
-    }
-    .container {
-      text-align: center;
-      padding: 40px;
-    }
-    h1 { font-size: 24px; margin-bottom: 16px; }
-    p { font-size: 16px; opacity: 0.9; }
-    .checkmark {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 24px;
-      font-size: 40px;
-    }
-  </style>
 </head>
-<body>
-  <div class="container">
-    <div class="checkmark">✓</div>
-    <h1>¡Garmin Conectado!</h1>
-    <p>Puedes cerrar esta ventana y volver a la app.</p>
-  </div>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+  <p style="font-size: 18px; text-align: center;">Te has conectado correctamente a Garmin.</p>
   <script>
-    // Try to redirect to the app
     setTimeout(function() {
       window.location.href = '${successUrl}';
     }, 1500);

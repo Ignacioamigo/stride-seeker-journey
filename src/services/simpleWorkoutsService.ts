@@ -188,6 +188,8 @@ export const getUserWorkoutsByDateRange = async (
     }
 
     // Obtener entrenamientos en el rango de fechas
+    console.log(`🔍 [SimpleWorkouts] Consultando: user_id=${user.id}, desde=${startDate}, hasta=${endDate}`);
+    
     const { data, error } = await supabase
       .from('simple_workouts')
       .select('*')
@@ -202,6 +204,9 @@ export const getUserWorkoutsByDateRange = async (
     }
 
     console.log(`✅ [SimpleWorkouts] Obtenidos ${data?.length || 0} entrenamientos en el rango`);
+    if (data && data.length > 0) {
+      console.log('📋 [SimpleWorkouts] Primer entrenamiento:', data[0].workout_title, data[0].workout_date);
+    }
     return data || [];
 
   } catch (error) {

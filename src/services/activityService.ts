@@ -637,7 +637,7 @@ export const calculateWorkoutMetrics = (runSession: any): WorkoutMetrics => {
       const segmentDistance = calculateDistance(points[i-1], points[i]);
       accumulatedDistance += segmentDistance;
       
-      if (accumulatedDistance >= currentKm * 1000 && currentKm <= 10) {
+      if (accumulatedDistance >= currentKm * 1000 && currentKm <= 100) {
         const kmStartTime = new Date(points[kmStartIndex].timestamp);
         const kmEndTime = new Date(points[i].timestamp);
         const kmDuration = (kmEndTime.getTime() - kmStartTime.getTime()) / 1000;

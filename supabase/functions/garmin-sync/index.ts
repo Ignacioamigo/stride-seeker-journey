@@ -1,70 +1,91 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.1';
-import { createHmac } from "https://deno.land/std@0.177.0/node/crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Garmin API endpoints
-const ACTIVITIES_URL = 'https://apis.garmin.com/wellness-api/rest/activities';
+// Garmin API endpoints (OAuth 2.0)
+// Use backfill endpoint for pulling historical activities
+const BACKFILL_URL = 'https://apis.garmin.com/wellness-api/rest/backfill/activities';
+const TOKEN_URL = 'https://connectapi.garmin.com/di-oauth2-service/oauth/token';
 
-// OAuth 1.0a signature generation
-function generateOAuthSignature(
-  method: string,
-  url: string,
-  params: Record<string, string>,
-  consumerSecret: string,
-  tokenSecret: string
-): string {
-  // Sort parameters
-  const sortedParams = Object.keys(params)
-    .sort()
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-    .join('&');
-
-  // Create signature base string
-  const signatureBaseString = `${method.toUpperCase()}&${encodeURIComponent(url)}&${encodeURIComponent(sortedParams)}`;
-
-  // Create signing key
-  const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(tokenSecret)}`;
-
-  // Generate signature
-  const hmac = createHmac('sha1', signingKey);
-  hmac.update(signatureBaseString);
-  return hmac.digest('base64');
-}
-
-// Generate OAuth header
-function generateOAuthHeader(
-  method: string,
-  url: string,
-  consumerKey: string,
-  consumerSecret: string,
-  accessToken: string,
-  tokenSecret: string
-): string {
-  const oauthParams: Record<string, string> = {
-    oauth_consumer_key: consumerKey,
-    oauth_token: accessToken,
-    oauth_signature_method: 'HMAC-SHA1',
-    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    oauth_nonce: crypto.randomUUID().replace(/-/g, ''),
-    oauth_version: '1.0',
-  };
-
-  // Generate signature
-  const signature = generateOAuthSignature(method, url, oauthParams, consumerSecret, tokenSecret);
-  oauthParams.oauth_signature = signature;
-
-  // Build OAuth header
-  const headerParams = Object.keys(oauthParams)
-    .sort()
-    .map(key => `${encodeURIComponent(key)}="${encodeURIComponent(oauthParams[key])}"`)
-    .join(', ');
-
-  return `OAuth ${headerParams}`;
+// Function to refresh expired Garmin token
+async function refreshGarminToken(
+  supabaseAdmin: any,
+  connection: any
+): Promise<{ access_token: string; expires_at: Date } | null> {
+  console.log('🔄 Attempting to refresh Garmin token...');
+  
+  const GARMIN_CLIENT_ID = Deno.env.get('GARMIN_CLIENT_ID');
+  const GARMIN_CLIENT_SECRET = Deno.env.get('GARMIN_CLIENT_SECRET');
+  
+  if (!GARMIN_CLIENT_ID || !GARMIN_CLIENT_SECRET) {
+    console.error('❌ Missing Garmin client credentials');
+    return null;
+  }
+  
+  if (!connection.refresh_token) {
+    console.error('❌ No refresh token available');
+    return null;
+  }
+  
+  try {
+    const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: connection.refresh_token,
+      client_id: GARMIN_CLIENT_ID,
+      client_secret: GARMIN_CLIENT_SECRET,
+    });
+    
+    const response = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Token refresh failed:', response.status, errorText);
+      return null;
+    }
+    
+    const tokenData = await response.json();
+    console.log('✅ Token refreshed successfully');
+    
+    // Calculate new expiration time (usually 1 hour from now)
+    const expiresIn = tokenData.expires_in || 3600; // Default 1 hour
+    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+    
+    // Update the connection in the database
+    const { error: updateError } = await supabaseAdmin
+      .from('garmin_connections')
+      .update({
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token || connection.refresh_token, // Use new one if provided
+        token_expires_at: expiresAt.toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', connection.id);
+    
+    if (updateError) {
+      console.error('❌ Error updating token in database:', updateError);
+      return null;
+    }
+    
+    console.log('✅ Token updated in database, expires at:', expiresAt.toISOString());
+    
+    return {
+      access_token: tokenData.access_token,
+      expires_at: expiresAt,
+    };
+  } catch (error) {
+    console.error('❌ Error refreshing token:', error);
+    return null;
+  }
 }
 
 serve(async (req) => {
@@ -117,53 +138,82 @@ serve(async (req) => {
     }
 
     console.log('✅ Found Garmin connection');
+    console.log('🔑 Access token (first 20 chars):', connection.access_token?.substring(0, 20) + '...');
 
-    // Get Garmin credentials
-    const GARMIN_CLIENT_ID = Deno.env.get('GARMIN_CLIENT_ID');
-    const GARMIN_CLIENT_SECRET = Deno.env.get('GARMIN_CLIENT_SECRET');
-
-    if (!GARMIN_CLIENT_ID || !GARMIN_CLIENT_SECRET) {
-      throw new Error('Garmin credentials not configured');
+    // Check if token is expired and refresh if needed
+    let accessToken = connection.access_token;
+    
+    if (connection.token_expires_at) {
+      const expiresAt = new Date(connection.token_expires_at);
+      const now = new Date();
+      
+      // Refresh if expired or expiring in the next 5 minutes
+      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+      
+      if (expiresAt < fiveMinutesFromNow) {
+        console.log('⚠️ Access token expired or expiring soon, attempting refresh...');
+        
+        const refreshResult = await refreshGarminToken(supabaseAdmin, connection);
+        
+        if (refreshResult) {
+          accessToken = refreshResult.access_token;
+          console.log('✅ Using refreshed token');
+        } else {
+          console.error('❌ Token refresh failed');
+          throw new Error('Garmin token expired and refresh failed. Please reconnect your Garmin account.');
+        }
+      } else {
+        console.log('⏰ Token valid until:', expiresAt.toISOString());
+      }
     }
 
-    // Calculate time range (last 30 days)
-    const endTime = Math.floor(Date.now() / 1000);
-    const startTime = endTime - (30 * 24 * 60 * 60); // 30 days ago
+    // Garmin API limits queries to 24 hours (86400 seconds) max
+    // Fetch last 7 days in 24-hour chunks
+    const SECONDS_PER_DAY = 86400;
+    const DAYS_TO_FETCH = 7;
+    const allActivities: any[] = [];
+    
+    const now = Math.floor(Date.now() / 1000);
+    
+    console.log(`📅 Fetching activities from the last ${DAYS_TO_FETCH} days (in 24h chunks)...`);
 
-    console.log(`📅 Fetching activities from ${new Date(startTime * 1000).toISOString()} to ${new Date(endTime * 1000).toISOString()}`);
+    for (let day = 0; day < DAYS_TO_FETCH; day++) {
+      const endTime = now - (day * SECONDS_PER_DAY);
+      const startTime = endTime - SECONDS_PER_DAY;
+      
+      console.log(`📆 Day ${day + 1}: ${new Date(startTime * 1000).toISOString().split('T')[0]}`);
+      
+      // Use backfill endpoint with summaryStartTimeInSeconds/summaryEndTimeInSeconds
+      const queryParams = `summaryStartTimeInSeconds=${startTime}&summaryEndTimeInSeconds=${endTime}`;
+      const fullUrl = `${BACKFILL_URL}?${queryParams}`;
 
-    // Build request URL with query parameters
-    const queryParams = `uploadStartTimeInSeconds=${startTime}&uploadEndTimeInSeconds=${endTime}`;
-    const fullUrl = `${ACTIVITIES_URL}?${queryParams}`;
+      console.log(`  🔗 URL: ${fullUrl}`);
 
-    // Generate OAuth 1.0a header
-    const oauthHeader = generateOAuthHeader(
-      'GET',
-      ACTIVITIES_URL,
-      GARMIN_CLIENT_ID,
-      GARMIN_CLIENT_SECRET,
-      connection.access_token,
-      connection.token_secret
-    );
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
 
-    console.log('🔐 Calling Garmin API...');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Day ${day + 1} error:`, response.status, errorText);
+        // Continue with other days instead of failing completely
+        continue;
+      }
 
-    // Call Garmin API
-    const response = await fetch(fullUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': oauthHeader,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Garmin API error:', response.status, errorText);
-      throw new Error(`Garmin API error: ${response.status} - ${errorText}`);
+      const dayActivities = await response.json();
+      if (dayActivities && dayActivities.length > 0) {
+        console.log(`  ✅ Found ${dayActivities.length} activities`);
+        allActivities.push(...dayActivities);
+      } else {
+        console.log(`  ℹ️ No activities`);
+      }
     }
 
-    const activities = await response.json();
-    console.log(`📊 Received ${activities.length} activities from Garmin`);
+    const activities = allActivities;
+    console.log(`📊 Total activities found: ${activities.length}`);
 
     if (!activities || activities.length === 0) {
       return new Response(
@@ -402,4 +452,6 @@ async function checkAndCompleteWorkout(
     console.error('❌ Error checking workout completion:', error);
   }
 }
+
+
 

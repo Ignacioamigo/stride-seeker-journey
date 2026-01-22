@@ -6,6 +6,103 @@ import { UserProfile, WorkoutPlan, Workout, TrainingPlanRequest, PreviousWeekRes
 let connectionError: string | null = null;
 
 /**
+ * Parsea la descripción del entrenamiento para extraer duración, distancia y ritmo
+ * Esto asegura que los valores de resumen correspondan con la descripción
+ */
+const parseWorkoutFromDescription = (description: string, fallbackDistance?: number, fallbackDuration?: string, fallbackPace?: string | null): {
+  distance: number | undefined;
+  duration: string | undefined;
+  targetPace: string | null;
+} => {
+  if (!description) {
+    return {
+      distance: fallbackDistance,
+      duration: fallbackDuration,
+      targetPace: fallbackPace || null
+    };
+  }
+
+  const desc = description.toLowerCase();
+  let parsedDistance: number | undefined = fallbackDistance;
+  let parsedDuration: string | undefined = fallbackDuration;
+  let parsedPace: string | null = fallbackPace || null;
+
+  // Extraer duración (buscar "X minutos" o "X min")
+  // Priorizar la duración principal mencionada primero
+  const durationMatches = desc.matchAll(/(\d+)\s*(?:minutos?|min)/g);
+  const allDurations: number[] = [];
+  for (const match of durationMatches) {
+    allDurations.push(parseInt(match[1]));
+  }
+  
+  if (allDurations.length > 0) {
+    // Si hay múltiples duraciones, usar la primera (que suele ser la principal)
+    // O sumar si son partes del entrenamiento (ej: "30 min + 4 aceleraciones de 2 min")
+    let totalMinutes = allDurations[0];
+    
+    // Si hay aceleraciones o intervalos mencionados después, intentar sumarlos
+    const accelerationsMatch = desc.match(/(\d+)\s*(?:aceleraciones?|series|repeticiones?)/i);
+    if (accelerationsMatch && allDurations.length > 1) {
+      // Sumar todas las duraciones si hay múltiples partes
+      totalMinutes = allDurations.reduce((sum, d) => sum + d, 0);
+    }
+    
+    parsedDuration = `${totalMinutes} minutos`;
+  }
+
+  // Extraer distancia (buscar "X km" o "X kilómetros")
+  const distanceMatch = desc.match(/(\d+(?:\.\d+)?)\s*(?:km|kilómetros?)/);
+  if (distanceMatch) {
+    parsedDistance = parseFloat(distanceMatch[1]);
+  }
+
+  // Extraer ritmo (buscar "X:XX min/km" o "X:XX/km" o "ritmo de X:XX")
+  const pacePatterns = [
+    /ritmo\s+(?:de\s+)?(\d+):(\d+)\s*min\/km/i,
+    /(\d+):(\d+)\s*min\/km/i,
+    /(\d+):(\d+)\/km/i,
+    /a\s+(?:un\s+)?ritmo\s+(?:de\s+)?(\d+):(\d+)/i,
+    /ritmo\s+(?:moderado\s+)?(?:de\s+)?(\d+):(\d+)/i
+  ];
+
+  for (const pattern of pacePatterns) {
+    const paceMatch = desc.match(pattern);
+    if (paceMatch) {
+      const minutes = paceMatch[1];
+      const seconds = paceMatch[2];
+      parsedPace = `${minutes}:${seconds.padStart(2, '0')}`;
+      break;
+    }
+  }
+
+  // Si tenemos duración y ritmo pero no distancia, calcular distancia aproximada
+  if (parsedDuration && parsedPace && !parsedDistance) {
+    const minutes = parseInt(parsedDuration.match(/\d+/)?.[0] || '0');
+    const [paceMin, paceSec] = parsedPace.split(':').map(Number);
+    const paceInMinutes = paceMin + paceSec / 60;
+    if (paceInMinutes > 0 && minutes > 0) {
+      parsedDistance = Math.round((minutes / paceInMinutes) * 10) / 10;
+    }
+  }
+
+  // Si tenemos distancia y ritmo pero no duración, calcular duración aproximada
+  if (parsedDistance && parsedPace && !parsedDuration) {
+    const [paceMin, paceSec] = parsedPace.split(':').map(Number);
+    const paceInMinutes = paceMin + paceSec / 60;
+    if (paceInMinutes > 0 && parsedDistance > 0) {
+      const totalMinutes = Math.round(parsedDistance * paceInMinutes);
+      parsedDuration = `${totalMinutes} minutos`;
+    }
+  }
+
+  return {
+    distance: parsedDistance,
+    duration: parsedDuration,
+    targetPace: parsedPace
+  };
+};
+
+/**
  * Function to get the current connection error
  */
 export const getConnectionError = (): string | null => {
@@ -475,20 +572,30 @@ export const loadLatestPlan = async (): Promise<WorkoutPlan | null> => {
               
               if (sessions && sessions.length > 0) {
                 // Convert to our WorkoutPlan format
-                const workouts = sessions.map(session => ({
-                  id: session.id,
-                  day: session.day_date ? new Date(session.day_date).toLocaleDateString('es-ES', { weekday: 'long' }) : '',
-                  date: session.day_date,
-                  title: session.title,
-                  description: session.description,
-                  distance: session.planned_distance,
-                  duration: session.planned_duration,
-                  type: session.type as 'carrera' | 'descanso' | 'fuerza' | 'flexibilidad' | 'otro',
-                  completed: session.completed || false,
-                  actualDistance: session.actual_distance,
-                  actualDuration: session.actual_duration,
-                  targetPace: session.target_pace
-                }));
+                const workouts = sessions.map(session => {
+                  // Parsear la descripción para asegurar valores correctos
+                  const parsed = parseWorkoutFromDescription(
+                    session.description,
+                    session.planned_distance,
+                    session.planned_duration,
+                    session.target_pace
+                  );
+
+                  return {
+                    id: session.id,
+                    day: session.day_date ? new Date(session.day_date).toLocaleDateString('es-ES', { weekday: 'long' }) : '',
+                    date: session.day_date,
+                    title: session.title,
+                    description: session.description,
+                    distance: parsed.distance ?? session.planned_distance,
+                    duration: parsed.duration ?? session.planned_duration,
+                    type: session.type as 'carrera' | 'descanso' | 'fuerza' | 'flexibilidad' | 'otro',
+                    completed: session.completed || false,
+                    actualDistance: session.actual_distance,
+                    actualDuration: session.actual_duration,
+                    targetPace: parsed.targetPace ?? session.target_pace
+                  };
+                });
                 
                 const plan: WorkoutPlan = {
                   id: planData.id,
@@ -987,20 +1094,30 @@ export const generateTrainingPlan = async (request: TrainingPlanRequest): Promis
       duration: edgePlanData.duration,
       intensity: edgePlanData.intensity,
       ragActive: ragActive, // Store RAG status
-      workouts: edgePlanData.workouts.map((workout: any) => ({
-        id: uuidv4(),
-        day: workout.day,
-        date: workout.date, // Include the date from the API
-        title: workout.title,
-        description: workout.description,
-        distance: workout.distance,
-        duration: workout.duration,
-        type: workout.type,
-        completed: false,
-        actualDistance: null,
-        actualDuration: null,
-        targetPace: request.userProfile.pace || null
-      })),
+      workouts: edgePlanData.workouts.map((workout: any) => {
+        // Parsear la descripción para extraer valores correctos
+        const parsed = parseWorkoutFromDescription(
+          workout.description,
+          workout.distance,
+          workout.duration,
+          request.userProfile.pace || null
+        );
+
+        return {
+          id: uuidv4(),
+          day: workout.day,
+          date: workout.date, // Include the date from the API
+          title: workout.title,
+          description: workout.description,
+          distance: parsed.distance ?? workout.distance,
+          duration: parsed.duration ?? workout.duration,
+          type: workout.type,
+          completed: false,
+          actualDistance: null,
+          actualDuration: null,
+          targetPace: parsed.targetPace ?? (request.userProfile.pace || null)
+        };
+      }),
       createdAt: new Date(),
       weekNumber: 1
     };

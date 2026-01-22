@@ -38,6 +38,12 @@ const StatsCard: React.FC<StatsCardProps> = ({ title, value, subtext, change, po
 
 const RunStats: React.FC = () => {
   const { stats, isLoading } = useStats();
+  
+  console.log('📊 [RunStats] Renderizando con:', {
+    weeklyDistance: stats.weeklyDistance,
+    totalRuns: stats.totalRuns,
+    isLoading
+  });
 
   return (
     <div className="mb-8">

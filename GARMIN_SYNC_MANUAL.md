@@ -230,3 +230,6 @@ Necesitas investigar en Garmin Developer Portal:
 
 **¡Ya está listo para usar!** Despliega la función y pruébala. 🎉
 
+
+
+

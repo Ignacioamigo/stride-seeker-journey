@@ -22,3 +22,6 @@ COMMENT ON TABLE garmin_oauth_temp IS 'Temporary storage for Garmin OAuth 1.0a r
 
 
 
+
+
+

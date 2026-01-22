@@ -62,3 +62,6 @@ Si necesitas que funcione AHORA mientras esperas respuesta de Garmin, puedo rest
 
 
 
+
+
+
