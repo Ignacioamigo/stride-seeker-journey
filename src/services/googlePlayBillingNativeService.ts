@@ -42,8 +42,8 @@ class GooglePlayBillingNativeService {
    * Incluyen los Base Plan IDs de Google Play
    */
   private readonly PRODUCT_IDS = {
-    monthly: 'berun_premium_monthly',
-    yearly: 'berun_premium_yearly'
+    monthly: 'berun_premium_monthly:suscripcion-mensual',
+    yearly: 'berun_premium_yearly:anual-medio'
   };
 
   constructor() {

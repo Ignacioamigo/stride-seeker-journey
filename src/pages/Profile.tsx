@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { User, Activity, Settings, ChevronRight, Zap, Users, FileText, Shield, Clock, Edit, Trash2, AlertTriangle } from "lucide-react";
+import { User, Activity, Settings, ChevronRight, Zap, Users, FileText, Shield, Clock, Edit, Trash2, AlertTriangle, Crown } from "lucide-react";
 import BottomNav from "@/components/layout/BottomNav";
 import { useUser } from "@/context/UserContext";
 import { useNavigate } from "react-router-dom";
@@ -329,6 +329,34 @@ const Profile: React.FC = () => {
                     </div>
                   </div>
                   <ChevronRight className="w-5 h-5 text-runapp-gray" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Premium Subscription Section */}
+          <div className="mb-8">
+            <div className="flex items-center mb-4">
+              <Crown className="w-5 h-5 text-yellow-500 mr-2" />
+              <h3 className="font-semibold text-runapp-navy">Suscripción</h3>
+            </div>
+            
+            <Card 
+              className="hover:shadow-md transition-shadow cursor-pointer bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200" 
+              onClick={() => navigate('/paywall')}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-lg flex items-center justify-center shadow-sm">
+                      <Crown className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-runapp-navy">Ver planes Premium</h3>
+                      <p className="text-sm text-runapp-gray">Desbloquea todas las funciones</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-yellow-500" />
                 </div>
               </CardContent>
             </Card>

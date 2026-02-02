@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Crown, Calendar, Bell, Lock, Tag, RotateCcw } from 'lucide-react';
+import { X, Crown, Calendar, Bell, Lock, RotateCcw } from 'lucide-react';
 import { googlePlayBillingNativeService } from '../services/googlePlayBillingNativeService';
 import { storeKitService } from '../services/storeKitService';
 import { Capacitor } from '@capacitor/core';
@@ -10,8 +10,6 @@ const PaywallPage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<'monthly' | 'yearly'>('yearly');
   const [progress, setProgress] = useState(91);
   const [isLoading, setIsLoading] = useState(false);
-  const [showDiscountCode, setShowDiscountCode] = useState(false);
-  const [discountCode, setDiscountCode] = useState('');
 
   useEffect(() => {
     // Animate progress to 100%
@@ -59,9 +57,10 @@ const PaywallPage: React.FC = () => {
     
     try {
       const platform = Capacitor.getPlatform();
+      // IDs diferentes para iOS y Android (RevenueCat)
       const productId = selectedProduct === 'yearly' 
-        ? 'berun_premium_yearly' 
-        : 'berun_premium_monthly';
+        ? (platform === 'android' ? 'berun_premium_yearly:anual-medio' : 'berun_premium_yearly')
+        : (platform === 'android' ? 'berun_premium_monthly:suscripcion-mensual' : 'berun_premium_monthly');
       
       if (platform === 'ios' && Capacitor.isNativePlatform()) {
         // IMPLEMENTACIÓN REAL con StoreKit 2
@@ -146,18 +145,6 @@ const PaywallPage: React.FC = () => {
     }
     
     setIsLoading(false);
-  };
-
-  const handleDiscountCode = () => {
-    if (discountCode.trim() === 'BeRun2025.gratiss') {
-      // Código válido - bypass del pago
-      localStorage.setItem('isPremium', 'true');
-      localStorage.setItem('subscriptionType', 'discount');
-      localStorage.setItem('trialStartDate', new Date().toISOString());
-      navigate('/plan');
-    } else {
-      alert('Código de descuento inválido');
-    }
   };
 
   const handleRestorePurchases = async () => {
@@ -302,43 +289,6 @@ const PaywallPage: React.FC = () => {
             </svg>
           </div>
           <span className="font-semibold text-lg">Sin pago requerido ahora</span>
-        </div>
-
-        {/* Discount Code Section */}
-        <div className="text-center">
-          {!showDiscountCode ? (
-            <button
-              onClick={() => setShowDiscountCode(true)}
-              className="inline-flex items-center text-gray-600 hover:text-gray-800 text-sm font-medium transition-colors"
-            >
-              <Tag className="w-4 h-4 mr-2" />
-              ¿Tienes un código de descuento?
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={discountCode}
-                  onChange={(e) => setDiscountCode(e.target.value)}
-                  placeholder="Introduce tu código"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <button
-                  onClick={handleDiscountCode}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Aplicar
-                </button>
-              </div>
-              <button
-                onClick={() => setShowDiscountCode(false)}
-                className="text-gray-500 text-sm hover:text-gray-700 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          )}
         </div>
 
         {/* CTA Button */}

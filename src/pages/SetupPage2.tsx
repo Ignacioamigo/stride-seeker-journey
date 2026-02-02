@@ -26,9 +26,10 @@ const SetupPage2: React.FC = () => {
     
     try {
       const platform = Capacitor.getPlatform();
+      // IDs diferentes para iOS y Android (RevenueCat)
       const productId = selectedProduct === 'yearly' 
-        ? 'berun_premium_yearly' 
-        : 'berun_premium_monthly';
+        ? (platform === 'android' ? 'berun_premium_yearly:anual-medio' : 'berun_premium_yearly')
+        : (platform === 'android' ? 'berun_premium_monthly:suscripcion-mensual' : 'berun_premium_monthly');
       
       if (platform === 'ios' && Capacitor.isNativePlatform()) {
         console.log('🍎 Iniciando compra iOS con StoreKit...');
@@ -197,25 +198,12 @@ const SetupPage2: React.FC = () => {
 const PaywallIntegrated: React.FC<{ onPurchase: (product: 'monthly' | 'yearly') => void; isLoading: boolean }> = ({ onPurchase, isLoading }) => {
   const [selectedProduct, setSelectedProduct] = useState<'monthly' | 'yearly'>('yearly');
   const [progress, setProgress] = useState(91);
-  const [showDiscountCode, setShowDiscountCode] = useState(false);
-  const [discountCode, setDiscountCode] = useState('');
   const navigate = useNavigate();
 
   React.useEffect(() => {
     const timer = setTimeout(() => setProgress(100), 1000);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleDiscountCode = () => {
-    if (discountCode.trim() === 'BeRun2025.gratiss') {
-      localStorage.setItem('isPremium', 'true');
-      localStorage.setItem('subscriptionType', 'discount');
-      localStorage.setItem('trialStartDate', new Date().toISOString());
-      navigate('/plan');
-    } else {
-      alert('Código de descuento inválido');
-    }
-  };
 
   const handleRestorePurchases = async () => {
     try {
@@ -335,45 +323,6 @@ const PaywallIntegrated: React.FC<{ onPurchase: (product: 'monthly' | 'yearly') 
             </svg>
           </div>
           <span className="font-semibold text-lg">Sin pago requerido ahora</span>
-        </div>
-
-        {/* Discount Code Section */}
-        <div className="text-center">
-          {!showDiscountCode ? (
-            <button
-              onClick={() => setShowDiscountCode(true)}
-              className="inline-flex items-center text-gray-600 hover:text-gray-800 text-sm font-medium transition-colors"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              ¿Tienes un código de descuento?
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={discountCode}
-                  onChange={(e) => setDiscountCode(e.target.value)}
-                  placeholder="Introduce tu código"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <button
-                  onClick={handleDiscountCode}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Aplicar
-                </button>
-              </div>
-              <button
-                onClick={() => setShowDiscountCode(false)}
-                className="text-gray-500 text-sm hover:text-gray-700 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          )}
         </div>
 
         {/* CTA Button */}

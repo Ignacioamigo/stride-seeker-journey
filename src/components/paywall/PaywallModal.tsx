@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Crown, Calendar, AlertCircle, Lock, Bell, Tag, RotateCcw } from 'lucide-react';
+import { X, Crown, Calendar, AlertCircle, Lock, Bell, RotateCcw } from 'lucide-react';
 import { storeKitService } from '@/services/storeKitService';
 import { googlePlayBillingNativeService } from '@/services/googlePlayBillingNativeService';
 import { Capacitor } from '@capacitor/core';
@@ -18,8 +18,6 @@ const PaywallModal: React.FC<PaywallModalProps> = ({
   const [selectedProduct, setSelectedProduct] = useState<'monthly' | 'yearly'>('yearly');
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(91);
-  const [showDiscountCode, setShowDiscountCode] = useState(false);
-  const [discountCode, setDiscountCode] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -71,7 +69,10 @@ const PaywallModal: React.FC<PaywallModalProps> = ({
     
     try {
       const platform = Capacitor.getPlatform();
-      const productId = selectedProduct === 'yearly' ? 'berun_premium_yearly' : 'berun_premium_monthly';
+      // IDs diferentes para iOS y Android (RevenueCat)
+      const productId = selectedProduct === 'yearly' 
+        ? (platform === 'android' ? 'berun_premium_yearly:anual-medio' : 'berun_premium_yearly')
+        : (platform === 'android' ? 'berun_premium_monthly:suscripcion-mensual' : 'berun_premium_monthly');
       
       if (platform === 'ios' && storeKitService.isAvailable()) {
         console.log('🍎 Iniciando compra iOS con StoreKit...');
@@ -148,19 +149,6 @@ const PaywallModal: React.FC<PaywallModalProps> = ({
       alert('Hubo un error al procesar la compra. Por favor, inténtalo de nuevo.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleDiscountCode = () => {
-    if (discountCode.trim() === 'BeRun2025.gratiss') {
-      // Código válido - bypass del pago
-      localStorage.setItem('isPremium', 'true');
-      localStorage.setItem('subscriptionType', 'discount');
-      localStorage.setItem('trialStartDate', new Date().toISOString());
-      onPurchase('discount_code');
-      onClose();
-    } else {
-      alert('Código de descuento inválido');
     }
   };
 
@@ -320,43 +308,6 @@ const PaywallModal: React.FC<PaywallModalProps> = ({
               </svg>
             </div>
             <span className="font-semibold">Sin pago requerido ahora</span>
-          </div>
-
-          {/* Discount Code Section */}
-          <div className="text-center">
-            {!showDiscountCode ? (
-              <button
-                onClick={() => setShowDiscountCode(true)}
-                className="inline-flex items-center text-gray-600 hover:text-gray-800 text-sm font-medium transition-colors"
-              >
-                <Tag className="w-4 h-4 mr-2" />
-                ¿Tienes un código de descuento?
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={discountCode}
-                    onChange={(e) => setDiscountCode(e.target.value)}
-                    placeholder="Introduce tu código"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <button
-                    onClick={handleDiscountCode}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                  >
-                    Aplicar
-                  </button>
-                </div>
-                <button
-                  onClick={() => setShowDiscountCode(false)}
-                  className="text-gray-500 text-sm hover:text-gray-700 transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
-            )}
           </div>
 
           {/* CTA Button */}
